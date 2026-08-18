@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LifeOS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>LifeOS</h1>
+  <nav>
+    <button class="tab active" data-tab="today">Today</button>
+    <button class="tab" data-tab="body">Body Ops</button>
+    <button class="tab" data-tab="vault">Vault Flow</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ TODAY ============ -->
+  <section id="today" class="panel active">
+    <div class="card" id="progress-card">
+      <h2>Progress</h2>
+      <div class="bar-row"><span>Protein</span>
+        <div class="bar"><div id="protein-bar" class="fill"></div></div>
+        <span id="protein-label">–</span></div>
+      <div class="bar-row"><span>Steps</span>
+        <div class="bar"><div id="steps-bar" class="fill steps"></div></div>
+        <span id="steps-label">–</span></div>
+      <div id="streaks" class="muted"></div>
+      <button id="vitamins-btn" class="pill">Vitamins taken today</button>
+    </div>
+
+    <div class="card">
+      <h2>Meal suggestions <span class="muted">(5–15 min, from pantry)</span></h2>
+      <div id="suggestions"></div>
+    </div>
+
+    <div class="card">
+      <h2>Nudges</h2>
+      <div id="nudges" class="muted">None right now.</div>
+    </div>
+
+    <div class="card">
+      <h2>Vault snapshot</h2>
+      <div id="vault-snapshot">–</div>
+    </div>
+  </section>
+
+  <!-- ============ BODY OPS ============ -->
+  <section id="body" class="panel">
+    <div class="card">
+      <h2>Weigh-in</h2>
+      <div class="row">
+        <input id="weight-input" type="number" step="0.1" placeholder="lb">
+        <button id="weight-btn">Log</button>
+      </div>
+      <div id="weight-msg" class="muted"></div>
+      <div id="weight-history" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Steps (manual)</h2>
+      <div class="row">
+        <input id="steps-input" type="number" placeholder="today's steps">
+        <button id="steps-btn">Save</button>
+      </div>
+      <p class="muted">Auto-sync: point the Health Auto Export app at
+        <code>/api/webhooks/health</code>.</p>
+    </div>
+    <div class="card">
+      <h2>Quick log a meal</h2>
+      <div class="row">
+        <input id="meal-name" placeholder="what you ate">
+        <input id="meal-protein" type="number" placeholder="g protein">
+        <button id="meal-btn">Log</button>
+      </div>
+    </div>
+    <div class="card" id="snack-card" hidden>
+      <h2>Protein shortfall — quick fixes</h2>
+      <div id="snacks"></div>
+    </div>
+  </section>
+
+  <!-- ============ VAULT FLOW ============ -->
+  <section id="vault" class="panel">
+    <div class="card">
+      <h2>Accounts</h2>
+      <div id="accounts"></div>
+    </div>
+    <div class="card">
+      <h2>Add deposit</h2>
+      <div class="row">
+        <select id="dep-account"></select>
+        <input id="dep-amount" type="number" step="0.01" placeholder="$">
+        <button id="dep-btn">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Bills</h2>
+      <div id="bills"></div>
+      <div class="row">
+        <input id="bill-name" placeholder="bill">
+        <input id="bill-amount" type="number" step="0.01" placeholder="$">
+        <input id="bill-day" type="number" min="1" max="31" placeholder="due day">
+        <button id="bill-btn">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>This week's plan</h2>
+      <div id="plan"></div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

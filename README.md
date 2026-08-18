@@ -28,7 +28,8 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
 | `ha-config/dashboards/jarvis.yaml` | "Jarvis" command-center dashboard (Home / Vacuum / Media / Kitchen / System tabs) |
-| `docs/PLAN.md` | The full 17-phase build plan |
+| `lifeos/` | LifeOS app: Vault Flow (finance) + Body Ops (health/fuel) — its own container on port 8090 |
+| `docs/PLAN.md` | The full build plan |
 
 The automation/script files contain placeholder entity IDs (`light.living_room`,
 `vacuum.juno`, `media_player.fire_tv`, `notify.mobile_app_phone`) — rename them to match
@@ -45,6 +46,7 @@ your real devices after connecting them (Settings → Devices & Services → Ent
 - [ ] **Phase 15 — Fridge/pantry**: `docker compose --profile grocy up -d`, open `http://<laptop-ip>:9283`, add the Grocy integration via HACS; barcode-scan with the Grocy Android app
 - [ ] **Phase 16 — Fire TV**: enable ADB Debugging on the Fire TV, HA → Add Integration → **Android TV** with its IP; install "Notifications for Fire TV" for on-screen alerts
 - [ ] **Phase 17 — Computers**: enable Wake-on-LAN in BIOS, add MACs to the `wake_on_lan` integration; install **HASS.Agent** on Windows machines
+- [ ] **Phase 18 — LifeOS**: comes up with the core stack at `http://<laptop-ip>:8090` — Today tab (meal cards with Sometimes/Today overrides, protein/steps bars, vitamin streaks), Body Ops (weigh-ins, quick meal log), Vault Flow (accounts, deposits vs bills, payment recommendations, leftover, food-money nudges). Auto-sync Apple Watch/scale by pointing the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health`
 
 Everything else (dashboards, cameras, Zigbee sensors, custom wake word, the whole Jarvis roadmap) is in [docs/PLAN.md](docs/PLAN.md).
 

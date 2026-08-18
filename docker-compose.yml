@@ -19,6 +19,18 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
 
+  # ---------- LifeOS: Vault Flow + Body Ops ----------
+  lifeos:
+    container_name: lifeos
+    build: ./lifeos
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-America/New_York}
+    ports:
+      - "8090:8090"
+    volumes:
+      - lifeos-data:/data
+
   # ---------- Voice pipeline (profile: voice) ----------
   whisper:
     container_name: whisper
@@ -81,6 +93,7 @@ services:
       - ollama-data:/root/.ollama
 
 volumes:
+  lifeos-data:
   whisper-data:
   piper-data:
   openwakeword-data:

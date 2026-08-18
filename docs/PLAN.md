@@ -345,6 +345,42 @@ Every PC/laptop becomes a device Jarvis can see, wake, control, and use as a pre
 
 ---
 
+## Phase 18 — LifeOS: Vault Flow + Body Ops
+
+A custom app in the same stack (its own container, port 8090, mobile-friendly web UI)
+— things no HA dashboard can do.
+
+### Body Ops — fitness & fuel
+- **Meal suggestions** in 5- and 15-minute tiers, matched to pantry staples; defaults
+  prefer sweet potatoes and avoid rice/bread/mashed potatoes.
+- **One-tap overrides**: "Sometimes / Today" on any suggestion card — the treat is
+  recorded without changing your defaults, and a pragmatic (never shaming) nudge follows:
+  smaller portion, swap a later meal, or a 15-min workout.
+- **Protein tracking**: hard daily target (default 100 g), progress bar, high-protein
+  snack suggestions when a shortfall is detected.
+- **Weigh-ins, steps, vitamins**: trends, streaks, encouraging-on-loss / pragmatic-on-gain
+  messages.
+- **Apple Watch / smart scale**: the iPhone "Health Auto Export" app posts steps and
+  weigh-ins to `POST /api/webhooks/health` automatically.
+
+### Vault Flow — the finance spine
+- Tracks **True Lion, OnePay, FreePlay, Relay**: balances, deposits, bills with due days.
+- **Plan view**: lines deposits against unpaid bills, recommends what to pay now vs hold,
+  shows the leftover after bills.
+- **Food ↔ money linkage**: confirmed food overrides surface as nudges in the weekly
+  money plan, so treats and budget adjust together.
+- **Vaultborne separation**: Vaultborne-flagged accounts stay separate from discretionary
+  flows — never mixed into treat/override money.
+- Manual quick-entry to start (30 seconds a day); aggregator/API automation is a later
+  investigation.
+
+### Later additions
+- Grocy inventory sync for pantry-derived macros; HA voice announcements of nudges and
+  streaks; photo portion estimation; grocery suggestions from pantry deficits;
+  multi-profile household support.
+
+---
+
 ## Suggested build order
 
 Weekend 1: Phases 0–2 (hub running, lights + vacuum connected).
