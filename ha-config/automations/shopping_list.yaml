@@ -1,0 +1,15 @@
+# Shopping list: Sunday morning reminder with the current list.
+# EDIT: notify service name.
+- id: jarvis_sunday_shopping_reminder
+  alias: "Sunday shopping list reminder"
+  trigger:
+    - platform: time
+      at: "09:00:00"
+  condition:
+    - condition: time
+      weekday: [sun]
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Shopping list"
+        message: "Open Home Assistant to see this week's list before you shop."

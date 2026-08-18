@@ -1,0 +1,29 @@
+# Vacuum quality-of-life: stuck alerts with an actionable notification.
+# EDIT: vacuum entity ID and notify service (notify.mobile_app_<your_phone>).
+- id: jarvis_vacuum_stuck
+  alias: "Vacuum stuck alert"
+  trigger:
+    - platform: state
+      entity_id: vacuum.juno
+      to: "error"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Vacuum stuck"
+        message: "The Juno needs help. Send it home?"
+        data:
+          actions:
+            - action: "VACUUM_HOME"
+              title: "Send home"
+
+- id: jarvis_vacuum_send_home_action
+  alias: "Vacuum - handle send home button"
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: "VACUUM_HOME"
+  action:
+    - service: vacuum.return_to_base
+      target:
+        entity_id: vacuum.juno

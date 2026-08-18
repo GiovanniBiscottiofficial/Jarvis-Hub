@@ -1,0 +1,21 @@
+# Jarvis Hub — Home Assistant configuration
+# Loads defaults plus our curated automations/scripts.
+
+default_config:
+
+automation: !include_dir_merge_list automations/
+script: !include_dir_merge_named scripts/
+
+# Local shopping list ("Jarvis, add milk to the shopping list")
+shopping_list:
+
+# Wake computers over the network (fill in MACs, see README Phase 17)
+wake_on_lan:
+
+# Text-to-speech fallback (Piper via Wyoming is added through the UI)
+tts:
+  - platform: google_translate
+
+# Example: SSH power commands for Mac/Linux computers (uncomment + edit)
+# shell_command:
+#   sleep_macbook: ssh -o StrictHostKeyChecking=no user@192.168.1.50 pmset sleepnow

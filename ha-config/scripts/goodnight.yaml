@@ -1,0 +1,11 @@
+# "Jarvis, goodnight" — lights off, TV off, quiet hours.
+# EDIT: entity IDs to match your devices.
+goodnight:
+  alias: "Goodnight"
+  sequence:
+    - service: light.turn_off
+      target:
+        entity_id: all
+    - service: media_player.turn_off
+      target:
+        entity_id: media_player.fire_tv

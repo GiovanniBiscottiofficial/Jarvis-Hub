@@ -1,0 +1,88 @@
+# Jarvis Hub — core stack
+# Usage: docker compose up -d
+# Optional profiles:
+#   docker compose --profile voice up -d     (Whisper/Piper/openWakeWord)
+#   docker compose --profile grocy up -d     (fridge/pantry inventory)
+#   docker compose --profile llm up -d       (local Ollama LLM)
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    environment:
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - ./ha-config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+
+  # ---------- Voice pipeline (profile: voice) ----------
+  whisper:
+    container_name: whisper
+    image: rhasspy/wyoming-whisper
+    profiles: [voice]
+    restart: unless-stopped
+    command: --model small-int8 --language en
+    ports:
+      - "10300:10300"
+    volumes:
+      - whisper-data:/data
+
+  piper:
+    container_name: piper
+    image: rhasspy/wyoming-piper
+    profiles: [voice]
+    restart: unless-stopped
+    command: --voice en_US-lessac-medium
+    ports:
+      - "10200:10200"
+    volumes:
+      - piper-data:/data
+
+  openwakeword:
+    container_name: openwakeword
+    image: rhasspy/wyoming-openwakeword
+    profiles: [voice]
+    restart: unless-stopped
+    command: --preload-model 'hey_jarvis'
+    ports:
+      - "10400:10400"
+    volumes:
+      - openwakeword-data:/data
+
+  # ---------- Fridge / pantry inventory (profile: grocy) ----------
+  grocy:
+    container_name: grocy
+    image: lscr.io/linuxserver/grocy:latest
+    profiles: [grocy]
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/New_York}
+    ports:
+      - "9283:80"
+    volumes:
+      - grocy-data:/config
+
+  # ---------- Local LLM (profile: llm) ----------
+  # After first start: docker exec -it ollama ollama pull llama3.2:3b
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:latest
+    profiles: [llm]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  whisper-data:
+  piper-data:
+  openwakeword-data:
+  grocy-data:
+  ollama-data:

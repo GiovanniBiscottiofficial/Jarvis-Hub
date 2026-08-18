@@ -1,0 +1,31 @@
+# Movie mode: Fire TV starts playing -> dim the lights; pause -> raise a bit.
+# EDIT: replace media_player.fire_tv and light.living_room with your entity IDs.
+- id: jarvis_movie_mode_dim
+  alias: "Movie mode - dim lights when Fire TV plays"
+  trigger:
+    - platform: state
+      entity_id: media_player.fire_tv
+      to: "playing"
+  condition:
+    - condition: sun
+      after: sunset
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        brightness_pct: 15
+        kelvin: 2700
+
+- id: jarvis_movie_mode_pause
+  alias: "Movie mode - raise lights on pause"
+  trigger:
+    - platform: state
+      entity_id: media_player.fire_tv
+      to: "paused"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        brightness_pct: 45
