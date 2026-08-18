@@ -15,3 +15,4 @@ ha-config/scripts/*
 
 # HA secrets
 ha-config/secrets.yaml
+__pycache__/
