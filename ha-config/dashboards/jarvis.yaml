@@ -1,0 +1,140 @@
+# Jarvis Command Center dashboard
+# Loaded via configuration.yaml (lovelace -> dashboards).
+# EDIT: rename placeholder entity IDs to match your devices
+# (Settings -> Devices & Services -> Entities shows the real IDs).
+title: Jarvis
+views:
+  # ------------------------------------------------------------------
+  - title: Home
+    path: home
+    icon: mdi:home-assistant
+    cards:
+      - type: markdown
+        content: >
+          ## Jarvis Command Center
+          {{ now().strftime('%A, %B %d — %H:%M') }}
+
+      - type: entities
+        title: Who's home
+        entities:
+          - entity: person.keona
+        footer:
+          type: graph
+          entity: zone.home
+          hours_to_show: 24
+
+      - type: light
+        entity: light.living_room
+        name: Living Room
+
+      - type: light
+        entity: light.bedroom
+        name: Bedroom
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Movie Night
+            icon: mdi:movie-open
+            tap_action:
+              action: call-service
+              service: script.movie_night
+          - type: button
+            name: Goodnight
+            icon: mdi:weather-night
+            tap_action:
+              action: call-service
+              service: script.goodnight
+
+  # ------------------------------------------------------------------
+  - title: Vacuum
+    path: vacuum
+    icon: mdi:robot-vacuum
+    cards:
+      - type: entities
+        title: Juno
+        entities:
+          - entity: vacuum.juno
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Clean
+            icon: mdi:play
+            tap_action:
+              action: call-service
+              service: vacuum.start
+              target:
+                entity_id: vacuum.juno
+          - type: button
+            name: Dock
+            icon: mdi:home-import-outline
+            tap_action:
+              action: call-service
+              service: vacuum.return_to_base
+              target:
+                entity_id: vacuum.juno
+          - type: button
+            name: Locate
+            icon: mdi:map-marker-question
+            tap_action:
+              action: call-service
+              service: vacuum.locate
+              target:
+                entity_id: vacuum.juno
+      - type: history-graph
+        title: Cleaning history
+        hours_to_show: 168
+        entities:
+          - vacuum.juno
+
+  # ------------------------------------------------------------------
+  - title: Media
+    path: media
+    icon: mdi:television
+    cards:
+      - type: media-control
+        entity: media_player.fire_tv
+      - type: entities
+        title: Quick launch (Fire TV)
+        entities:
+          - entity: script.movie_night
+            name: "Movie Night (Netflix + dim lights)"
+
+  # ------------------------------------------------------------------
+  - title: Kitchen
+    path: kitchen
+    icon: mdi:fridge
+    cards:
+      - type: todo-list
+        entity: todo.shopping_list
+        title: Shopping list
+      - type: markdown
+        content: >
+          **Grocy** (full inventory + expiry tracking) lives at
+          [http://YOUR-LAPTOP-IP:9283](http://YOUR-LAPTOP-IP:9283)
+          once you run `docker compose --profile grocy up -d`.
+
+  # ------------------------------------------------------------------
+  - title: System
+    path: system
+    icon: mdi:laptop
+    cards:
+      - type: entities
+        title: Hub (X1)
+        entities:
+          - entity: sensor.processor_use
+            name: CPU
+          - entity: sensor.memory_use_percent
+            name: Memory
+          - entity: sensor.disk_use_percent
+            name: Disk
+      - type: history-graph
+        title: Hub load (24h)
+        hours_to_show: 24
+        entities:
+          - sensor.processor_use
+          - sensor.memory_use_percent
+      - type: markdown
+        content: >
+          Add your PCs here after Phase 17 (HASS.Agent / Wake-on-LAN):
+          power buttons, CPU/GPU load, lock buttons.

@@ -27,6 +27,7 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
+| `ha-config/dashboards/jarvis.yaml` | "Jarvis" command-center dashboard (Home / Vacuum / Media / Kitchen / System tabs) |
 | `docs/PLAN.md` | The full 17-phase build plan |
 
 The automation/script files contain placeholder entity IDs (`light.living_room`,

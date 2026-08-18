@@ -6,6 +6,17 @@ default_config:
 automation: !include_dir_merge_list automations/
 script: !include_dir_merge_named scripts/
 
+# Jarvis Command Center dashboard (sidebar entry "Jarvis")
+lovelace:
+  mode: storage
+  dashboards:
+    jarvis-hub:
+      mode: yaml
+      title: Jarvis
+      icon: mdi:robot
+      show_in_sidebar: true
+      filename: dashboards/jarvis.yaml
+
 # Local shopping list ("Jarvis, add milk to the shopping list")
 shopping_list:
 
