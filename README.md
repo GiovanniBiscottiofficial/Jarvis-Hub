@@ -11,8 +11,8 @@ Full long-form plan: [docs/PLAN.md](docs/PLAN.md)
 
 ```bash
 sudo apt update && sudo apt install -y git
-git clone https://github.com/GiovanniBiscottiofficial/jarvis-hub.git
-cd jarvis-hub
+git clone https://github.com/GiovanniBiscottiofficial/Jarvis-Hub.git
+cd Jarvis-Hub
 bash bootstrap/setup-x1.sh
 ```
 
