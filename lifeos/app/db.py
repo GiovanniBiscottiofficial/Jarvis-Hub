@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS meal_log (
     name TEXT NOT NULL,
     protein_g REAL NOT NULL DEFAULT 0,
     calories REAL NOT NULL DEFAULT 0,
-    override_kind TEXT
+    override_kind TEXT,
+    profile_id INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS overrides (
@@ -40,17 +41,22 @@ CREATE TABLE IF NOT EXISTS overrides (
 CREATE TABLE IF NOT EXISTS weighins (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-    weight_lb REAL NOT NULL
+    weight_lb REAL NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS steps (
-    date TEXT PRIMARY KEY,
-    count INTEGER NOT NULL DEFAULT 0
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, profile_id)
 );
 
 CREATE TABLE IF NOT EXISTS vitamins (
-    date TEXT PRIMARY KEY,
-    taken INTEGER NOT NULL DEFAULT 0
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    taken INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, profile_id)
 );
 
 CREATE TABLE IF NOT EXISTS workouts (
@@ -58,7 +64,35 @@ CREATE TABLE IF NOT EXISTS workouts (
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     kind TEXT NOT NULL,
     minutes INTEGER NOT NULL DEFAULT 0,
-    calories REAL NOT NULL DEFAULT 0
+    calories REAL NOT NULL DEFAULT 0,
+    profile_id INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS workout_plan (
+    id INTEGER PRIMARY KEY,
+    date TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    minutes INTEGER NOT NULL DEFAULT 15,
+    done INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'manual',
+    profile_id INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    protein_target_g REAL NOT NULL DEFAULT 100,
+    step_target INTEGER NOT NULL DEFAULT 8000,
+    calorie_target INTEGER NOT NULL DEFAULT 2000
+);
+
+CREATE TABLE IF NOT EXISTS pantry (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    qty REAL NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT '',
+    protein_g_per_serving REAL NOT NULL DEFAULT 0,
+    grocy_product_id INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -98,7 +132,10 @@ DEFAULT_SETTINGS = {
     "protein_target_g": "100",
     "step_target": "8000",
     "calorie_target": "2000",
+    "active_profile": "1",
 }
+
+SEED_PROFILES = ["Keona"]
 
 SEED_MEALS = [
     # name, minutes, protein_g, calories, tags, avoided
@@ -131,9 +168,38 @@ def conn():
         c.close()
 
 
+def _migrate(c: sqlite3.Connection) -> None:
+    """Upgrade a pre-profiles (v0.1) database in place."""
+    for table in ("meal_log", "weighins", "workouts"):
+        cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+        if cols and "profile_id" not in cols:
+            c.execute(
+                f"ALTER TABLE {table} ADD COLUMN profile_id INTEGER NOT NULL DEFAULT 1"
+            )
+    for table in ("steps", "vitamins"):
+        cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+        if cols and "profile_id" not in cols:
+            value_col = "count" if table == "steps" else "taken"
+            c.execute(f"ALTER TABLE {table} RENAME TO {table}_v01")
+            c.execute(
+                f"""CREATE TABLE {table} (
+                    date TEXT NOT NULL,
+                    profile_id INTEGER NOT NULL DEFAULT 1,
+                    {value_col} INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (date, profile_id)
+                )"""
+            )
+            c.execute(
+                f"INSERT INTO {table}(date,profile_id,{value_col})"
+                f" SELECT date,1,{value_col} FROM {table}_v01"
+            )
+            c.execute(f"DROP TABLE {table}_v01")
+
+
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with conn() as c:
+        _migrate(c)
         c.executescript(SCHEMA)
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
@@ -145,6 +211,8 @@ def init_db() -> None:
             )
         for a in SEED_ACCOUNTS:
             c.execute("INSERT OR IGNORE INTO accounts(name) VALUES(?)", (a,))
+        for p in SEED_PROFILES:
+            c.execute("INSERT OR IGNORE INTO profiles(name) VALUES(?)", (p,))
 
 
 def get_setting(key: str) -> str:
@@ -160,3 +228,13 @@ def set_setting(key: str, value: str) -> None:
             " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, value),
         )
+
+
+def active_profile(c) -> sqlite3.Row:
+    row = c.execute(
+        "SELECT p.* FROM profiles p JOIN settings s ON s.key='active_profile'"
+        " AND p.id=CAST(s.value AS INTEGER)"
+    ).fetchone()
+    if row is None:
+        row = c.execute("SELECT * FROM profiles ORDER BY id LIMIT 1").fetchone()
+    return row

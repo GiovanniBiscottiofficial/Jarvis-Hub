@@ -46,6 +46,29 @@ views:
               action: call-service
               service: script.goodnight
 
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Leaving
+            icon: mdi:exit-run
+            tap_action:
+              action: call-service
+              service: script.leaving
+          - type: button
+            entity: input_boolean.guest_mode
+            name: Guest mode
+            icon: mdi:account-group
+            tap_action:
+              action: toggle
+
+      - type: markdown
+        title: LifeOS briefing
+        content: >
+          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+             or 'LifeOS not reachable — is the lifeos container up?' }}
+
+          [Open LifeOS](http://YOUR-LAPTOP-IP:8090)
+
   # ------------------------------------------------------------------
   - title: Vacuum
     path: vacuum
@@ -138,3 +161,10 @@ views:
         content: >
           Add your PCs here after Phase 17 (HASS.Agent / Wake-on-LAN):
           power buttons, CPU/GPU load, lock buttons.
+      - type: markdown
+        title: Energy & car (later)
+        content: >
+          Smart plugs with power monitoring → uncomment `utility_meter` in
+          configuration.yaml and add an energy-distribution card here.
+          Car integrations (Ford/Tesla/Hyundai/etc.) add fuel/charge sensors
+          that feed the morning briefing.

@@ -374,10 +374,36 @@ A custom app in the same stack (its own container, port 8090, mobile-friendly we
 - Manual quick-entry to start (30 seconds a day); aggregator/API automation is a later
   investigation.
 
-### Later additions
-- Grocy inventory sync for pantry-derived macros; HA voice announcements of nudges and
-  streaks; photo portion estimation; grocery suggestions from pantry deficits;
-  multi-profile household support.
+### LifeOS v0.2 — the personal operating system layer (built)
+- **Morning briefing** (`GET /api/briefing`): weather (Open-Meteo, set `LIFEOS_LAT`/
+  `LIFEOS_LON`), protein/steps status, vitamins, bills due in 7 days, leftover after
+  bills, today's workouts, breakfast pick — plus a `speech` string Jarvis reads aloud
+  at 7:30 (see `ha-config/automations/briefing.yaml`).
+- **Weekly review** (`GET /api/review/weekly`): weight delta, protein/step averages,
+  money in vs bills paid, treats vs workouts, streaks — announced Sundays at 6pm.
+- **Workout scheduler**: plan sessions in the UI; logging a treat auto-schedules a
+  15-min balance-the-treat circuit for the same day.
+- **Grocy pantry sync**: set `GROCY_URL` + `GROCY_API_KEY` and hit "Sync from Grocy";
+  grocery suggestions are generated from your 7-day protein deficit.
+- **Multi-profile**: per-person protein/step/calorie targets; switch the active profile
+  from the header dropdown — all logs (meals, steps, weigh-ins, vitamins, workouts)
+  are profile-scoped.
+- **Photo meal logging** (`POST /api/body/meals/photo`): plate photos are saved to the
+  data volume; auto macro estimation plugs in once a vision model (Ollama llava) is
+  running — manual macros until then.
+
+### House-side additions (config stubs until hardware lands)
+- **Sleep intelligence** (`automations/sleep_intelligence.yaml`): phone charging + no
+  motion after 11pm → goodnight scene; lights fade in 15 min before your phone alarm.
+- **Guest mode** (`scripts/guest_mode.yaml` + `input_boolean.guest_mode`): pauses
+  personal announcements while friends are over.
+- **Leaving / panic button** (`scripts/panic_leaving.yaml`): one tap (or NFC sticker) —
+  lights off, TV off, vacuum home, computers locked (once HASS.Agent is in).
+- **Energy tracking** (`automations/energy.yaml`): needs power-monitoring smart plugs;
+  "PC still on and nobody home" alert with a sleep-it button.
+- **Mailbox watch** (`automations/mailbox.yaml`): vibration sensor or camera stub.
+- **Car integration**: add your car's HA integration when known (Ford/Tesla/Hyundai…);
+  its fuel/charge sensors feed the briefing.
 
 ---
 

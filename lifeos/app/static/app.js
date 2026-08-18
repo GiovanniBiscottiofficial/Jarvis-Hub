@@ -18,6 +18,7 @@ document.querySelectorAll(".tab").forEach((btn) =>
     $(btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "vault") loadVault();
     if (btn.dataset.tab === "body") loadBody();
+    if (btn.dataset.tab === "review") loadReview();
   })
 );
 
@@ -27,7 +28,7 @@ async function loadToday() {
   const p = t.protein;
   $("protein-bar").style.width = Math.min(100, (p.today_g / p.target_g) * 100) + "%";
   $("protein-label").textContent = `${Math.round(p.today_g)} / ${p.target_g}g`;
-  const stepsTarget = 8000;
+  const stepsTarget = t.step_target || 8000;
   $("steps-bar").style.width = Math.min(100, (t.steps_today / stepsTarget) * 100) + "%";
   $("steps-label").textContent = t.steps_today.toLocaleString();
   $("streaks").textContent =
@@ -90,8 +91,57 @@ async function override(meal, kind) {
 
 $("vitamins-btn").onclick = async () => { await api("/api/body/vitamins/take", "POST"); loadToday(); };
 
+$("briefing-btn").onclick = async () => {
+  const b = await api("/api/briefing");
+  $("briefing").textContent = b.speech;
+};
+
 // ---------- Body Ops ----------
+async function loadWorkouts() {
+  const plans = await api("/api/body/workouts/plan");
+  const w = $("workouts");
+  if (!plans.length) { w.textContent = "Nothing planned."; return; }
+  w.innerHTML = "";
+  plans.forEach((p) => {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `<span>${p.kind} <span class="muted">(${p.date}, ${p.minutes} min${p.source === "treat_balance" ? ", balances a treat" : ""})</span></span>`;
+    if (p.done) {
+      line.innerHTML += '<span class="tag good">done</span>';
+    } else {
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      btn.textContent = "Done";
+      btn.onclick = async () => { await api(`/api/body/workouts/plan/${p.id}/done`, "POST"); loadWorkouts(); };
+      line.appendChild(btn);
+    }
+    w.appendChild(line);
+  });
+}
+
+async function loadPantry() {
+  const p = await api("/api/pantry");
+  const el = $("pantry");
+  if (!p.items.length) {
+    el.textContent = p.grocy_configured
+      ? "Empty — hit Sync from Grocy."
+      : "Empty. Set GROCY_URL + GROCY_API_KEY on the lifeos container to sync.";
+  } else {
+    el.innerHTML = p.items
+      .map((i) => `<div class="line"><span>${i.name}</span><span>${i.qty} ${i.unit}</span></div>`)
+      .join("");
+  }
+  const g = await api("/api/pantry/grocery-suggestions");
+  $("grocery").innerHTML =
+    `<div class="muted">Avg ${g.avg_daily_protein_g}g/day vs ${g.target_g}g target</div>` +
+    g.suggestions
+      .map((s) => `<div class="line"><span>${s.name}</span><span class="muted">${s.protein_g_per_serving}g/serving</span></div>`)
+      .join("");
+}
+
 async function loadBody() {
+  loadWorkouts();
+  loadPantry();
   const s = await api("/api/body/summary");
   const hist = s.weighins.map((w) => `${w.ts.slice(0, 10)}: ${w.weight_lb} lb`).join(" · ");
   $("weight-history").textContent = hist || "No weigh-ins yet.";
@@ -127,6 +177,33 @@ $("steps-btn").onclick = async () => {
   await api("/api/body/steps", "POST", { count: v });
   $("steps-input").value = "";
   loadToday();
+};
+
+$("workout-btn").onclick = async () => {
+  const kind = $("workout-kind").value.trim();
+  if (!kind) return;
+  await api("/api/body/workouts/plan", "POST", {
+    kind, minutes: parseInt($("workout-min").value, 10) || 15,
+  });
+  $("workout-kind").value = ""; $("workout-min").value = "";
+  loadWorkouts();
+};
+
+$("photo-btn").onclick = async () => {
+  const file = $("photo-input").files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append("photo", file);
+  const res = await fetch("/api/body/meals/photo", { method: "POST", body: form });
+  const r = await res.json();
+  $("photo-msg").textContent = r.message;
+  $("photo-input").value = "";
+};
+
+$("pantry-sync-btn").onclick = async () => {
+  const r = await api("/api/pantry/sync", "POST");
+  if (r.message) $("pantry").textContent = r.message;
+  else loadPantry();
 };
 
 $("meal-btn").onclick = async () => {
@@ -222,4 +299,60 @@ $("bill-btn").onclick = async () => {
   loadVault();
 };
 
+// ---------- Review + profiles ----------
+async function loadReview() {
+  const r = await api("/api/review/weekly");
+  $("review-speech").textContent = r.speech;
+  $("review-stats").innerHTML = `
+    <div class="line"><span>Weight change</span>
+      <span>${r.weight.delta_lb === null ? "–" : r.weight.delta_lb + " lb"}</span></div>
+    <div class="line"><span>Avg protein</span>
+      <span>${r.avg_daily_protein_g}g / ${r.protein_target_g}g</span></div>
+    <div class="line"><span>Avg steps</span><span>${r.avg_daily_steps.toLocaleString()}</span></div>
+    <div class="line"><span>Money in</span><span>$${r.money_in.toFixed(2)}</span></div>
+    <div class="line"><span>Bills paid this month</span>
+      <span>$${r.bills_paid_this_month.toFixed(2)}</span></div>
+    <div class="line"><span>Treats / workouts</span>
+      <span>${r.treats_this_week} / ${r.workouts_this_week}</span></div>
+    <div class="line"><span>Streaks</span>
+      <span>vitamins ${r.streaks.vitamins}d · steps ${r.streaks.steps}d</span></div>`;
+  loadProfiles();
+}
+
+async function loadProfiles() {
+  const profiles = await api("/api/profiles");
+  const sel = $("profile-select");
+  sel.innerHTML = "";
+  profiles.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.id; opt.textContent = p.name; opt.selected = p.active;
+    sel.appendChild(opt);
+  });
+  const list = $("profiles");
+  list.innerHTML = "";
+  profiles.forEach((p) => {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `<span>${p.name}${p.active ? ' <span class="tag good">active</span>' : ""}</span>
+      <span class="muted">${p.protein_target_g}g · ${p.step_target.toLocaleString()} steps</span>`;
+    list.appendChild(line);
+  });
+}
+
+$("profile-select").onchange = async (e) => {
+  await api(`/api/profiles/${e.target.value}/activate`, "POST");
+  loadToday();
+};
+
+$("profile-btn").onclick = async () => {
+  const name = $("profile-name").value.trim();
+  if (!name) return;
+  await api("/api/profiles", "POST", {
+    name, protein_target_g: parseFloat($("profile-protein").value) || 100,
+  });
+  $("profile-name").value = ""; $("profile-protein").value = "";
+  loadProfiles();
+};
+
 loadToday();
+loadProfiles();

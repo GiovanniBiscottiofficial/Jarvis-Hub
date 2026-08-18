@@ -1,10 +1,12 @@
-"""Body Ops: meals, protein, weigh-ins, steps, vitamins, streaks."""
+"""Body Ops: meals, protein, weigh-ins, steps, vitamins, workouts, streaks."""
+import os
+import uuid
 from datetime import date, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from ..db import conn, get_setting
+from ..db import active_profile, conn
 from ..suggestions import high_protein_snacks, suggest_meals
 
 router = APIRouter(prefix="/api/body", tags=["bodyops"])
@@ -31,23 +33,37 @@ class StepsIn(BaseModel):
     date: str | None = None
 
 
+class WorkoutPlanIn(BaseModel):
+    date: str | None = None
+    kind: str = "15-min bodyweight circuit"
+    minutes: int = 15
+
+
+PHOTO_DIR = os.environ.get("LIFEOS_PHOTOS", "/data/photos")
+
+
 def _today() -> str:
     return date.today().isoformat()
 
 
 def protein_today(c) -> float:
+    pid = active_profile(c)["id"]
     row = c.execute(
-        "SELECT COALESCE(SUM(protein_g),0) p FROM meal_log WHERE date(ts)=?",
-        (_today(),),
+        "SELECT COALESCE(SUM(protein_g),0) p FROM meal_log"
+        " WHERE date(ts)=? AND profile_id=?",
+        (_today(), pid),
     ).fetchone()
     return row["p"]
 
 
 def streak(c, table: str, col: str = "date") -> int:
     """Consecutive days (ending today or yesterday) with an entry."""
+    pid = active_profile(c)["id"]
     days = {
         r[col]
-        for r in c.execute(f"SELECT {col} FROM {table}").fetchall()  # noqa: S608
+        for r in c.execute(
+            f"SELECT {col} FROM {table} WHERE profile_id=?", (pid,)  # noqa: S608
+        ).fetchall()
     }
     n, d = 0, date.today()
     if d.isoformat() not in days:
@@ -73,9 +89,15 @@ def log_meal(body: MealLogIn):
             if row:
                 body.protein_g, body.calories = row["protein_g"], row["calories"]
         c.execute(
-            "INSERT INTO meal_log(name,protein_g,calories,override_kind)"
-            " VALUES(?,?,?,?)",
-            (body.name, body.protein_g, body.calories, body.override_kind),
+            "INSERT INTO meal_log(name,protein_g,calories,override_kind,profile_id)"
+            " VALUES(?,?,?,?,?)",
+            (
+                body.name,
+                body.protein_g,
+                body.calories,
+                body.override_kind,
+                active_profile(c)["id"],
+            ),
         )
         return {"ok": True, "protein_today": protein_today(c)}
 
@@ -97,16 +119,35 @@ def add_override(body: OverrideIn):
                 "later meal, or add a 15-min workout.",
             ),
         )
+        pid = active_profile(c)["id"]
+        existing = c.execute(
+            "SELECT 1 FROM workout_plan WHERE date=? AND profile_id=?"
+            " AND source='treat_balance' AND done=0",
+            (_today(), pid),
+        ).fetchone()
+        if not existing:
+            c.execute(
+                "INSERT INTO workout_plan(date,kind,minutes,source,profile_id)"
+                " VALUES(?,?,?,?,?)",
+                (_today(), "15-min balance-the-treat circuit", 15,
+                 "treat_balance", pid),
+            )
         return {"ok": True}
 
 
 @router.post("/weighin")
 def add_weighin(body: WeighIn):
     with conn() as c:
+        pid = active_profile(c)["id"]
         prev = c.execute(
-            "SELECT weight_lb FROM weighins ORDER BY ts DESC LIMIT 1"
+            "SELECT weight_lb FROM weighins WHERE profile_id=?"
+            " ORDER BY ts DESC LIMIT 1",
+            (pid,),
         ).fetchone()
-        c.execute("INSERT INTO weighins(weight_lb) VALUES(?)", (body.weight_lb,))
+        c.execute(
+            "INSERT INTO weighins(weight_lb,profile_id) VALUES(?,?)",
+            (body.weight_lb, pid),
+        )
         msg = "Logged."
         if prev:
             delta = body.weight_lb - prev["weight_lb"]
@@ -125,9 +166,9 @@ def set_steps(body: StepsIn):
     d = body.date or _today()
     with conn() as c:
         c.execute(
-            "INSERT INTO steps(date,count) VALUES(?,?)"
-            " ON CONFLICT(date) DO UPDATE SET count=excluded.count",
-            (d, body.count),
+            "INSERT INTO steps(date,profile_id,count) VALUES(?,?,?)"
+            " ON CONFLICT(date,profile_id) DO UPDATE SET count=excluded.count",
+            (d, active_profile(c)["id"], body.count),
         )
         return {"ok": True}
 
@@ -136,34 +177,102 @@ def set_steps(body: StepsIn):
 def take_vitamins():
     with conn() as c:
         c.execute(
-            "INSERT INTO vitamins(date,taken) VALUES(?,1)"
-            " ON CONFLICT(date) DO UPDATE SET taken=1",
-            (_today(),),
+            "INSERT INTO vitamins(date,profile_id,taken) VALUES(?,?,1)"
+            " ON CONFLICT(date,profile_id) DO UPDATE SET taken=1",
+            (_today(), active_profile(c)["id"]),
         )
         return {"ok": True, "streak": streak(c, "vitamins")}
 
 
+@router.get("/workouts/plan")
+def workout_plan():
+    with conn() as c:
+        pid = active_profile(c)["id"]
+        return [
+            dict(r)
+            for r in c.execute(
+                "SELECT * FROM workout_plan WHERE profile_id=? AND date>=?"
+                " ORDER BY date, id",
+                (pid, (date.today() - timedelta(days=1)).isoformat()),
+            ).fetchall()
+        ]
+
+
+@router.post("/workouts/plan")
+def add_workout_plan(body: WorkoutPlanIn):
+    with conn() as c:
+        c.execute(
+            "INSERT INTO workout_plan(date,kind,minutes,profile_id)"
+            " VALUES(?,?,?,?)",
+            (body.date or _today(), body.kind, body.minutes,
+             active_profile(c)["id"]),
+        )
+        return {"ok": True}
+
+
+@router.post("/workouts/plan/{plan_id}/done")
+def complete_workout(plan_id: int):
+    with conn() as c:
+        row = c.execute(
+            "SELECT * FROM workout_plan WHERE id=?", (plan_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "plan not found")
+        c.execute("UPDATE workout_plan SET done=1 WHERE id=?", (plan_id,))
+        c.execute(
+            "INSERT INTO workouts(kind,minutes,profile_id) VALUES(?,?,?)",
+            (row["kind"], row["minutes"], row["profile_id"]),
+        )
+        return {"ok": True, "message": f"{row['kind']} done — logged."}
+
+
+@router.post("/meals/photo")
+async def photo_meal(photo: UploadFile):
+    """Save a plate photo for portion estimation. Vision-LLM analysis plugs in
+    here later (Ollama llava / cloud vision); manual macros for now."""
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    ext = os.path.splitext(photo.filename or "photo.jpg")[1] or ".jpg"
+    path = os.path.join(PHOTO_DIR, f"{_today()}-{uuid.uuid4().hex[:8]}{ext}")
+    data = await photo.read()
+    with open(path, "wb") as f:
+        f.write(data)
+    return {
+        "ok": True,
+        "saved": os.path.basename(path),
+        "estimate": None,
+        "message": "Photo saved. Auto-estimation needs a vision model "
+        "(Ollama llava) — log macros manually for now.",
+    }
+
+
 @router.get("/summary")
 def body_summary():
-    target = float(get_setting("protein_target_g") or 100)
-    step_target = int(get_setting("step_target") or 8000)
     with conn() as c:
+        prof = active_profile(c)
+        pid = prof["id"]
+        target = prof["protein_target_g"]
+        step_target = prof["step_target"]
         protein = protein_today(c)
         steps_row = c.execute(
-            "SELECT count FROM steps WHERE date=?", (_today(),)
+            "SELECT count FROM steps WHERE date=? AND profile_id=?",
+            (_today(), pid),
         ).fetchone()
         steps = steps_row["count"] if steps_row else 0
         cals_row = c.execute(
-            "SELECT COALESCE(SUM(calories),0) k FROM meal_log WHERE date(ts)=?",
-            (_today(),),
+            "SELECT COALESCE(SUM(calories),0) k FROM meal_log"
+            " WHERE date(ts)=? AND profile_id=?",
+            (_today(), pid),
         ).fetchone()
         vit_row = c.execute(
-            "SELECT taken FROM vitamins WHERE date=?", (_today(),)
+            "SELECT taken FROM vitamins WHERE date=? AND profile_id=?",
+            (_today(), pid),
         ).fetchone()
         weights = [
             dict(r)
             for r in c.execute(
-                "SELECT ts, weight_lb FROM weighins ORDER BY ts DESC LIMIT 14"
+                "SELECT ts, weight_lb FROM weighins WHERE profile_id=?"
+                " ORDER BY ts DESC LIMIT 14",
+                (pid,),
             ).fetchall()
         ]
         shortfall = max(0.0, target - protein)

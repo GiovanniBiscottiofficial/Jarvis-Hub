@@ -30,3 +30,38 @@ tts:
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:
 #   sleep_macbook: ssh -o StrictHostKeyChecking=no user@192.168.1.50 pmset sleepnow
+
+# Toggles used by the guest-mode and sleep-intelligence automations
+input_boolean:
+  guest_mode:
+    name: Guest mode
+    icon: mdi:account-group
+  sleep_mode:
+    name: Sleep mode
+    icon: mdi:sleep
+
+# LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
+rest:
+  - resource: http://localhost:8090/api/briefing
+    scan_interval: 900
+    sensor:
+      - name: LifeOS morning briefing
+        value_template: "{{ value_json.date }}"
+        json_attributes: [speech, leftover_after_bills, vitamins_taken]
+  - resource: http://localhost:8090/api/review/weekly
+    scan_interval: 3600
+    sensor:
+      - name: LifeOS weekly review
+        value_template: "{{ value_json.period_start }}"
+        json_attributes: [speech, avg_daily_protein_g, treats_this_week]
+
+# Energy tracking: point these at smart-plug power sensors once you have them
+# (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into
+# daily/monthly totals for the dashboard.
+# utility_meter:
+#   pc_energy_monthly:
+#     source: sensor.pc_plug_energy
+#     cycle: monthly
+#   tv_energy_monthly:
+#     source: sensor.tv_plug_energy
+#     cycle: monthly

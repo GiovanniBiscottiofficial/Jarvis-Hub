@@ -26,6 +26,12 @@ services:
     restart: unless-stopped
     environment:
       - TZ=${TZ:-America/New_York}
+      # Weather in the morning briefing (Open-Meteo, no API key)
+      - LIFEOS_LAT=${LIFEOS_LAT:-}
+      - LIFEOS_LON=${LIFEOS_LON:-}
+      # Grocy pantry sync (Grocy → Settings → Manage API keys)
+      - GROCY_URL=${GROCY_URL:-}
+      - GROCY_API_KEY=${GROCY_API_KEY:-}
     ports:
       - "8090:8090"
     volumes:

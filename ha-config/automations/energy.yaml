@@ -1,0 +1,36 @@
+# Energy awareness. Needs smart plugs with power monitoring
+# (sensor.pc_plug_power in watts). Uncomment utility_meter in
+# configuration.yaml for monthly cost totals on the dashboard.
+
+- id: pc_left_on
+  alias: "Energy: PC left running after you leave"
+  trigger:
+    - platform: state
+      entity_id: zone.home
+      to: "0"
+  condition:
+    - condition: numeric_state
+      entity_id: sensor.pc_plug_power
+      above: 60
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Energy"
+        message: "The PC is still drawing power and nobody's home."
+        data:
+          actions:
+            - action: "PC_SLEEP"
+              title: "Sleep it"
+
+- id: pc_sleep_action
+  alias: "Energy: sleep PC from notification"
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: "PC_SLEEP"
+  action:
+    # HASS.Agent exposes button.<pc>_sleep once installed (Phase 17)
+    - service: button.press
+      target:
+        entity_id: button.desktop_sleep

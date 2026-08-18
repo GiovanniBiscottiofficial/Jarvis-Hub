@@ -1,0 +1,45 @@
+# LifeOS briefings, read aloud by Jarvis.
+# Swap media_player.living_room_speaker for your real speaker/satellite,
+# and tts.google_translate_say for tts.piper once voice is set up.
+
+- id: lifeos_morning_briefing
+  alias: "LifeOS: morning briefing"
+  trigger:
+    - platform: time
+      at: "07:30:00"
+  condition:
+    - condition: state
+      entity_id: zone.home
+      state: "1"
+      # only speak when someone is home
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: "off"
+  action:
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.living_room_speaker
+        message: >-
+          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+             or 'Good morning. LifeOS is not reachable right now.' }}
+
+- id: lifeos_weekly_review
+  alias: "LifeOS: Sunday weekly review"
+  trigger:
+    - platform: time
+      at: "18:00:00"
+  condition:
+    - condition: time
+      weekday: [sun]
+  action:
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.living_room_speaker
+        message: >-
+          {{ state_attr('sensor.lifeos_weekly_review', 'speech')
+             or 'Weekly review is not available right now.' }}
+    - service: notify.mobile_app_phone
+      data:
+        title: "Weekly review"
+        message: >-
+          {{ state_attr('sensor.lifeos_weekly_review', 'speech') }}

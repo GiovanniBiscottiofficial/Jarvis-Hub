@@ -13,12 +13,20 @@
     <button class="tab active" data-tab="today">Today</button>
     <button class="tab" data-tab="body">Body Ops</button>
     <button class="tab" data-tab="vault">Vault Flow</button>
+    <button class="tab" data-tab="review">Review</button>
   </nav>
+  <select id="profile-select" title="Active profile"></select>
 </header>
 
 <main>
   <!-- ============ TODAY ============ -->
   <section id="today" class="panel active">
+    <div class="card">
+      <h2>Morning briefing</h2>
+      <div id="briefing" class="muted">–</div>
+      <button id="briefing-btn" class="pill">Brief me</button>
+    </div>
+
     <div class="card" id="progress-card">
       <h2>Progress</h2>
       <div class="bar-row"><span>Protein</span>
@@ -79,6 +87,32 @@
       <h2>Protein shortfall — quick fixes</h2>
       <div id="snacks"></div>
     </div>
+    <div class="card">
+      <h2>Workouts</h2>
+      <div id="workouts" class="muted">Nothing planned.</div>
+      <div class="row">
+        <input id="workout-kind" placeholder="e.g. 20-min walk">
+        <input id="workout-min" type="number" placeholder="min">
+        <button id="workout-btn">Plan</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Photo a meal</h2>
+      <div class="row">
+        <input id="photo-input" type="file" accept="image/*" capture="environment">
+        <button id="photo-btn">Upload</button>
+      </div>
+      <div id="photo-msg" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Pantry</h2>
+      <div id="pantry" class="muted">–</div>
+      <div class="row">
+        <button id="pantry-sync-btn" class="secondary">Sync from Grocy</button>
+      </div>
+      <h2>Grocery suggestions</h2>
+      <div id="grocery" class="muted">–</div>
+    </div>
   </section>
 
   <!-- ============ VAULT FLOW ============ -->
@@ -108,6 +142,24 @@
     <div class="card">
       <h2>This week's plan</h2>
       <div id="plan"></div>
+    </div>
+  </section>
+
+  <!-- ============ REVIEW ============ -->
+  <section id="review" class="panel">
+    <div class="card">
+      <h2>Weekly review</h2>
+      <div id="review-speech" class="muted">–</div>
+      <div id="review-stats"></div>
+    </div>
+    <div class="card">
+      <h2>Profiles</h2>
+      <div id="profiles"></div>
+      <div class="row">
+        <input id="profile-name" placeholder="name">
+        <input id="profile-protein" type="number" placeholder="protein g">
+        <button id="profile-btn">Add</button>
+      </div>
     </div>
   </section>
 </main>
