@@ -328,6 +328,60 @@ views:
             tap_action:
               action: call-service
               service: script.movie_night
+      - type: grid
+        cards:
+          - type: heading
+            heading: Quick launch
+            icon: mdi:rocket-launch
+          - type: tile
+            entity: sun.sun
+            name: Netflix
+            icon: mdi:netflix
+            color: red
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://netflix.com"
+          - type: tile
+            entity: sun.sun
+            name: YouTube
+            icon: mdi:youtube
+            color: red
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://youtube.com"
+          - type: tile
+            entity: sun.sun
+            name: Spotify
+            icon: mdi:spotify
+            color: green
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://open.spotify.com"
+          - type: tile
+            entity: sun.sun
+            name: GeForce Now
+            icon: mdi:gamepad-variant
+            color: purple
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://play.geforcenow.com"
+          - type: tile
+            entity: sun.sun
+            name: Plex / Jellyfin
+            icon: mdi:play-network
+            color: amber
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://app.plex.tv"
+          # Once the Plex or Jellyfin integration is added, drop a real
+          # media-control card here for its player:
+          # - type: media-control
+          #   entity: media_player.plex_x1
 
   # ------------------------------------------------------------------
   - title: Kitchen

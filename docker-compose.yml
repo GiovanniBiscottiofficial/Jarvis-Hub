@@ -6,6 +6,7 @@
 #   docker compose --profile llm up -d       (local Ollama LLM)
 #   docker compose --profile cameras up -d   (Frigate NVR — needs cameras + frigate/config.yml)
 #   docker compose --profile media up -d     (Plex media server)
+#   docker compose --profile jellyfin up -d  (Jellyfin — free/open-source alternative to Plex)
 
 services:
   homeassistant:
@@ -130,6 +131,25 @@ services:
       - plex-config:/config
       - ${MEDIA_DIR:-${HOME}/jarvis-media}:/media
 
+  # ---------- Media server, free alternative (profile: jellyfin) ----------
+  # No account needed. After first start: http://<laptop-ip>:8096 to set up,
+  # then HA → Settings → Devices & Services → Add Integration → Jellyfin.
+  # Uses the same media folder as Plex — run one or the other (or both).
+  jellyfin:
+    container_name: jellyfin
+    image: jellyfin/jellyfin:latest
+    profiles: [jellyfin]
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=${TZ:-America/New_York}
+    devices:
+      - /dev/dri:/dev/dri   # Intel QuickSync hardware transcoding
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - ${MEDIA_DIR:-${HOME}/jarvis-media}:/media
+
   # ---------- Local LLM (profile: llm) ----------
   # After first start: docker exec -it ollama ollama pull llama3.2:3b
   ollama:
@@ -144,6 +164,8 @@ services:
 
 volumes:
   plex-config:
+  jellyfin-config:
+  jellyfin-cache:
   lifeos-data:
   whisper-data:
   piper-data:
