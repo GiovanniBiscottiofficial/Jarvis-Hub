@@ -46,6 +46,18 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 3. One-time remote access: `bash bootstrap/setup-remote-access.sh` (sign in via the printed link, then install the Tailscale app on your phone)
 4. The LLM brain (Phase 8) — this is the "spark": `docker compose --profile llm up -d`, pull llama3.2:3b, set it as the Assist conversation agent, paste in [docs/jarvis-personality.txt](docs/jarvis-personality.txt)
 5. Pair real devices as you get them (lights, vacuum, Fire TV — Phase 2/16) and swap the placeholder entity IDs
+6. Plex first start (the claim token expires in 4 minutes, so do this in one sitting):
+
+   ```bash
+   cd ~/Jarvis-Hub
+   mkdir -p ~/jarvis-media/{movies,tv,music}
+   # get a FRESH token at https://plex.tv/claim, then within 4 minutes:
+   echo "PLEX_CLAIM=claim-XXXX" >> .env
+   docker compose --profile media up -d
+   ```
+
+   Finish setup at `http://<laptop-ip>:32400/web`, then HA → Add Integration → **Plex**.
+   The token is only needed the very first start — after that Plex stays claimed.
 
 **Every optional `docker compose` profile (run the ones you want, in any order):**
 
