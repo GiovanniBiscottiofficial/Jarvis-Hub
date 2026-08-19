@@ -47,6 +47,20 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 4. The LLM brain (Phase 8) — this is the "spark": `docker compose --profile llm up -d`, pull llama3.2:3b, set it as the Assist conversation agent, paste in [docs/jarvis-personality.txt](docs/jarvis-personality.txt)
 5. Pair real devices as you get them (lights, vacuum, Fire TV — Phase 2/16) and swap the placeholder entity IDs
 
+**Every optional `docker compose` profile (run the ones you want, in any order):**
+
+```bash
+docker compose --profile voice up -d      # Whisper + Piper + openWakeWord ("hey Jarvis") — Phase 3
+docker compose --profile llm up -d        # Ollama — the LLM brain (then: docker exec -it ollama ollama pull llama3.2:3b)
+docker compose --profile grocy up -d      # Grocy pantry/barcode tracking — Phase 15
+docker compose --profile cameras up -d    # Frigate + go2rtc (after adding camera URLs to frigate/config.yml)
+docker compose --profile media up -d      # Plex (needs PLEX_CLAIM in .env + files in ~/jarvis-media)
+docker compose --profile jellyfin up -d   # Jellyfin — free alternative to Plex
+docker compose --profile voice --profile llm --profile grocy up -d   # or stack profiles in one command
+```
+
+The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up -d` (or `setup-x1.sh`) starts it.
+
 ## What's in this repo
 
 | Path | What it is |
