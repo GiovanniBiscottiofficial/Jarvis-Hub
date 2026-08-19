@@ -104,19 +104,35 @@ your real devices after connecting them (Settings → Devices & Services → Ent
 
 ## Phase checklist
 
-- [ ] **Phase 0–1**: run `bootstrap/setup-x1.sh`, open HA at `:8123`, create account
+All the code for every phase is **already built and in this repo** — each checkbox is
+the one-time setup action only you can do at the X1 (pairing, logins, app installs).
+Tick them off as you go.
+
+**Core — do these first (same order as the to-do list above):**
+
+- [ ] **Phase 0–1 — Hub**: run `bootstrap/setup-x1.sh`, open HA at `:8123`, create account; then `bash bootstrap/setup-kiosk.sh` + reboot for the wall-display mode
+- [ ] **Phase 3 — Voice**: `docker compose --profile voice up -d`, then HA → Add Integration → **Wyoming** three times (ports 10300 Whisper, 10200 Piper, 10400 openWakeWord); build the Assist pipeline with wake word "hey Jarvis"; `bash bootstrap/setup-satellite.sh` to make the X1's own mic listen room-wide
+- [ ] **Phase 8 — The LLM brain**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant", and paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) (already loaded with Giovanni's schedule, people, tastes) into its Instructions. (Or the Anthropic/OpenAI integration for a smarter cloud agent.)
+- [ ] **Remote access**: `bash bootstrap/setup-remote-access.sh` once at home — Tailscale tunnel for controlling everything from work/cellular
+- [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Vault Flow / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), speak in your bills ("add a bill called rent…") and usual meals, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync
+- [ ] **Backups**: `bash bootstrap/setup-backups.sh` — nightly 3 AM backup of the LifeOS DB + HA config
+
+**Devices — pair as you go:**
+
 - [ ] **Phase 2a — Lights**: re-pair Monster lights in the *Smart Life* app, then HA → Add Integration → **Tuya** (scan QR with Smart Life)
 - [ ] **Phase 2b — Vacuum**: try pairing the Juno in Smart Life too; if it won't, install HACS + **tuya-local**
-- [ ] **Phase 3 — Voice**: `docker compose --profile voice up -d`, then HA → Add Integration → **Wyoming** three times (ports 10300 Whisper, 10200 Piper, 10400 openWakeWord); build the Assist pipeline with wake word "hey Jarvis"
-- [ ] **Phase 5 — Presence**: install the HA Companion app on every phone; link people in Settings → People
-- [ ] **Phase 8 — Conversation LLM**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant". (Or use the Anthropic/OpenAI integration for a smarter cloud agent.)
-- [ ] **Phase 15 — Fridge/pantry**: `docker compose --profile grocy up -d`, open `http://<laptop-ip>:9283`, add the Grocy integration via HACS; barcode-scan with the Grocy Android app
-- [ ] **Phase 16 — Fire TV**: enable ADB Debugging on the Fire TV, HA → Add Integration → **Android TV** with its IP; install "Notifications for Fire TV" for on-screen alerts
-- [ ] **Cameras (when you get them)**: put each camera's RTSP URL in `frigate/config.yml`, run `docker compose --profile cameras up -d`, add the **Frigate** integration via HACS — live views land on the dashboard's Cameras tab (viewable from work via Tailscale)
-- [ ] **Plex media server**: drop movies/shows/music into `~/jarvis-media`, grab a claim token from [plex.tv/claim](https://plex.tv/claim) into `.env` (`PLEX_CLAIM=`), run `docker compose --profile media up -d`, open `http://<laptop-ip>:32400/web` to finish setup, then HA → Add Integration → **Plex**. "Hey Jarvis, play [movie] on the living room TV" works through Assist once the player entities exist; Plex-triggered movie lighting is ready to uncomment in `ha-config/automations/movie_mode.yaml`. Uses QuickSync hardware transcoding — but with 8 GB RAM, prefer direct play (use clients that play the file natively). Prefer no account/free? **Jellyfin** is wired too: `docker compose --profile jellyfin up -d`, set up at `http://<laptop-ip>:8096`, then HA → Add Integration → **Jellyfin** — same media folder, same hardware transcoding
-- [ ] **Jarvis's personality**: once the LLM agent is set up (Phase 8), paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) into the agent's Instructions field so he actually sounds like Jarvis
+- [ ] **Phase 5 — Presence**: install the HA Companion app on every phone; link people in Settings → People (unlocks welcome-home, arrival scaffolds, remote Assist)
+- [ ] **Phase 16 — Fire TV**: enable ADB Debugging on the Fire TV, HA → Add Integration → **Android TV** with its IP; install "Notifications for Fire TV" for on-screen alerts (unlocks movie mode + quiet-mode-while-watching)
 - [ ] **Phase 17 — Computers**: enable Wake-on-LAN in BIOS, add MACs to the `wake_on_lan` integration; install **HASS.Agent** on Windows machines
-- [ ] **Phase 18 — LifeOS**: comes up with the core stack at `http://<laptop-ip>:8090` — Today tab (morning briefing, meal cards with Sometimes/Today overrides, protein/steps bars, vitamin streaks), Body Ops (weigh-ins, quick meal log, workout planner, photo meal logging, pantry + grocery suggestions), Vault Flow (accounts, deposits vs bills, payment recommendations, leftover, food-money nudges), Review tab (weekly review + household profiles). Auto-sync Apple Watch/scale by pointing the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health`. Optional: set `LIFEOS_LAT`/`LIFEOS_LON` in `.env` for weather in the briefing, and `GROCY_URL`/`GROCY_API_KEY` for pantry sync. Jarvis reads the briefing at 7:30 and the weekly review on Sundays (`ha-config/automations/briefing.yaml`)
+- [ ] **After pairing**: swap the placeholder entity IDs (`light.living_room`, `vacuum.juno`, `notify.mobile_app_phone`…) in `ha-config/` for your real ones
+
+**Optional extras — whenever you feel like it:**
+
+- [ ] **Phase 15 — Fridge/pantry**: `docker compose --profile grocy up -d`, open `http://<laptop-ip>:9283`, add the Grocy integration via HACS; barcode-scan with the Grocy Android app
+- [ ] **Cameras (when you get them)**: put each camera's RTSP URL in `frigate/config.yml`, run `docker compose --profile cameras up -d`, add the **Frigate** integration via HACS — live views land on the dashboard's Cameras tab (viewable from work via Tailscale)
+- [ ] **Plex media server**: drop movies/shows/music into `~/jarvis-media`, claim token into `.env` (step 6 above), `docker compose --profile media up -d`, then HA → Add Integration → **Plex**. "Hey Jarvis, play [movie]" works through Assist once the player entities exist; Plex-triggered movie lighting is ready to uncomment in `ha-config/automations/movie_mode.yaml`. QuickSync transcoding is wired, but with 8 GB RAM prefer direct play. Prefer no account/free? **Jellyfin**: `docker compose --profile jellyfin up -d`, set up at `http://<laptop-ip>:8096`, then HA → Add Integration → **Jellyfin** — same media folder, same transcoding
+- [ ] **Spotify mood music**: add the Spotify integration (free dev app), then uncomment the R&B-evenings / lo-fi-focus automation in `ha-config/automations/entertainment.yaml`
+- [ ] **NFC tags**: write a nightstand + door-frame tag with the Companion app, paste the tag IDs into `ha-config/automations/nfc_tags.yaml`
 
 Everything else (dashboards, cameras, Zigbee sensors, custom wake word, the whole Jarvis roadmap) is in [docs/PLAN.md](docs/PLAN.md).
 
