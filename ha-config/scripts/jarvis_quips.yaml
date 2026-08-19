@@ -1,0 +1,18 @@
+# A random Jarvis-style confirmation — call after any completed action
+# for personality instead of a flat "done".
+jarvis_quip:
+  alias: "Jarvis quip"
+  icon: mdi:comment-quote
+  sequence:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          {{ [
+            "Consider it done, sir.",
+            "Already on it.",
+            "As you wish.",
+            "A trivial task for someone of my capabilities.",
+            "Done. Anything else while I'm being brilliant?",
+            "Handled, with my usual efficiency.",
+            "Of course, sir."
+          ] | random }}

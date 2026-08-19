@@ -12,6 +12,14 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 mkdir -p "$BACKUP_DIR"
 
+# Disk-space guard: refuse to back up onto a nearly-full disk
+MIN_FREE_MB="${MIN_FREE_MB:-500}"
+FREE_MB="$(df -Pm "$BACKUP_DIR" | awk 'NR==2 {print $4}')"
+if [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
+  echo "!! Only ${FREE_MB}MB free at $BACKUP_DIR (need ${MIN_FREE_MB}MB) — aborting backup" >&2
+  exit 1
+fi
+
 # LifeOS DB — consistent snapshot even while the container is running
 if docker ps --format '{{.Names}}' | grep -q '^lifeos$'; then
   docker exec lifeos python3 -c \

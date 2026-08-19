@@ -1,0 +1,26 @@
+# Smart kitchen: use the pantry before it goes bad.
+# Needs the Grocy add-on stack (docker compose --profile grocy up -d) +
+# the Grocy integration from HACS, which exposes
+# sensor.grocy_expiring_products (count of items expiring soon).
+
+- id: jarvis_expiring_food
+  alias: "Kitchen: food expiring soon"
+  trigger:
+    - platform: time
+      at: "17:00:00"
+  condition:
+    - condition: numeric_state
+      entity_id: sensor.grocy_expiring_products
+      above: 0
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Heads up — {{ states('sensor.grocy_expiring_products') }}
+          item{{ 's' if states('sensor.grocy_expiring_products') | int(0) != 1 else '' }}
+          in the pantry expire{{ '' if states('sensor.grocy_expiring_products') | int(0) != 1 else 's' }}
+          soon. Tonight's dinner should probably use them.
+    - service: notify.mobile_app_phone
+      data:
+        title: "Pantry"
+        message: "{{ states('sensor.grocy_expiring_products') }} pantry item(s) expiring soon."

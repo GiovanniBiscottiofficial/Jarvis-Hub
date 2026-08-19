@@ -1,0 +1,89 @@
+# Emergency response: smoke / CO / water leak.
+# EDIT: sensor entity IDs — any Zigbee smoke detector ($20), CO detector,
+# or leak sensor ($12 under the sink / by the water heater) plugs right in.
+
+- id: jarvis_fire_emergency
+  alias: "Emergency: smoke detected"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.smoke_detector
+      to: "on"
+  mode: single
+  action:
+    # Every light to full red — visible wake-up even for heavy sleepers
+    - service: light.turn_on
+      target:
+        entity_id: all
+      data:
+        rgb_color: [255, 0, 0]
+        brightness: 255
+    - service: notify.mobile_app_phone
+      data:
+        title: "🔥 FIRE ALERT"
+        message: "Smoke detected at home!"
+        data:
+          importance: high
+          ttl: 0
+          priority: high
+          channel: emergency
+    # Repeat the evacuation announcement 3 times
+    - repeat:
+        count: 3
+        sequence:
+          - service: script.jarvis_say
+            data:
+              message: "Emergency. Smoke detected. Please evacuate immediately."
+              urgent: true
+          - delay: "00:00:10"
+
+- id: jarvis_co_emergency
+  alias: "Emergency: carbon monoxide detected"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.co_detector
+      to: "on"
+  mode: single
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: all
+      data:
+        rgb_color: [255, 0, 0]
+        brightness: 255
+    - service: notify.mobile_app_phone
+      data:
+        title: "☠️ CARBON MONOXIDE"
+        message: "CO detected at home — get to fresh air!"
+        data:
+          importance: high
+          ttl: 0
+          priority: high
+          channel: emergency
+    - repeat:
+        count: 3
+        sequence:
+          - service: script.jarvis_say
+            data:
+              message: "Emergency. Carbon monoxide detected. Get outside to fresh air now."
+              urgent: true
+          - delay: "00:00:10"
+
+- id: jarvis_leak_emergency
+  alias: "Emergency: water leak detected"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.water_leak
+      to: "on"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "💧 Water leak"
+        message: "Leak sensor triggered — check it before it spreads."
+        data:
+          importance: high
+          priority: high
+          channel: emergency
+    - service: script.jarvis_say
+      data:
+        message: "Water leak detected. You'll want to look at that right away."
+        urgent: true

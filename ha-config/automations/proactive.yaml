@@ -1,0 +1,46 @@
+# Proactive intelligence: Jarvis speaks up before you ask.
+
+# Workday wake-up: a fuller good-morning than the 7:30 briefing — fires
+# earlier, only on weekdays, and only if you're home. Once your work
+# calendar is integrated (Settings -> Add Integration -> Google Calendar),
+# uncomment the calendar condition to make it schedule-aware.
+- id: jarvis_morning_prediction
+  alias: "Proactive: workday wake-up"
+  trigger:
+    - platform: time
+      at: "06:30:00"
+  condition:
+    - condition: time
+      weekday: [mon, tue, wed, thu, fri]
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+    # - condition: state
+    #   entity_id: calendar.work
+    #   state: "on"
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Good morning, sir. It's a workday.
+          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+             or 'Your briefing will be ready shortly.' }}
+
+# Dinner nudge at 4 PM: pantry-matched pick + protein still needed today.
+# Uses the same live LifeOS answer as "hey Jarvis, what's for dinner".
+- id: jarvis_dinner_nudge
+  alias: "Proactive: 4 PM dinner suggestion"
+  trigger:
+    - platform: time
+      at: "16:00:00"
+  condition:
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Thinking about dinner?
+          {{ state_attr('sensor.lifeos_answers', 'dinner')
+             or 'Check the LifeOS pantry for ideas.' }}

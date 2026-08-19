@@ -231,6 +231,39 @@ intents:
           - "announce {message}"
           - "tell everyone [that] {message}"
           - "tell the house [that] {message}"
+  JarvisWakeUp:
+    data:
+      - sentences:
+          - "wake up"
+          - "come online"
+          - "full system startup"
+          - "initialize [all] systems"
+          - "power up"
+  JarvisMoodSupport:
+    data:
+      - sentences:
+          - "I'm having a (bad | rough | terrible) day"
+          - "I've had a (bad | rough | terrible) day"
+          - "I'm (stressed | frustrated | overwhelmed) [out]"
+          - "today (sucked | was awful)"
+  JarvisQuietOn:
+    data:
+      - sentences:
+          - "quiet mode on"
+          - "[turn on] quiet mode"
+          - "mute [the] announcements"
+  JarvisQuietOff:
+    data:
+      - sentences:
+          - "quiet mode off"
+          - "turn off quiet mode"
+          - "unmute [the] announcements"
+  JarvisThanks:
+    data:
+      - sentences:
+          - "thank you [jarvis]"
+          - "thanks [jarvis]"
+          - "good (job | work) [jarvis]"
 
 lists:
   grams:

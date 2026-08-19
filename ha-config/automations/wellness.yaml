@@ -1,0 +1,23 @@
+# Health & wellness: morning sleep recap.
+# The Companion app exposes phone sleep data on many Androids
+# (sensor.phone_sleep_duration); iPhones flow through Health Auto Export
+# into LifeOS instead. EDIT the sensor name, then uncomment.
+
+- id: jarvis_sleep_recap
+  alias: "Wellness: morning sleep recap"
+  trigger:
+    - platform: time
+      at: "07:15:00"
+  condition:
+    - condition: template
+      value_template: >-
+        {{ states('sensor.phone_sleep_duration') not in
+           ['unknown', 'unavailable', 'none'] }}
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          You slept {{ states('sensor.phone_sleep_duration') }} hours.
+          {{ 'Solid rest — good base for the day.'
+             if states('sensor.phone_sleep_duration') | float(0) >= 7
+             else 'A bit short — maybe an earlier night tonight.' }}

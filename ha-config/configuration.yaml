@@ -154,6 +154,9 @@ input_boolean:
   vacation_mode:
     name: Vacation mode
     icon: mdi:beach
+  quiet_mode:
+    name: Quiet mode
+    icon: mdi:volume-off
 
 # LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
 rest:
@@ -196,6 +199,44 @@ command_line:
       unit_of_measurement: "%"
       device_class: battery
       scan_interval: 60
+
+# Contextual awareness: what's happening in the house right now.
+# Works with the Fire TV out of the box; the "working" branch lights up
+# once a desk-chair pressure mat or PC sensor is added.
+template:
+  - sensor:
+      - name: Current activity
+        unique_id: jarvis_current_activity
+        icon: mdi:motion
+        state: >-
+          {% if is_state('media_player.fire_tv', 'playing') %}
+            watching_tv
+          {% elif is_state('binary_sensor.desk_chair', 'on') %}
+            working
+          {% elif is_state('input_boolean.sleep_mode', 'on') %}
+            sleeping
+          {% else %}
+            idle
+          {% endif %}
+
+# Behavior learning + predictive maintenance (history_stats turns entity
+# history into hours-per-day numbers).
+# EDIT: climate.thermostat / binary_sensor.bedroom_motion to your entities.
+sensor:
+  - platform: history_stats
+    name: HVAC runtime hours
+    entity_id: climate.thermostat
+    state: "heat"
+    type: time
+    start: "{{ now() - timedelta(days=90) }}"
+    end: "{{ now() }}"
+  - platform: history_stats
+    name: Bedroom activity today
+    entity_id: binary_sensor.bedroom_motion
+    state: "on"
+    type: time
+    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+    end: "{{ now() }}"
 
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into

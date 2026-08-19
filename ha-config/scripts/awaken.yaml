@@ -1,0 +1,34 @@
+# "Hey Jarvis, wake up" — full system awakening: ambient cyan glow,
+# spoken greeting, and a status report to your phone. The X1 kiosk shows
+# the animated boot splash on its own at startup; this is the on-demand
+# showpiece version.
+full_jarvis_awakening:
+  alias: "Full Jarvis awakening"
+  icon: mdi:robot-excited
+  sequence:
+    # Ambient glow — Jarvis-cyan across the living room
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        rgb_color: [0, 212, 255]
+        brightness: 80
+    # Audio greeting
+    - service: script.jarvis_say
+      data:
+        message: >-
+          All systems initialized. Welcome back, sir.
+          {{ state_attr('sensor.lifeos_answers', 'nudge')
+             or 'Everything is running smoothly.' }}
+    # Status report to the phone
+    - service: notify.mobile_app_phone
+      data:
+        title: "Jarvis Online"
+        message: >-
+          Power: {{ 'mains' if is_state('binary_sensor.mains_power', 'on')
+                    else 'battery (' ~ states('sensor.x1_battery') ~ '%)' }}
+          · Modes: guest {{ states('input_boolean.guest_mode') }},
+          sleep {{ states('input_boolean.sleep_mode') }},
+          vacation {{ states('input_boolean.vacation_mode') }}
+          · {{ state_attr('sensor.lifeos_answers', 'bills')
+               or 'LifeOS offline.' }}

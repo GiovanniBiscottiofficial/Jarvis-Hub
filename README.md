@@ -104,6 +104,43 @@ Vault Flow by voice:
 House control:
 - "tell everyone dinner's ready" / "announce ..." — whole-house announcement
   (edit the speaker in `ha-config/scripts/announce.yaml`)
+- "wake up" · "initialize all systems" — the full Jarvis awakening sequence
+  (lights, greeting, status report to your phone)
+- "quiet mode on" / "quiet mode off" — hold all announcements except
+  emergencies (also flips on automatically while the TV is playing)
+- "I'm having a bad day" · "I'm stressed" — cozy lights + a kind word
+- "thank you Jarvis" — he has opinions about his own brilliance
+
+### Beyond the ordinary (the proactive layer)
+
+All in `ha-config/automations/` — active immediately unless noted:
+
+- **Proactive**: workday wake-up briefing at 6:30, dinner suggestion at 4 PM
+  (`proactive.yaml`).
+- **Contextual**: quiet mode auto-on during movies via the `Current activity`
+  sensor; dim red night-path light on late-night motion once a motion sensor
+  is added (`contextual.yaml`, sensor in `configuration.yaml`).
+- **Personality**: random witty confirmations (`scripts/jarvis_quips.yaml`),
+  the full awakening sequence (`scripts/awaken.yaml`), mood support.
+- **Entertainment**: upgraded movie night (Fire TV + dimmed ambiance), lights
+  fade back up after the credits; Spotify mood-music scaffold commented until
+  you add the Spotify integration (`entertainment.yaml`).
+- **Digital twin**: new **Twin** dashboard tab — live activity, house modes,
+  power flow; drop `ha-config/www/floorplan.png` and uncomment the
+  picture-elements block for a tappable floorplan.
+- **Needs hardware/integrations (safe to leave as-is until then)**:
+  - Emergency response — all lights red + evacuation announce + phone alert on
+    smoke/CO/leak (`emergency.yaml`; any Zigbee detector, leak sensors ~$12).
+  - Security — known-face welcome, unknown-visitor snapshot with actionable
+    phone notification, wave-at-camera gesture (`security.yaml`; needs
+    Frigate + Double Take on the camera; auto-unlock stays commented on purpose).
+  - Environment — storm prep + air-quality purifier automation
+    (`environment.yaml`; needs a weather integration / PM2.5 sensor).
+  - Optimization — charge-when-power-is-cheap, HVAC filter reminder
+    (`optimization.yaml`; needs a price sensor / smart thermostat).
+  - Kitchen — 5 PM "use it before it expires" from Grocy (`kitchen.yaml`).
+  - Wellness — morning sleep recap from your phone's sleep data
+    (`wellness.yaml`; Companion app sleep sensors).
 
 Jarvis also announces new LifeOS nudges through the house speaker and your phone
 (`ha-config/automations/nudges.yaml` — set your real speaker/notify entities there;

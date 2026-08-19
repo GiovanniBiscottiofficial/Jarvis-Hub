@@ -11,7 +11,18 @@ jarvis_say:
     message:
       description: "What Jarvis should say"
       example: "Dinner's ready"
+    urgent:
+      description: "Speak even in quiet mode (emergencies)"
+      example: "true"
   sequence:
+    # Quiet mode (auto-on during movies) silences everything but emergencies
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_boolean.quiet_mode
+          state: "off"
+        - condition: template
+          value_template: "{{ urgent | default(false) }}"
     - variables:
         piper_tts: >-
           {{ states.tts | map(attribute='entity_id')

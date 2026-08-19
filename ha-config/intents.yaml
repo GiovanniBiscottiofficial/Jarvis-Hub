@@ -239,6 +239,57 @@ JarvisCancelReminders:
   speech:
     text: "All reminders and timers are canceled."
 
+JarvisWakeUp:
+  action:
+    - service: script.turn_on
+      target:
+        entity_id: script.full_jarvis_awakening
+  speech:
+    text: "Initializing all systems, sir."
+
+JarvisMoodSupport:
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        brightness_pct: 35
+        kelvin: 2400
+  speech:
+    text: >-
+      {{ [
+        "I'm sorry to hear that, sir. I've warmed the lights — take a breath. Shall I put something on?",
+        "Rough days happen to the best of us. Lights are set to cozy. You've earned a quiet evening.",
+        "Understood. Dimming the lights. For what it's worth, you handle far more than most, sir."
+      ] | random }}
+
+JarvisQuietOn:
+  action:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.quiet_mode
+  speech:
+    text: "Quiet mode on. I'll hold all announcements except emergencies."
+
+JarvisQuietOff:
+  action:
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.quiet_mode
+  speech:
+    text: "Quiet mode off. Back to my usual commentary."
+
+JarvisThanks:
+  speech:
+    text: >-
+      {{ [
+        "At your service, sir.",
+        "Always a pleasure.",
+        "A trivial task for someone of my capabilities.",
+        "Of course, sir. Anything else while I'm being brilliant?",
+        "That's what I'm here for."
+      ] | random }}
+
 JarvisHouseStatus:
   speech:
     text: >-
