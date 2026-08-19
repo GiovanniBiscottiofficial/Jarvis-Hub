@@ -187,6 +187,169 @@ views:
       #         entity_id: input_boolean.show_splash
 
   # ------------------------------------------------------------------
+  # Wall+ — the upgraded touch-first wall display. Needs three free HACS
+  # frontend cards (HACS -> Frontend -> search -> Download -> reload):
+  #   1. "Bubble Card"      2. "Mushroom"      3. "mini-graph-card"
+  # Until they're installed this tab shows red "custom element" boxes —
+  # the classic Wall tab keeps working regardless. Once you like Wall+,
+  # point the kiosk at it:
+  #   KIOSK_URL="http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus" \
+  #     bash bootstrap/setup-kiosk.sh
+  - title: Wall+
+    path: wall-plus
+    icon: mdi:monitor-star
+    theme: Jarvis
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            text_only: true
+            content: |
+              <font size="7">**{{ now().strftime('%-I:%M %p') }}**</font>
+
+              ### {{ now().strftime('%A, %B %-d') }}
+          - type: custom:mushroom-chips-card
+            alignment: start
+            chips:
+              - type: template
+                icon: mdi:home-heart
+                icon_color: cyan
+                content: >-
+                  {{ states('sensor.room_atmosphere') | replace('_', ' ') | title }}
+              - type: template
+                icon: mdi:briefcase-clock
+                icon_color: >-
+                  {{ 'amber' if is_state('binary_sensor.giovanni_work_hours', 'on') else 'cyan' }}
+                content: >-
+                  {{ 'At work' if is_state('binary_sensor.giovanni_work_hours', 'on') else 'Off the clock' }}
+              - type: entity
+                entity: sensor.x1_battery
+                icon_color: green
+              - type: entity
+                entity: sensor.x1_cpu_temperature
+                icon_color: orange
+              - type: template
+                icon: mdi:sleep
+                icon_color: >-
+                  {{ 'indigo' if is_state('input_boolean.sleep_mode', 'on') else 'disabled' }}
+                content: >-
+                  {{ 'Sleep' if is_state('input_boolean.sleep_mode', 'on') else '' }}
+                tap_action:
+                  action: call-service
+                  service: input_boolean.toggle
+                  target:
+                    entity_id: input_boolean.sleep_mode
+          - type: iframe
+            url: /local/jarvis-avatar.html
+            aspect_ratio: 70%
+          - type: markdown
+            title: Briefing
+            content: >
+              {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+                 or 'LifeOS not reachable — is the lifeos container up?' }}
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Rooms
+            icon: mdi:sofa
+          - type: custom:bubble-card
+            card_type: button
+            button_type: slider
+            entity: light.living_room
+            name: Living Room
+            icon: mdi:sofa
+            show_state: true
+          - type: custom:bubble-card
+            card_type: button
+            button_type: slider
+            entity: light.bedroom
+            name: Bedroom
+            icon: mdi:bed
+            show_state: true
+          - type: heading
+            heading: Scenes
+            icon: mdi:palette
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            name: Movie Night
+            icon: mdi:movie-open
+            tap_action:
+              action: call-service
+              service: script.movie_night
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            name: Goodnight
+            icon: mdi:weather-night
+            tap_action:
+              action: call-service
+              service: script.goodnight
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            name: Leaving
+            icon: mdi:exit-run
+            tap_action:
+              action: call-service
+              service: script.leaving
+          - type: custom:bubble-card
+            card_type: button
+            button_type: switch
+            entity: input_boolean.guest_mode
+            name: Guests
+            icon: mdi:account-group
+          - type: custom:bubble-card
+            card_type: button
+            button_type: switch
+            entity: vacuum.juno
+            name: Juno
+            icon: mdi:robot-vacuum
+            tap_action:
+              action: call-service
+              service: vacuum.start
+              target:
+                entity_id: vacuum.juno
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hub vitals
+            icon: mdi:pulse
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.x1_cpu_temperature
+                name: CPU °C
+            hours_to_show: 12
+            points_per_hour: 4
+            line_color: "#00e5ff"
+            line_width: 3
+            animate: true
+            show:
+              fill: fade
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.x1_battery
+                name: Battery %
+            hours_to_show: 24
+            points_per_hour: 2
+            line_color: "#4ade80"
+            line_width: 3
+            animate: true
+            lower_bound: 0
+            upper_bound: 100
+            show:
+              fill: fade
+          - type: heading
+            heading: Shopping
+            icon: mdi:cart-outline
+          - type: todo-list
+            entity: todo.shopping_list
+
+  # ------------------------------------------------------------------
   - title: Home
     path: home
     icon: mdi:home-assistant

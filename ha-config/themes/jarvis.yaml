@@ -18,12 +18,24 @@ Jarvis:
   markdown-code-background-color: "#0c1220"
 
   # cards — floating glass panels
-  card-background-color: "#101828e6"
-  ha-card-background: "#101828e6"
-  ha-card-border-radius: "22px"
+  card-background-color: "#101828cc"
+  ha-card-background: "#101828cc"
+  ha-card-border-radius: "24px"
   ha-card-border-width: "1px"
-  ha-card-border-color: "rgba(0, 212, 255, 0.18)"
-  ha-card-box-shadow: "0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(0, 212, 255, 0.08), inset 0 0 20px rgba(0, 212, 255, 0.04)"
+  ha-card-border-color: "rgba(0, 229, 255, 0.26)"
+  ha-card-box-shadow: "0 12px 36px rgba(0, 0, 0, 0.55), 0 0 32px rgba(0, 212, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 0 26px rgba(0, 212, 255, 0.05)"
+
+  # Bubble Card (HACS) — picked up automatically once the card is installed
+  bubble-main-background-color: "rgba(16, 24, 40, 0.8)"
+  bubble-secondary-background-color: "rgba(0, 212, 255, 0.12)"
+  bubble-accent-color: "#00e5ff"
+  bubble-icon-background-color: "rgba(0, 212, 255, 0.12)"
+  bubble-border-radius: "28px"
+
+  # Mushroom (HACS)
+  mush-rgb-state-entity: "0, 229, 255"
+  mush-chip-background: "rgba(16, 24, 40, 0.8)"
+  mush-chip-border-radius: "16px"
 
   # text
   primary-text-color: "#e8eef7"
