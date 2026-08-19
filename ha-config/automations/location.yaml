@@ -66,6 +66,20 @@
 #         - service: input_boolean.turn_on
 #           target:
 #             entity_id: input_boolean.quiet_mode
+#     # Video-call events also get camera-ready lighting: bright + neutral
+#     - if:
+#         - condition: template
+#           value_template: >-
+#             {{ 'zoom' in trigger.calendar_event.summary | lower
+#                or 'meet' in trigger.calendar_event.summary | lower
+#                or 'call' in trigger.calendar_event.summary | lower }}
+#       then:
+#         - service: light.turn_on
+#           target:
+#             entity_id: light.living_room
+#           data:
+#             brightness_pct: 100
+#             color_temp_kelvin: 4000
 
 # --- DOORBELL SOUND --------------------------------------------------------
 # Needs: a doorbell binary sensor + a chime file at

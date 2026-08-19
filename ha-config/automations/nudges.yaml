@@ -29,3 +29,26 @@
     - service: rest_command.lifeos_resolve_nudge
       data:
         nudge_id: "{{ state_attr('sensor.lifeos_answers', 'nudge_id') }}"
+
+# Fires once when month-to-date spending (voice-logged into LifeOS)
+# crosses the monthly budget cap set in input_number.monthly_budget.
+- id: lifeos_budget_alert
+  alias: "Vault Flow: monthly budget crossed"
+  trigger:
+    - platform: template
+      value_template: >-
+        {{ states('sensor.lifeos_monthly_spending') | float(0)
+           > states('input_number.monthly_budget') | float(2000) }}
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Budget"
+        message: >-
+          You've spent ${{ states('sensor.lifeos_monthly_spending') }} this
+          month — past your ${{ states('input_number.monthly_budget') | int }}
+          budget, sir.
+    - service: script.jarvis_say
+      data:
+        message: >-
+          A word, sir — this month's spending just crossed your
+          {{ states('input_number.monthly_budget') | int }} dollar budget.

@@ -172,6 +172,19 @@ input_boolean:
     name: Circadian lighting
     icon: mdi:theme-light-dark
 
+# Monthly budget cap — the budget-alert automation fires when LifeOS
+# month-to-date spending crosses this (adjust it from any dashboard).
+input_number:
+  monthly_budget:
+    name: Monthly budget
+    icon: mdi:cash-lock
+    min: 100
+    max: 10000
+    step: 50
+    initial: 2000
+    unit_of_measurement: "$"
+    mode: box
+
 # LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
 rest:
   - resource: http://localhost:8090/api/briefing
@@ -193,6 +206,14 @@ rest:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
         json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id]
+  # Month-to-date spending from the LifeOS ledger (voice-logged spends)
+  - resource: http://localhost:8090/api/vault/spending
+    scan_interval: 900
+    sensor:
+      - name: LifeOS monthly spending
+        unit_of_measurement: "$"
+        value_template: "{{ value_json.month_total | round(2) }}"
+        json_attributes: [week_total]
 
 # The X1's built-in UPS: reads the laptop's own AC-adapter and battery
 # state from the kernel, so a power outage is detected the second the

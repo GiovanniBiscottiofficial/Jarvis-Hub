@@ -194,7 +194,11 @@ def list_spending():
                 (week_ago,),
             ).fetchall()
         ]
-        return {"week_total": week_spending(c), "entries": entries}
+        return {
+            "week_total": week_spending(c),
+            "month_total": month_spending(c),
+            "entries": entries,
+        }
 
 
 def week_spending(c) -> float:
@@ -202,6 +206,15 @@ def week_spending(c) -> float:
     row = c.execute(
         "SELECT COALESCE(SUM(amount),0) s FROM spending WHERE date(ts)>=?",
         (week_ago,),
+    ).fetchone()
+    return row["s"]
+
+
+def month_spending(c) -> float:
+    month_start = date.today().replace(day=1).isoformat()
+    row = c.execute(
+        "SELECT COALESCE(SUM(amount),0) s FROM spending WHERE date(ts)>=?",
+        (month_start,),
     ).fetchone()
     return row["s"]
 
