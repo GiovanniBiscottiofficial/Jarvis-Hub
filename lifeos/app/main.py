@@ -4,9 +4,9 @@ from datetime import date
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .db import active_profile, conn, init_db
+from .db import active_profile, conn, get_setting, init_db
 from .routers import bodyops, insights, pantry, profiles, vaultflow, webhooks
-from .routers.bodyops import protein_today, streak
+from .routers.bodyops import protein_today, streak, water_today
 from .suggestions import suggest_meals
 
 app = FastAPI(title="LifeOS", version="0.2.0")
@@ -49,6 +49,10 @@ def today():
             "meal_suggestions": suggest_meals(),
             "protein": {"today_g": protein, "target_g": target},
             "steps_today": steps_row["count"] if steps_row else 0,
+            "water": {
+                "today": water_today(c),
+                "target": int(get_setting("water_target_glasses") or 8),
+            },
             "vitamins_taken": bool(vit_row and vit_row["taken"]),
             "streaks": {
                 "vitamins": streak(c, "vitamins"),

@@ -158,6 +158,31 @@ LifeOSSetUsual:
   speech:
     text: "Your usual {{ slot }} is now {{ meal }}."
 
+LifeOSWater:
+  action:
+    - service: rest_command.lifeos_water
+      data:
+        glasses: "{{ glasses }}"
+  speech:
+    text: "Logged {{ glasses }} glass{{ 'es' if glasses | int(1) > 1 else '' }} of water."
+
+LifeOSWaterCheck:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'water') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSGoalContribute:
+  action:
+    - service: rest_command.lifeos_goal_contribute
+      data:
+        goal: "{{ goal }}"
+        amount: "{{ amount }}"
+  speech:
+    text: "Added {{ amount }} dollars to the {{ goal }} fund."
+
+LifeOSGoalsCheck:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'goals') or 'LifeOS is not reachable right now.' }}"
+
 # --- house control ---
 
 JarvisRemind:
@@ -179,3 +204,42 @@ JarvisAnnounce:
         message: "{{ message }}"
   speech:
     text: "Announcing."
+
+JarvisTimer:
+  action:
+    - service: script.turn_on
+      target:
+        entity_id: script.reminder
+      data:
+        variables:
+          message: "your {{ minutes }} minute timer is up"
+          minutes: "{{ minutes }}"
+  speech:
+    text: "Timer set for {{ minutes }} minutes."
+
+JarvisCancelReminders:
+  action:
+    - service: script.turn_off
+      target:
+        entity_id: script.reminder
+  speech:
+    text: "All reminders and timers are canceled."
+
+JarvisHouseStatus:
+  speech:
+    text: >-
+      {%- set on_lights = states.light | selectattr('state', 'eq', 'on')
+         | map(attribute='name') | list -%}
+      {%- set vac = states('vacuum.juno') -%}
+      {{ 'All lights are off'
+         if not on_lights
+         else (on_lights | count | string) + ' light'
+           + ('s' if on_lights | count != 1 else '') + ' on: '
+           + (on_lights | join(', ')) }}.
+      {{ 'The vacuum is ' + vac + '.' if vac not in ['unknown', 'unavailable'] else '' }}
+      {{ 'Sleep mode is on.' if is_state('input_boolean.sleep_mode', 'on') else '' }}
+      {{ 'Guest mode is on.' if is_state('input_boolean.guest_mode', 'on') else '' }}
+      {{ 'Vacation mode is on.' if is_state('input_boolean.vacation_mode', 'on') else '' }}
+      {{ 'Looks ready for the night.'
+         if not on_lights
+         else 'Say goodnight and I will shut things down.' }}

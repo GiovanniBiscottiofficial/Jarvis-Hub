@@ -6,9 +6,9 @@ from datetime import date, timedelta
 import httpx
 from fastapi import APIRouter
 
-from ..db import active_profile, conn
+from ..db import active_profile, conn, get_setting
 from ..suggestions import suggest_meals
-from .bodyops import protein_today, streak
+from .bodyops import protein_today, streak, water_today
 from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
@@ -258,6 +258,11 @@ def ask():
             "SELECT id, text FROM nudges WHERE resolved=0 ORDER BY ts DESC LIMIT 1"
         ).fetchone()
         spent_week = week_spending(c)
+        water = water_today(c)
+        goals = [
+            dict(r)
+            for r in c.execute("SELECT * FROM savings_goals ORDER BY name").fetchall()
+        ]
         grocery = [
             r["item"]
             for r in c.execute(
@@ -310,6 +315,23 @@ def ask():
         else "The grocery list is empty."
     )
 
+    water_target = int(get_setting("water_target_glasses") or 8)
+    water_speech = (
+        f"{water} of {water_target} glasses of water today"
+        + (" — target hit." if water >= water_target else ".")
+    )
+
+    goals_speech = (
+        "; ".join(
+            f"{g['name']}: ${g['saved']:.0f}"
+            + (f" of ${g['target']:.0f}" if g["target"] else "")
+            for g in goals
+        )
+        + "."
+        if goals
+        else "No savings goals yet — say 'add 50 to my vacation fund' to start one."
+    )
+
     return {
         "protein": protein_speech,
         "steps": steps_speech,
@@ -318,6 +340,8 @@ def ask():
         "meals": meals_speech,
         "spending": spending_speech,
         "grocery": grocery_speech,
+        "water": water_speech,
+        "goals": goals_speech,
         "nudge": nudge_row["text"] if nudge_row else "",
         "nudge_id": nudge_row["id"] if nudge_row else 0,
     }

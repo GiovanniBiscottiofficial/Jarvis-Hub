@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from ..db import active_profile, conn
+from ..db import active_profile, conn, get_setting
 from ..suggestions import high_protein_snacks, suggest_meals
 
 router = APIRouter(prefix="/api/body", tags=["bodyops"])
@@ -41,6 +41,10 @@ class WorkoutPlanIn(BaseModel):
 
 class FavoriteIn(BaseModel):
     meal: str
+
+
+class WaterIn(BaseModel):
+    glasses: int = 1
 
 
 FAVORITE_SLOTS = ("breakfast", "lunch", "dinner", "snack")
@@ -189,6 +193,31 @@ def take_vitamins():
             (_today(), active_profile(c)["id"]),
         )
         return {"ok": True, "streak": streak(c, "vitamins")}
+
+
+def water_today(c) -> int:
+    row = c.execute(
+        "SELECT glasses FROM water WHERE date=? AND profile_id=?",
+        (_today(), active_profile(c)["id"]),
+    ).fetchone()
+    return row["glasses"] if row else 0
+
+
+@router.post("/water")
+def log_water(body: WaterIn):
+    """'Log a glass of water' — counts glasses toward the daily target."""
+    with conn() as c:
+        c.execute(
+            "INSERT INTO water(date,profile_id,glasses) VALUES(?,?,?)"
+            " ON CONFLICT(date,profile_id)"
+            " DO UPDATE SET glasses=glasses+excluded.glasses",
+            (_today(), active_profile(c)["id"], max(1, body.glasses)),
+        )
+        return {
+            "ok": True,
+            "today": water_today(c),
+            "target": int(get_setting("water_target_glasses") or 8),
+        }
 
 
 @router.get("/workouts/plan")
@@ -356,6 +385,10 @@ def body_summary():
         return {
             "protein": {"today_g": protein, "target_g": target},
             "steps": {"today": steps, "target": step_target},
+            "water": {
+                "today": water_today(c),
+                "target": int(get_setting("water_target_glasses") or 8),
+            },
             "calories_today": cals_row["k"],
             "vitamins_taken": bool(vit_row and vit_row["taken"]),
             "streaks": {

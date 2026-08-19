@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LifeOS</title>
+<meta name="theme-color" content="#0a1628">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LifeOS">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,8 +42,14 @@
       <div class="bar-row"><span>Steps</span>
         <div class="bar"><div id="steps-bar" class="fill steps"></div></div>
         <span id="steps-label">–</span></div>
+      <div class="bar-row"><span>Water</span>
+        <div class="bar"><div id="water-bar" class="fill water"></div></div>
+        <span id="water-label">–</span></div>
       <div id="streaks" class="muted"></div>
-      <button id="vitamins-btn" class="pill">Vitamins taken today</button>
+      <div class="row">
+        <button id="vitamins-btn" class="pill">Vitamins taken today</button>
+        <button id="water-btn" class="pill">+ Glass of water</button>
+      </div>
     </div>
 
     <div class="card">
@@ -140,6 +153,21 @@
       </div>
     </div>
     <div class="card">
+      <h2>Savings goals</h2>
+      <div id="goals" class="muted">–</div>
+      <div class="row">
+        <input id="goal-name" placeholder="goal (e.g. vacation)">
+        <input id="goal-target" type="number" step="0.01" placeholder="target $">
+        <button id="goal-btn">Add</button>
+      </div>
+      <div class="row">
+        <select id="goal-select"></select>
+        <input id="goal-amount" type="number" step="0.01" placeholder="$">
+        <button id="goal-add-btn">Save to goal</button>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>This week's plan</h2>
       <div id="plan"></div>
     </div>
@@ -165,5 +193,8 @@
 </main>
 
 <script src="app.js"></script>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
 </body>
 </html>

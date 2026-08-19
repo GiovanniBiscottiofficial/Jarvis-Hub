@@ -22,6 +22,17 @@ views:
 
               ### {{ now().strftime('%A, %B %-d') }}
           - type: markdown
+            text_only: true
+            content: >
+              {% set hour = now().hour %}
+              {% if hour < 12 %}
+              <font color="#00e5ff">**Good morning, sir.** Coffee?</font>
+              {% elif hour < 18 %}
+              <font color="#00e5ff">**Good afternoon, sir.** At your service.</font>
+              {% else %}
+              <font color="#00e5ff">**Good evening, sir.** Shall I prepare for movie night?</font>
+              {% endif %}
+          - type: markdown
             title: Briefing
             content: >
               {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
@@ -40,6 +51,17 @@ views:
             color: teal
             tap_action:
               action: toggle
+          - type: markdown
+            title: Try saying…
+            content: |
+              • "Hey Jarvis, brief me"
+              • "Hey Jarvis, movie night"
+              • "Hey Jarvis, goodnight"
+              • "Hey Jarvis, is the house ready for the night?"
+              • "Hey Jarvis, log a glass of water"
+              • "Hey Jarvis, add 50 to my vacation fund"
+              • "Hey Jarvis, set a timer for 10 minutes"
+              • "Hey Jarvis, add milk to the grocery list"
 
       - type: grid
         cards:
@@ -131,6 +153,35 @@ views:
               - input_boolean.guest_mode
               - input_boolean.sleep_mode
               - input_boolean.vacation_mode
+
+      # Optional: full-screen "JARVIS initializing" splash overlay.
+      # Needs the HACS "button-card" custom card (HACS -> Frontend ->
+      # search "button-card" -> Download, then reload). Uncomment after
+      # installing, and add an input_boolean called show_splash.
+      # - type: conditional
+      #   conditions:
+      #     - entity: input_boolean.show_splash
+      #       state: "on"
+      #   card:
+      #     type: custom:button-card
+      #     styles:
+      #       card:
+      #         - position: fixed
+      #         - top: "0"
+      #         - left: "0"
+      #         - width: 100vw
+      #         - height: 100vh
+      #         - z-index: "999"
+      #         - background: radial-gradient(circle, #0a1628 0%, #000000 100%)
+      #         - font-size: 2em
+      #         - color: "#00e5ff"
+      #     name: |
+      #       [[[ return 'JARVIS — initializing systems…'; ]]]
+      #     tap_action:
+      #       action: call-service
+      #       service: input_boolean.turn_off
+      #       target:
+      #         entity_id: input_boolean.show_splash
 
   # ------------------------------------------------------------------
   - title: Home

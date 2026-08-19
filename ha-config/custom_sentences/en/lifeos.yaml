@@ -75,6 +75,14 @@ intents:
           - "I'm having a treat [today]"
           - "log a treat"
           - "treat time"
+  # Must come before LifeOSDeposit: "add 50 to my vacation fund" would
+  # otherwise match the deposit wildcard with account="my vacation fund".
+  LifeOSGoalContribute:
+    data:
+      - sentences:
+          - "add {amount} [dollars] to my {goal} fund"
+          - "put {amount} [dollars] in [my] {goal} fund"
+          - "save {amount} [dollars] for {goal}"
   LifeOSDeposit:
     data:
       - sentences:
@@ -148,6 +156,48 @@ intents:
       - sentences:
           - "set my usual {slot} to {meal}"
           - "my usual {slot} is {meal}"
+  LifeOSWater:
+    data:
+      - sentences:
+          - "log {glasses} glasses of water"
+          - "I drank {glasses} glasses of water"
+      - sentences:
+          - "log a glass of water"
+          - "I drank a glass of water"
+          - "water down"
+        slots:
+          glasses: 1
+  LifeOSWaterCheck:
+    data:
+      - sentences:
+          - "how much water have I had [today]"
+          - "how's my water [today]"
+          - "water check"
+  LifeOSGoalsCheck:
+    data:
+      - sentences:
+          - "how are my savings [goals]"
+          - "savings check"
+          - "how much have I saved"
+  JarvisTimer:
+    data:
+      - sentences:
+          - "set a timer for {minutes} minutes"
+          - "[start a] timer for {minutes} minutes"
+          - "start a {minutes} minute timer"
+  JarvisCancelReminders:
+    data:
+      - sentences:
+          - "cancel [all] [my] reminders"
+          - "cancel [all] [my] timers"
+          - "cancel the (reminder | timer)"
+  JarvisHouseStatus:
+    data:
+      - sentences:
+          - "is the house ready for the night"
+          - "house status [report]"
+          - "status report"
+          - "how's the house [looking]"
   JarvisRemind:
     data:
       - sentences:
@@ -204,3 +254,9 @@ lists:
     range:
       from: 0
       to: 60000
+  glasses:
+    range:
+      from: 1
+      to: 20
+  goal:
+    wildcard: true

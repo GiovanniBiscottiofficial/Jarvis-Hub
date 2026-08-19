@@ -67,6 +67,10 @@ Ask:
 - "what bills are due this week" · "how much money do I have left"
 - "what can I eat"
 - "how much have I spent this week" · "what's on the grocery list"
+- "how much water have I had today" · "water check"
+- "how are my savings" · "how much have I saved"
+- "is the house ready for the night" · "house status" — Jarvis checks the
+  lights, vacuum, and house modes and reports back
 
 Log (Jarvis writes straight into LifeOS):
 - "I took my vitamins" · "log 45 grams of protein"
@@ -77,6 +81,9 @@ Log (Jarvis writes straight into LifeOS):
 - "add chicken to the grocery list" · "we're out of milk"
 - "take chicken off the grocery list" · "clear the grocery list"
 - "remind me to move the laundry in 30 minutes"
+- "set a timer for 10 minutes" · "cancel my timers" / "cancel all my reminders"
+- "log a glass of water" · "I drank 3 glasses of water" — counts toward the
+  daily 8-glass target (shown on the LifeOS Today tab)
 - "set my usual breakfast to sweet potato and eggs", then "log my usual
   breakfast" — one-phrase meal logging with real macros
 
@@ -85,6 +92,9 @@ Vault Flow by voice:
 - "mark rent paid" · "I paid the electric bill"
 - "add a bill called internet for 80 dollars due on the 15th"
 - "add an account called savings"
+- "add 50 to my vacation fund" · "save 25 dollars for Christmas" — savings
+  goals with progress bars on the Vault Flow tab (a new goal is created
+  automatically the first time you mention it)
 
 House control:
 - "tell everyone dinner's ready" / "announce ..." — whole-house announcement
@@ -96,6 +106,13 @@ nudges stay quiet during guest mode and sleep mode).
 
 Sentences live in `ha-config/custom_sentences/en/lifeos.yaml`, answers in
 `ha-config/intents.yaml` (fed by LifeOS's `/api/ask`). Add your own phrasings any time.
+
+## LifeOS on your phone — a real app
+
+LifeOS is an installable PWA: open `http://<hub-ip>:8090` on your phone, then
+**Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). You
+get a proper Jarvis-blue app icon and a fullscreen standalone app — no browser
+bars — and the app shell still opens if the hub is briefly unreachable.
 
 ## The hub display (Google-Home style)
 

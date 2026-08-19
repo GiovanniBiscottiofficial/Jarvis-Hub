@@ -31,6 +31,9 @@ async function loadToday() {
   const stepsTarget = t.step_target || 8000;
   $("steps-bar").style.width = Math.min(100, (t.steps_today / stepsTarget) * 100) + "%";
   $("steps-label").textContent = t.steps_today.toLocaleString();
+  const w = t.water || { today: 0, target: 8 };
+  $("water-bar").style.width = Math.min(100, (w.today / w.target) * 100) + "%";
+  $("water-label").textContent = `${w.today} / ${w.target}`;
   $("streaks").textContent =
     `Streaks — vitamins: ${t.streaks.vitamins}d, steps: ${t.streaks.steps}d`;
   $("vitamins-btn").textContent = t.vitamins_taken
@@ -90,6 +93,8 @@ async function override(meal, kind) {
 }
 
 $("vitamins-btn").onclick = async () => { await api("/api/body/vitamins/take", "POST"); loadToday(); };
+
+$("water-btn").onclick = async () => { await api("/api/body/water", "POST", { glasses: 1 }); loadToday(); };
 
 $("briefing-btn").onclick = async () => {
   const b = await api("/api/briefing");
@@ -249,6 +254,28 @@ async function loadVault() {
     bl.appendChild(line);
   });
 
+  const goals = await api("/api/vault/goals");
+  const gl = $("goals");
+  const gsel = $("goal-select");
+  gsel.innerHTML = "";
+  if (!goals.length) {
+    gl.textContent = "No goals yet — add one below or say \"add 50 to my vacation fund\".";
+  } else {
+    gl.innerHTML = "";
+    goals.forEach((g) => {
+      const pct = g.target ? Math.min(100, (g.saved / g.target) * 100) : 0;
+      const div = document.createElement("div");
+      div.className = "bar-row";
+      div.innerHTML = `<span>${g.name}</span>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        <span>$${g.saved.toFixed(0)}${g.target ? " / $" + g.target.toFixed(0) : ""}</span>`;
+      gl.appendChild(div);
+      const opt = document.createElement("option");
+      opt.value = g.name; opt.textContent = g.name;
+      gsel.appendChild(opt);
+    });
+  }
+
   const plan = await api("/api/vault/plan");
   const pl = $("plan");
   pl.innerHTML = `
@@ -286,6 +313,25 @@ $("dep-btn").onclick = async () => {
     amount, account_id: parseInt($("dep-account").value, 10), source: "manual",
   });
   $("dep-amount").value = "";
+  loadVault();
+};
+
+$("goal-btn").onclick = async () => {
+  const name = $("goal-name").value.trim();
+  if (!name) return;
+  await api("/api/vault/goals", "POST", {
+    name, target: parseFloat($("goal-target").value) || 0,
+  });
+  $("goal-name").value = ""; $("goal-target").value = "";
+  loadVault();
+};
+
+$("goal-add-btn").onclick = async () => {
+  const name = $("goal-select").value;
+  const amount = parseFloat($("goal-amount").value);
+  if (!name || !amount) return;
+  await api("/api/vault/goals/contribute", "POST", { name, amount });
+  $("goal-amount").value = "";
   loadVault();
 };
 

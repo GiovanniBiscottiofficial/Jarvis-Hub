@@ -47,6 +47,16 @@ class SpendIn(BaseModel):
     merchant: str = ""
 
 
+class GoalIn(BaseModel):
+    name: str
+    target: float = 0
+
+
+class GoalContributeIn(BaseModel):
+    name: str
+    amount: float
+
+
 def _month() -> str:
     return date.today().strftime("%Y-%m")
 
@@ -194,6 +204,52 @@ def week_spending(c) -> float:
         (week_ago,),
     ).fetchone()
     return row["s"]
+
+
+@router.get("/goals")
+def list_goals():
+    with conn() as c:
+        return [
+            dict(r)
+            for r in c.execute("SELECT * FROM savings_goals ORDER BY name").fetchall()
+        ]
+
+
+@router.post("/goals")
+def add_goal(body: GoalIn):
+    """'Create a savings goal called vacation for 1000 dollars.'"""
+    with conn() as c:
+        c.execute(
+            "INSERT INTO savings_goals(name,target) VALUES(?,?)"
+            " ON CONFLICT(name) DO UPDATE SET target=excluded.target",
+            (body.name.strip(), body.target),
+        )
+        return {"ok": True, "goal": body.name.strip()}
+
+
+@router.post("/goals/contribute")
+def contribute_goal(body: GoalContributeIn):
+    """'Add 50 to my vacation fund' — fuzzy-matches the goal by name and
+    creates it on the fly if it doesn't exist yet."""
+    with conn() as c:
+        row = _find_by_name(c, "savings_goals", body.name)
+        if row is None:
+            c.execute(
+                "INSERT INTO savings_goals(name,saved) VALUES(?,?)",
+                (body.name.strip(), body.amount),
+            )
+            name = body.name.strip()
+            saved = body.amount
+        else:
+            c.execute(
+                "UPDATE savings_goals SET saved=saved+? WHERE id=?",
+                (body.amount, row["id"]),
+            )
+            name = row["name"]
+            saved = c.execute(
+                "SELECT saved FROM savings_goals WHERE id=?", (row["id"],)
+            ).fetchone()["saved"]
+        return {"ok": True, "goal": name, "saved": saved}
 
 
 @router.get("/plan")

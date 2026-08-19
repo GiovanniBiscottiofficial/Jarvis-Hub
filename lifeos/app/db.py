@@ -140,6 +140,20 @@ CREATE TABLE IF NOT EXISTS favorites (
     calories REAL NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS water (
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    glasses INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, profile_id)
+);
+
+CREATE TABLE IF NOT EXISTS savings_goals (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    target REAL NOT NULL DEFAULT 0,
+    saved REAL NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS nudges (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
@@ -153,6 +167,7 @@ DEFAULT_SETTINGS = {
     "protein_target_g": "100",
     "step_target": "8000",
     "calorie_target": "2000",
+    "water_target_glasses": "8",
     "active_profile": "1",
 }
 
