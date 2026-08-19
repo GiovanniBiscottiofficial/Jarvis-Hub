@@ -242,6 +242,23 @@ template:
           {% else %}
             idle
           {% endif %}
+      - name: Room atmosphere
+        unique_id: jarvis_room_atmosphere
+        icon: mdi:home-heart
+        state: >-
+          {% set tv = is_state('media_player.fire_tv', 'playing') %}
+          {% set lights = is_state('light.living_room', 'on') %}
+          {% if is_state('input_boolean.sleep_mode', 'on') %}
+            sleeping
+          {% elif tv and lights %}
+            movie_time
+          {% elif tv and not lights %}
+            relaxing
+          {% elif is_state('input_boolean.guest_mode', 'on') and lights %}
+            party
+          {% else %}
+            normal
+          {% endif %}
 
 # Behavior learning + predictive maintenance (history_stats turns entity
 # history into hours-per-day numbers).

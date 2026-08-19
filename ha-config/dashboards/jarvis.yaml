@@ -51,6 +51,9 @@ views:
             color: teal
             tap_action:
               action: toggle
+          - type: iframe
+            url: /local/jarvis-avatar.html
+            aspect_ratio: 75%
           - type: markdown
             title: Try saying…
             content: |

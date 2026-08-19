@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!-- Jarvis holographic avatar — a live rotating wireframe orb.
+     Served by Home Assistant at  /local/jarvis-avatar.html
+     Used as an iframe card on the Wall dashboard. Self-contained
+     (no CDN), so it works offline like the boot splash. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: transparent; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 50%, #001428 0%, #000810 100%);
+  }
+  canvas { display: block; }
+  .label {
+    position: fixed; bottom: 8%; width: 100%;
+    text-align: center; color: #00d4ff;
+    font-family: "Segoe UI", Roboto, sans-serif;
+    font-size: 0.9em; letter-spacing: 0.5em; text-transform: uppercase;
+    opacity: 0.7; animation: breathe 3s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+</style>
+</head>
+<body>
+<canvas id="orb"></canvas>
+<div class="label">Jarvis</div>
+<script>
+  const canvas = document.getElementById('orb');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Points along latitude + longitude rings of a unit sphere.
+  const LAT = 9, LON = 12, SEG = 60;
+  const rings = [];
+  for (let i = 1; i < LAT; i++) {
+    const phi = Math.PI * i / LAT, ring = [];
+    for (let j = 0; j <= SEG; j++) {
+      const th = 2 * Math.PI * j / SEG;
+      ring.push([Math.sin(phi) * Math.cos(th), Math.cos(phi), Math.sin(phi) * Math.sin(th)]);
+    }
+    rings.push(ring);
+  }
+  for (let i = 0; i < LON; i++) {
+    const th = Math.PI * i / LON * 2, ring = [];
+    for (let j = 0; j <= SEG; j++) {
+      const phi = 2 * Math.PI * j / SEG;
+      ring.push([Math.sin(phi) * Math.cos(th), Math.cos(phi), Math.sin(phi) * Math.sin(th)]);
+    }
+    rings.push(ring);
+  }
+
+  function rotate([x, y, z], ax, ay) {
+    let y1 = y * Math.cos(ax) - z * Math.sin(ax);
+    let z1 = y * Math.sin(ax) + z * Math.cos(ax);
+    let x1 = x * Math.cos(ay) + z1 * Math.sin(ay);
+    let z2 = -x * Math.sin(ay) + z1 * Math.cos(ay);
+    return [x1, y1, z2];
+  }
+
+  let t = 0;
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    const cx = w / 2, cy = h / 2;
+    const R = Math.min(w, h) * 0.30 * (1 + 0.03 * Math.sin(t * 2));
+    ctx.clearRect(0, 0, w, h);
+
+    // pulsing core glow
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.6);
+    glow.addColorStop(0, 'rgba(0, 212, 255, ' + (0.22 + 0.08 * Math.sin(t * 3)) + ')');
+    glow.addColorStop(1, 'rgba(0, 212, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+
+    const ax = 0.4 + t * 0.15, ay = t * 0.4;
+    for (const ring of rings) {
+      ctx.beginPath();
+      let started = false;
+      for (const p of ring) {
+        const [x, y, z] = rotate(p, ax, ay);
+        const persp = 1 / (1.8 - z * 0.6);
+        const sx = cx + x * R * persp * 1.4;
+        const sy = cy + y * R * persp * 1.4;
+        if (!started) { ctx.moveTo(sx, sy); started = true; }
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = 'rgba(0, 212, 255, 0.28)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // bright core
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.25);
+    core.addColorStop(0, 'rgba(224, 247, 250, ' + (0.75 + 0.2 * Math.sin(t * 3)) + ')');
+    core.addColorStop(1, 'rgba(0, 212, 255, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 0.25, 0, 2 * Math.PI);
+    ctx.fill();
+
+    t += 0.01;
+    requestAnimationFrame(draw);
+  }
+  draw();
+</script>
+</body>
+</html>
