@@ -28,3 +28,41 @@ LifeOSBriefing:
 LifeOSWeeklyReview:
   speech:
     text: "{{ state_attr('sensor.lifeos_weekly_review', 'speech') or 'LifeOS is not reachable right now.' }}"
+
+# --- voice logging ---
+
+LifeOSTakeVitamins:
+  action:
+    - service: rest_command.lifeos_take_vitamins
+  speech:
+    text: "Vitamins logged — streak's alive."
+
+LifeOSLogProtein:
+  action:
+    - service: rest_command.lifeos_log_protein
+      data:
+        grams: "{{ grams }}"
+  speech:
+    text: "Logged {{ grams }} grams of protein."
+
+LifeOSWeighIn:
+  action:
+    - service: rest_command.lifeos_weighin
+      data:
+        pounds: "{{ pounds }}"
+  speech:
+    text: "Weigh-in logged at {{ pounds }} pounds."
+
+LifeOSSetSteps:
+  action:
+    - service: rest_command.lifeos_set_steps
+      data:
+        steps: "{{ steps }}"
+  speech:
+    text: "Steps set to {{ steps }} for today."
+
+LifeOSTreat:
+  action:
+    - service: rest_command.lifeos_treat
+  speech:
+    text: "Treat logged — no drama. I put a 15-minute balance circuit on today's plan."

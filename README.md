@@ -57,10 +57,16 @@ Everything else (dashboards, cameras, Zigbee sensors, custom wake word, the whol
 Once the voice pipeline (Phase 3) is up, these work out of the box — by voice or typed
 into Assist (works remotely through the Companion app too):
 
+Ask:
 - "brief me" · "how did I do this week"
 - "how much protein do I have left" · "how's my steps"
 - "what bills are due this week" · "how much money do I have left"
 - "what can I eat"
+
+Log (Jarvis writes straight into LifeOS):
+- "I took my vitamins" · "log 45 grams of protein"
+- "log a weigh-in of 185" · "log 6000 steps"
+- "I'm having a treat" — schedules the 15-min balance circuit automatically
 
 Sentences live in `ha-config/custom_sentences/en/lifeos.yaml`, answers in
 `ha-config/intents.yaml` (fed by LifeOS's `/api/ask`). Add your own phrasings any time.

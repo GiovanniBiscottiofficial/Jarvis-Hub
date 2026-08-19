@@ -30,6 +30,32 @@ wake_on_lan:
 tts:
   - platform: google_translate
 
+# Voice logging into LifeOS (called from intents.yaml)
+rest_command:
+  lifeos_take_vitamins:
+    url: http://localhost:8090/api/body/vitamins/take
+    method: POST
+  lifeos_log_protein:
+    url: http://localhost:8090/api/body/meals/log
+    method: POST
+    content_type: application/json
+    payload: '{"name": "Voice-logged meal", "protein_g": {{ grams }}}'
+  lifeos_weighin:
+    url: http://localhost:8090/api/body/weighin
+    method: POST
+    content_type: application/json
+    payload: '{"weight_lb": {{ pounds }}}'
+  lifeos_set_steps:
+    url: http://localhost:8090/api/body/steps
+    method: POST
+    content_type: application/json
+    payload: '{"count": {{ steps }}}'
+  lifeos_treat:
+    url: http://localhost:8090/api/body/overrides
+    method: POST
+    content_type: application/json
+    payload: '{"meal": "Voice-logged treat", "kind": "today"}'
+
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:
 #   sleep_macbook: ssh -o StrictHostKeyChecking=no user@192.168.1.50 pmset sleepnow

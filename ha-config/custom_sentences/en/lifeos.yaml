@@ -46,3 +46,46 @@ intents:
           - "how did I do this week"
           - "[give me] [the] weekly review"
           - "how was my week"
+  LifeOSTakeVitamins:
+    data:
+      - sentences:
+          - "I took my vitamins [today]"
+          - "log [my] vitamins"
+          - "vitamins done"
+  LifeOSLogProtein:
+    data:
+      - sentences:
+          - "log {grams} grams of protein"
+          - "add {grams} grams of protein"
+          - "I ate {grams} grams of protein"
+  LifeOSWeighIn:
+    data:
+      - sentences:
+          - "log a weigh in of {pounds} [pounds]"
+          - "I weigh {pounds} [pounds]"
+          - "log [my] weight [at] {pounds} [pounds]"
+  LifeOSSetSteps:
+    data:
+      - sentences:
+          - "log {steps} steps [today]"
+          - "set [my] steps to {steps}"
+  LifeOSTreat:
+    data:
+      - sentences:
+          - "I'm having a treat [today]"
+          - "log a treat"
+          - "treat time"
+
+lists:
+  grams:
+    range:
+      from: 1
+      to: 300
+  pounds:
+    range:
+      from: 60
+      to: 500
+  steps:
+    range:
+      from: 0
+      to: 60000
