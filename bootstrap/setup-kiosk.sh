@@ -5,7 +5,7 @@
 # Works on Ubuntu Server (installs a minimal graphical session) or Desktop.
 set -euo pipefail
 
-KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/home}"
+KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/wall}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
 
 echo "==> Jarvis kiosk setup (URL: $KIOSK_URL, user: $KIOSK_USER)"

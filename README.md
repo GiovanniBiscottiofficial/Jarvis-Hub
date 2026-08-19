@@ -47,6 +47,8 @@ your real devices after connecting them (Settings → Devices & Services → Ent
 - [ ] **Phase 8 — Conversation LLM**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant". (Or use the Anthropic/OpenAI integration for a smarter cloud agent.)
 - [ ] **Phase 15 — Fridge/pantry**: `docker compose --profile grocy up -d`, open `http://<laptop-ip>:9283`, add the Grocy integration via HACS; barcode-scan with the Grocy Android app
 - [ ] **Phase 16 — Fire TV**: enable ADB Debugging on the Fire TV, HA → Add Integration → **Android TV** with its IP; install "Notifications for Fire TV" for on-screen alerts
+- [ ] **Cameras (when you get them)**: put each camera's RTSP URL in `frigate/config.yml`, run `docker compose --profile cameras up -d`, add the **Frigate** integration via HACS — live views land on the dashboard's Cameras tab (viewable from work via Tailscale)
+- [ ] **Jarvis's personality**: once the LLM agent is set up (Phase 8), paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) into the agent's Instructions field so he actually sounds like Jarvis
 - [ ] **Phase 17 — Computers**: enable Wake-on-LAN in BIOS, add MACs to the `wake_on_lan` integration; install **HASS.Agent** on Windows machines
 - [ ] **Phase 18 — LifeOS**: comes up with the core stack at `http://<laptop-ip>:8090` — Today tab (morning briefing, meal cards with Sometimes/Today overrides, protein/steps bars, vitamin streaks), Body Ops (weigh-ins, quick meal log, workout planner, photo meal logging, pantry + grocery suggestions), Vault Flow (accounts, deposits vs bills, payment recommendations, leftover, food-money nudges), Review tab (weekly review + household profiles). Auto-sync Apple Watch/scale by pointing the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health`. Optional: set `LIFEOS_LAT`/`LIFEOS_LON` in `.env` for weather in the briefing, and `GROCY_URL`/`GROCY_API_KEY` for pantry sync. Jarvis reads the briefing at 7:30 and the weekly review on Sundays (`ha-config/automations/briefing.yaml`)
 
@@ -68,6 +70,14 @@ Log (Jarvis writes straight into LifeOS):
 - "log a weigh-in of 185" · "log 6000 steps"
 - "I'm having a treat" — schedules the 15-min balance circuit automatically
 
+Vault Flow by voice:
+- "log a deposit of 500 to OnePay" · "add 200 to True Lion"
+- "mark rent paid" · "I paid the electric bill"
+
+Jarvis also announces new LifeOS nudges through the house speaker and your phone
+(`ha-config/automations/nudges.yaml` — set your real speaker/notify entities there;
+nudges stay quiet during guest mode and sleep mode).
+
 Sentences live in `ha-config/custom_sentences/en/lifeos.yaml`, answers in
 `ha-config/intents.yaml` (fed by LifeOS's `/api/ask`). Add your own phrasings any time.
 
@@ -79,8 +89,10 @@ The X1 isn't just the server — its own screen becomes the house's control pane
 bash bootstrap/setup-kiosk.sh   # then reboot
 ```
 
-It boots straight into the Jarvis dashboard, fullscreen, screen always on. Want it to
-show LifeOS instead? `KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh`.
+It boots straight into the **Wall** view of the Jarvis dashboard — big clock, the
+morning briefing, giant light/scene/vacuum tiles, and the shopping list — fullscreen,
+screen always on. Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
+(full dashboard) or `KIOSK_URL=http://localhost:8090` (LifeOS) before running the script.
 (Ctrl+Alt+F2 gets you back to a terminal any time.)
 
 ## Access from anywhere

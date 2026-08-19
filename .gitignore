@@ -17,6 +17,10 @@ ha-config/automations/*
 ha-config/scripts/*
 !ha-config/scripts/*.yaml
 
+# Frigate runtime files (only track the starter config)
+frigate/*
+!frigate/config.yml
+
 # HA secrets
 ha-config/secrets.yaml
 __pycache__/

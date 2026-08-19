@@ -246,6 +246,9 @@ def ask():
         ).fetchone()
         bills = _bills_due_soon(c)
         accounts = [dict(r) for r in c.execute("SELECT * FROM accounts").fetchall()]
+        nudge_row = c.execute(
+            "SELECT id, text FROM nudges WHERE resolved=0 ORDER BY ts DESC LIMIT 1"
+        ).fetchone()
 
     target = prof["protein_target_g"]
     left = max(0, round(target - protein))
@@ -286,4 +289,6 @@ def ask():
         "bills": bills_speech,
         "money": money_speech,
         "meals": meals_speech,
+        "nudge": nudge_row["text"] if nudge_row else "",
+        "nudge_id": nudge_row["id"] if nudge_row else 0,
     }

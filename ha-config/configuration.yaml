@@ -55,6 +55,19 @@ rest_command:
     method: POST
     content_type: application/json
     payload: '{"meal": "Voice-logged treat", "kind": "today"}'
+  lifeos_deposit:
+    url: http://localhost:8090/api/vault/deposits/by-name
+    method: POST
+    content_type: application/json
+    payload: '{"amount": {{ amount }}, "account": {{ account | tojson }}}'
+  lifeos_bill_paid:
+    url: http://localhost:8090/api/vault/bills/paid/by-name
+    method: POST
+    content_type: application/json
+    payload: '{"name": {{ bill | tojson }}}'
+  lifeos_resolve_nudge:
+    url: http://localhost:8090/api/vault/nudges/{{ nudge_id }}/resolve
+    method: POST
 
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:
@@ -89,7 +102,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals]
+        json_attributes: [protein, steps, bills, money, meals, nudge, nudge_id]
 
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into

@@ -66,3 +66,20 @@ LifeOSTreat:
     - service: rest_command.lifeos_treat
   speech:
     text: "Treat logged — no drama. I put a 15-minute balance circuit on today's plan."
+
+LifeOSDeposit:
+  action:
+    - service: rest_command.lifeos_deposit
+      data:
+        amount: "{{ amount }}"
+        account: "{{ account }}"
+  speech:
+    text: "Deposit of {{ amount }} dollars logged to {{ account }} — if that account name didn't match, check the Vault tab."
+
+LifeOSBillPaid:
+  action:
+    - service: rest_command.lifeos_bill_paid
+      data:
+        bill: "{{ bill }}"
+  speech:
+    text: "Marked {{ bill }} as paid this month."

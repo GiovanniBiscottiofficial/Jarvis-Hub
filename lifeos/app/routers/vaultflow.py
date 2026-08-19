@@ -32,8 +32,31 @@ class DepositIn(BaseModel):
     source: str = ""
 
 
+class DepositByNameIn(BaseModel):
+    amount: float
+    account: str
+    source: str = "voice"
+
+
+class BillPaidByNameIn(BaseModel):
+    name: str
+
+
 def _month() -> str:
     return date.today().strftime("%Y-%m")
+
+
+def _find_by_name(c, table: str, spoken: str):
+    """Fuzzy name lookup for voice input: the stored name may contain the
+    spoken phrase, or the spoken phrase may contain the stored name
+    ("the electric bill" -> "Electric")."""
+    spoken = spoken.strip()
+    return c.execute(
+        f"SELECT id, name FROM {table}"
+        " WHERE name LIKE ? COLLATE NOCASE OR ? LIKE '%' || name || '%' COLLATE NOCASE"
+        " ORDER BY LENGTH(name) LIMIT 1",
+        (f"%{spoken}%", spoken),
+    ).fetchone()
 
 
 @router.get("/accounts")
@@ -102,6 +125,37 @@ def add_deposit(body: DepositIn):
             (body.amount, body.account_id),
         )
         return {"ok": True}
+
+
+@router.post("/deposits/by-name")
+def add_deposit_by_name(body: DepositByNameIn):
+    """Voice-friendly deposit: matches the account by (partial) name."""
+    with conn() as c:
+        row = _find_by_name(c, "accounts", body.account)
+        if row is None:
+            raise HTTPException(404, f"no account matching '{body.account}'")
+        c.execute(
+            "INSERT INTO deposits(amount,account_id,source) VALUES(?,?,?)",
+            (body.amount, row["id"], body.source),
+        )
+        c.execute(
+            "UPDATE accounts SET balance=balance+? WHERE id=?",
+            (body.amount, row["id"]),
+        )
+        return {"ok": True, "account": row["name"]}
+
+
+@router.post("/bills/paid/by-name")
+def mark_paid_by_name(body: BillPaidByNameIn):
+    """Voice-friendly bill payment: matches the bill by (partial) name."""
+    with conn() as c:
+        row = _find_by_name(c, "bills", body.name)
+        if row is None:
+            raise HTTPException(404, f"no bill matching '{body.name}'")
+        c.execute(
+            "UPDATE bills SET paid_month=? WHERE id=?", (_month(), row["id"])
+        )
+        return {"ok": True, "bill": row["name"]}
 
 
 @router.get("/plan")

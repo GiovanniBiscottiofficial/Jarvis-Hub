@@ -70,6 +70,78 @@ views:
           [Open LifeOS](http://YOUR-LAPTOP-IP:8090)
 
   # ------------------------------------------------------------------
+  # Wall Panel — what the X1's own screen shows in kiosk mode
+  # (bootstrap/setup-kiosk.sh points Chromium here).
+  - title: Wall
+    path: wall
+    icon: mdi:tablet-dashboard
+    subview: false
+    cards:
+      - type: markdown
+        content: |
+          # {{ now().strftime('%H:%M') }}
+          ## {{ now().strftime('%A, %B %d') }}
+
+      - type: markdown
+        title: Briefing
+        content: >
+          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+             or 'LifeOS not reachable — is the lifeos container up?' }}
+
+      - type: horizontal-stack
+        cards:
+          - type: light
+            entity: light.living_room
+            name: Living Room
+          - type: light
+            entity: light.bedroom
+            name: Bedroom
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Movie Night
+            icon: mdi:movie-open
+            tap_action:
+              action: call-service
+              service: script.movie_night
+          - type: button
+            name: Goodnight
+            icon: mdi:weather-night
+            tap_action:
+              action: call-service
+              service: script.goodnight
+          - type: button
+            name: Leaving
+            icon: mdi:exit-run
+            tap_action:
+              action: call-service
+              service: script.leaving
+
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Clean
+            icon: mdi:robot-vacuum
+            tap_action:
+              action: call-service
+              service: vacuum.start
+              target:
+                entity_id: vacuum.juno
+          - type: button
+            name: Dock
+            icon: mdi:home-import-outline
+            tap_action:
+              action: call-service
+              service: vacuum.return_to_base
+              target:
+                entity_id: vacuum.juno
+
+      - type: todo-list
+        entity: todo.shopping_list
+        title: Shopping list
+
+  # ------------------------------------------------------------------
   - title: Vacuum
     path: vacuum
     icon: mdi:robot-vacuum
@@ -136,6 +208,25 @@ views:
           **Grocy** (full inventory + expiry tracking) lives at
           [http://YOUR-LAPTOP-IP:9283](http://YOUR-LAPTOP-IP:9283)
           once you run `docker compose --profile grocy up -d`.
+
+  # ------------------------------------------------------------------
+  - title: Cameras
+    path: cameras
+    icon: mdi:cctv
+    cards:
+      - type: markdown
+        content: >
+          **No cameras yet.** When you get one: put its RTSP URL in
+          `frigate/config.yml`, run `docker compose --profile cameras up -d`,
+          install the **Frigate** integration via HACS, then replace this
+          card with `picture-glance` cards for each camera. You'll be able
+          to check them from work through Tailscale + the Companion app.
+      # - type: picture-glance
+      #   title: Front door
+      #   camera_image: camera.front_door
+      #   camera_view: live
+      #   entities:
+      #     - binary_sensor.front_door_person_occupancy
 
   # ------------------------------------------------------------------
   - title: System

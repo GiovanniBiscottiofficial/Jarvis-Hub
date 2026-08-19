@@ -75,12 +75,32 @@ intents:
           - "I'm having a treat [today]"
           - "log a treat"
           - "treat time"
+  LifeOSDeposit:
+    data:
+      - sentences:
+          - "log a deposit of {amount} [dollars] to {account}"
+          - "add {amount} [dollars] to {account}"
+          - "{account} got a deposit of {amount} [dollars]"
+  LifeOSBillPaid:
+    data:
+      - sentences:
+          - "mark {bill} [as] paid"
+          - "I paid [the] {bill} [bill]"
+          - "{bill} is paid"
 
 lists:
   grams:
     range:
       from: 1
       to: 300
+  amount:
+    range:
+      from: 1
+      to: 100000
+  account:
+    wildcard: true
+  bill:
+    wildcard: true
   pounds:
     range:
       from: 60

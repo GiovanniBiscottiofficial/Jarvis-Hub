@@ -1,0 +1,29 @@
+# Frigate starter config — fill in your camera(s) when you get them,
+# then: docker compose --profile cameras up -d
+# Docs: https://docs.frigate.video/configuration/
+
+mqtt:
+  enabled: false
+
+# Uncomment and edit when you have a camera. Most WiFi cams expose an
+# RTSP URL (check the camera app or ispyconnect.com for your model).
+# cameras:
+#   front_door:
+#     ffmpeg:
+#       inputs:
+#         - path: rtsp://USER:PASSWORD@192.168.1.xxx:554/stream1
+#           roles: [detect, record]
+#     detect:
+#       width: 1280
+#       height: 720
+#     record:
+#       enabled: true
+#       retain:
+#         days: 3
+#     objects:
+#       track: [person, car, dog, cat, package]
+
+# Then in Home Assistant: HACS → Frigate integration → cameras, person
+# alerts, and doorbell-style snapshots appear automatically, and the
+# Cameras tab on the Jarvis dashboard lights up (remotely too, via
+# Tailscale + the Companion app).
