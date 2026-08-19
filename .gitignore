@@ -15,6 +15,9 @@ ha-config/dashboards/*
 !ha-config/themes
 ha-config/themes/*
 !ha-config/themes/*.yaml
+!ha-config/www
+ha-config/www/*
+!ha-config/www/jarvis-splash.html
 ha-config/automations/*
 !ha-config/automations/*.yaml
 ha-config/scripts/*

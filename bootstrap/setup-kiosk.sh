@@ -5,7 +5,8 @@
 # Works on Ubuntu Server (installs a minimal graphical session) or Desktop.
 set -euo pipefail
 
-KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/wall}"
+# Boots into the animated Jarvis splash, which hands over to the Wall view.
+KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
 # HiDPI zoom: the X1 Tablet's 3000x2000 panel needs 2x+ to be readable.
 # Tune with e.g.  KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh
@@ -80,6 +81,7 @@ echo "    the little floating icon brings it back if hidden."
 echo "  - Log into HA once in that Chromium ('remember me') so it"
 echo "    stays signed in."
 echo "  - Different page? KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh"
+echo "    (default shows the Jarvis boot splash, then the Wall view)"
 echo "  - Too big/small? KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh (then reboot)"
 echo "  - Escape to a terminal any time: Ctrl+Alt+F2."
 echo "=========================================================="

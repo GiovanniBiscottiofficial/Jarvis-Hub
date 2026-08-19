@@ -122,7 +122,10 @@ The X1 isn't just the server — its own screen becomes the house's control pane
 bash bootstrap/setup-kiosk.sh   # then reboot
 ```
 
-It boots straight into the **Wall** view of the Jarvis dashboard — big clock, the
+It boots into a live animated **Jarvis boot splash** (spinning arc-reactor core,
+"INITIALIZING SYSTEMS…", moving circuit grid — `ha-config/www/jarvis-splash.html`,
+also viewable any time at `http://<hub-ip>:8123/local/jarvis-splash.html`), which
+hands over to the **Wall** view of the Jarvis dashboard — big clock, the
 morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
 activity" feed of his recent actions — fullscreen,
 screen always on, in the dark-glass **Jarvis** theme (`ha-config/themes/jarvis.yaml`;

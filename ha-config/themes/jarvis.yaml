@@ -22,8 +22,8 @@ Jarvis:
   ha-card-background: "#101828e6"
   ha-card-border-radius: "22px"
   ha-card-border-width: "1px"
-  ha-card-border-color: "#1d2a42"
-  ha-card-box-shadow: "0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(0, 212, 255, 0.08)"
+  ha-card-border-color: "rgba(0, 212, 255, 0.18)"
+  ha-card-box-shadow: "0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(0, 212, 255, 0.08), inset 0 0 20px rgba(0, 212, 255, 0.04)"
 
   # text
   primary-text-color: "#e8eef7"
