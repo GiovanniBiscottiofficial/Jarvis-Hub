@@ -1,0 +1,67 @@
+# Jarvis — dark, glassy hub-display theme
+# Applied per-view in dashboards/jarvis.yaml; set it globally from your
+# profile (click your name, bottom-left → Theme → Jarvis).
+Jarvis:
+  # palette
+  primary-color: "#00e5ff"
+  accent-color: "#00b8d4"
+  light-primary-color: "#4dd0e1"
+  dark-primary-color: "#00838f"
+  state-icon-color: "#00e5ff"
+  state-icon-active-color: "#00e5ff"
+
+  # backgrounds
+  primary-background-color: "#070b14"
+  secondary-background-color: "#0c1220"
+  lovelace-background: >-
+    radial-gradient(ellipse at 20% 0%, #0e1a2f 0%, #070b14 55%, #05070d 100%)
+  markdown-code-background-color: "#0c1220"
+
+  # cards — floating glass panels
+  card-background-color: "#101828e6"
+  ha-card-background: "#101828e6"
+  ha-card-border-radius: "22px"
+  ha-card-border-width: "1px"
+  ha-card-border-color: "#1d2a42"
+  ha-card-box-shadow: "0 10px 30px rgba(0, 0, 0, 0.45)"
+
+  # text
+  primary-text-color: "#e8eef7"
+  secondary-text-color: "#93a4bc"
+  text-primary-color: "#04121a"
+  disabled-text-color: "#4a5872"
+  primary-font-family: "'SF Pro Display', 'Segoe UI', Roboto, sans-serif"
+
+  # header + sidebar
+  app-header-background-color: "#070b14"
+  app-header-text-color: "#e8eef7"
+  app-header-selection-bar-color: "#00e5ff"
+  sidebar-background-color: "#0a0f1c"
+  sidebar-text-color: "#93a4bc"
+  sidebar-selected-text-color: "#00e5ff"
+  sidebar-selected-icon-color: "#00e5ff"
+  sidebar-icon-color: "#5b6b85"
+  divider-color: "#1d2a42"
+
+  # controls
+  switch-checked-color: "#00e5ff"
+  switch-checked-button-color: "#00e5ff"
+  switch-checked-track-color: "#00838f"
+  slider-color: "#00e5ff"
+  slider-track-color: "#1d2a42"
+  paper-item-icon-active-color: "#00e5ff"
+  mdc-theme-primary: "#00e5ff"
+  label-badge-red: "#ff5c7a"
+
+  # tile / state colors
+  state-active-color: "#00e5ff"
+  state-light-active-color: "#ffd166"
+  state-switch-active-color: "#00e5ff"
+
+  # inputs
+  input-fill-color: "#0c1220"
+  input-ink-color: "#e8eef7"
+  input-label-ink-color: "#93a4bc"
+  input-idle-line-color: "#1d2a42"
+  input-hover-line-color: "#00b8d4"
+  input-focused-label-ink-color: "#00e5ff"

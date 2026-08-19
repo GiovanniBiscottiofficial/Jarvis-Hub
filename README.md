@@ -105,7 +105,11 @@ bash bootstrap/setup-kiosk.sh   # then reboot
 It boots straight into the **Wall** view of the Jarvis dashboard — big clock, the
 morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
 activity" feed of his recent actions — fullscreen,
-screen always on. Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
+screen always on, in the dark-glass **Jarvis** theme (`ha-config/themes/jarvis.yaml`;
+set it everywhere from your HA profile → Theme → Jarvis). No keyboard needed: the
+X1's screen logs into HA automatically (localhost is a trusted network) and an
+on-screen touch keyboard pops up whenever you tap a text box.
+Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
 (full dashboard) or `KIOSK_URL=http://localhost:8090` (LifeOS) before running the script.
 (Ctrl+Alt+F2 gets you back to a terminal any time.)
 

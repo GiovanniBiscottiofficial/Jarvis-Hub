@@ -3,6 +3,10 @@
 
 default_config:
 
+# Jarvis look — dark glass theme (see themes/jarvis.yaml)
+frontend:
+  themes: !include_dir_merge_named themes/
+
 # The X1's own kiosk screen logs in automatically (no keyboard needed);
 # every other device still gets the normal password login.
 homeassistant:

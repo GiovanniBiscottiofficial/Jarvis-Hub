@@ -1,284 +1,385 @@
-# Jarvis Command Center dashboard
-# Loaded via configuration.yaml (lovelace -> dashboards).
+# Jarvis Command Center dashboard — dark glass hub look (theme: Jarvis)
 # EDIT: rename placeholder entity IDs to match your devices
 # (Settings -> Devices & Services -> Entities shows the real IDs).
 title: Jarvis
 views:
-  # ------------------------------------------------------------------
-  - title: Home
-    path: home
-    icon: mdi:home-assistant
-    cards:
-      - type: markdown
-        content: >
-          ## Jarvis Command Center
-          {{ now().strftime('%A, %B %d — %H:%M') }}
-
-      - type: entities
-        title: Who's home
-        entities:
-          - entity: person.keona
-        footer:
-          type: graph
-          entity: zone.home
-          hours_to_show: 24
-
-      - type: light
-        entity: light.living_room
-        name: Living Room
-
-      - type: light
-        entity: light.bedroom
-        name: Bedroom
-
-      - type: horizontal-stack
-        cards:
-          - type: button
-            name: Movie Night
-            icon: mdi:movie-open
-            tap_action:
-              action: call-service
-              service: script.movie_night
-          - type: button
-            name: Goodnight
-            icon: mdi:weather-night
-            tap_action:
-              action: call-service
-              service: script.goodnight
-
-      - type: horizontal-stack
-        cards:
-          - type: button
-            name: Leaving
-            icon: mdi:exit-run
-            tap_action:
-              action: call-service
-              service: script.leaving
-          - type: button
-            entity: input_boolean.guest_mode
-            name: Guest mode
-            icon: mdi:account-group
-            tap_action:
-              action: toggle
-          - type: button
-            entity: input_boolean.vacation_mode
-            name: Vacation
-            icon: mdi:beach
-            tap_action:
-              action: toggle
-
-      - type: markdown
-        title: LifeOS briefing
-        content: >
-          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
-             or 'LifeOS not reachable — is the lifeos container up?' }}
-
-          [Open LifeOS](http://YOUR-LAPTOP-IP:8090)
-
   # ------------------------------------------------------------------
   # Wall Panel — what the X1's own screen shows in kiosk mode
   # (bootstrap/setup-kiosk.sh points Chromium here).
   - title: Wall
     path: wall
     icon: mdi:tablet-dashboard
-    subview: false
-    cards:
-      - type: markdown
-        content: |
-          # {{ now().strftime('%H:%M') }}
-          ## {{ now().strftime('%A, %B %d') }}
-
-      - type: markdown
-        title: Briefing
-        content: >
-          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
-             or 'LifeOS not reachable — is the lifeos container up?' }}
-
-      - type: horizontal-stack
+    theme: Jarvis
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
         cards:
-          - type: light
+          - type: markdown
+            text_only: true
+            content: |
+              <font size="7">**{{ now().strftime('%-I:%M %p') }}**</font>
+
+              ### {{ now().strftime('%A, %B %-d') }}
+          - type: markdown
+            title: Briefing
+            content: >
+              {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+                 or 'LifeOS not reachable — is the lifeos container up?' }}
+          - type: tile
+            entity: input_boolean.sleep_mode
+            name: Sleep
+            icon: mdi:sleep
+            color: indigo
+            tap_action:
+              action: toggle
+          - type: tile
+            entity: input_boolean.vacation_mode
+            name: Vacation
+            icon: mdi:beach
+            color: teal
+            tap_action:
+              action: toggle
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Lights
+            icon: mdi:lightbulb-group
+          - type: tile
             entity: light.living_room
             name: Living Room
-          - type: light
+            color: amber
+            features:
+              - type: light-brightness
+          - type: tile
             entity: light.bedroom
             name: Bedroom
-
-      - type: horizontal-stack
-        cards:
-          - type: button
+            color: amber
+            features:
+              - type: light-brightness
+          - type: heading
+            heading: Scenes
+            icon: mdi:palette
+          - type: tile
+            entity: script.movie_night
             name: Movie Night
             icon: mdi:movie-open
+            color: purple
             tap_action:
               action: call-service
               service: script.movie_night
-          - type: button
+          - type: tile
+            entity: script.goodnight
             name: Goodnight
             icon: mdi:weather-night
+            color: indigo
             tap_action:
               action: call-service
               service: script.goodnight
-          - type: button
+          - type: tile
+            entity: script.leaving
             name: Leaving
             icon: mdi:exit-run
+            color: red
             tap_action:
               action: call-service
               service: script.leaving
-
-      - type: horizontal-stack
-        cards:
-          - type: button
-            name: Clean
+          - type: tile
+            entity: input_boolean.guest_mode
+            name: Guests
+            icon: mdi:account-group
+            color: green
+            tap_action:
+              action: toggle
+          - type: heading
+            heading: Juno
             icon: mdi:robot-vacuum
+          - type: tile
+            entity: vacuum.juno
+            name: Vacuum
+            color: cyan
+            features:
+              - type: vacuum-commands
+                commands:
+                  - start_pause
+                  - return_home
+                  - locate
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Shopping
+            icon: mdi:cart-outline
+          - type: todo-list
+            entity: todo.shopping_list
+          - type: heading
+            heading: Jarvis activity
+            icon: mdi:robot
+          # His recent actions at a glance. Full transcripts of what he
+          # heard live in Settings -> Voice assistants -> Debug.
+          - type: logbook
+            hours_to_show: 12
+            entities:
+              - light.living_room
+              - light.bedroom
+              - vacuum.juno
+              - script.movie_night
+              - script.goodnight
+              - script.leaving
+              - script.announce
+              - input_boolean.guest_mode
+              - input_boolean.sleep_mode
+              - input_boolean.vacation_mode
+
+  # ------------------------------------------------------------------
+  - title: Home
+    path: home
+    icon: mdi:home-assistant
+    theme: Jarvis
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Who's home
+            icon: mdi:account-check
+          - type: tile
+            entity: person.keona
+          - type: heading
+            heading: Briefing
+            icon: mdi:weather-sunset-up
+          - type: markdown
+            content: >
+              {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
+                 or 'LifeOS not reachable — is the lifeos container up?' }}
+
+              LifeOS lives at `http://<hub-ip>:8090` — add it to your
+              phone's home screen.
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Lights
+            icon: mdi:lightbulb-group
+          - type: tile
+            entity: light.living_room
+            name: Living Room
+            color: amber
+            features:
+              - type: light-brightness
+          - type: tile
+            entity: light.bedroom
+            name: Bedroom
+            color: amber
+            features:
+              - type: light-brightness
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Quick actions
+            icon: mdi:gesture-tap-button
+          - type: tile
+            entity: script.movie_night
+            name: Movie Night
+            icon: mdi:movie-open
+            color: purple
             tap_action:
               action: call-service
-              service: vacuum.start
-              target:
-                entity_id: vacuum.juno
-          - type: button
-            name: Dock
-            icon: mdi:home-import-outline
+              service: script.movie_night
+          - type: tile
+            entity: script.goodnight
+            name: Goodnight
+            icon: mdi:weather-night
+            color: indigo
             tap_action:
               action: call-service
-              service: vacuum.return_to_base
-              target:
-                entity_id: vacuum.juno
-
-      - type: todo-list
-        entity: todo.shopping_list
-        title: Shopping list
-
-      # Jarvis status — his recent actions at a glance. Full transcripts of
-      # what he heard live in Settings -> Voice assistants -> (pipeline) -> Debug.
-      - type: logbook
-        title: Jarvis activity
-        hours_to_show: 12
-        entities:
-          - light.living_room
-          - light.bedroom
-          - vacuum.juno
-          - script.movie_night
-          - script.goodnight
-          - script.leaving
-          - script.announce
-          - input_boolean.guest_mode
-          - input_boolean.sleep_mode
-          - input_boolean.vacation_mode
+              service: script.goodnight
+          - type: tile
+            entity: script.leaving
+            name: Leaving
+            icon: mdi:exit-run
+            color: red
+            tap_action:
+              action: call-service
+              service: script.leaving
+          - type: tile
+            entity: input_boolean.guest_mode
+            name: Guest mode
+            icon: mdi:account-group
+            color: green
+            tap_action:
+              action: toggle
+          - type: tile
+            entity: input_boolean.vacation_mode
+            name: Vacation
+            icon: mdi:beach
+            color: teal
+            tap_action:
+              action: toggle
 
   # ------------------------------------------------------------------
   - title: Vacuum
     path: vacuum
     icon: mdi:robot-vacuum
-    cards:
-      - type: entities
-        title: Juno
-        entities:
-          - entity: vacuum.juno
-      - type: horizontal-stack
+    theme: Jarvis
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
         cards:
-          - type: button
-            name: Clean
-            icon: mdi:play
-            tap_action:
-              action: call-service
-              service: vacuum.start
-              target:
-                entity_id: vacuum.juno
-          - type: button
-            name: Dock
-            icon: mdi:home-import-outline
-            tap_action:
-              action: call-service
-              service: vacuum.return_to_base
-              target:
-                entity_id: vacuum.juno
-          - type: button
-            name: Locate
-            icon: mdi:map-marker-question
-            tap_action:
-              action: call-service
-              service: vacuum.locate
-              target:
-                entity_id: vacuum.juno
-      - type: history-graph
-        title: Cleaning history
-        hours_to_show: 168
-        entities:
-          - vacuum.juno
+          - type: heading
+            heading: Juno
+            icon: mdi:robot-vacuum
+          - type: tile
+            entity: vacuum.juno
+            name: Juno
+            color: cyan
+            features:
+              - type: vacuum-commands
+                commands:
+                  - start_pause
+                  - stop
+                  - return_home
+                  - locate
+      - type: grid
+        cards:
+          - type: heading
+            heading: Cleaning history
+            icon: mdi:history
+          - type: history-graph
+            hours_to_show: 168
+            entities:
+              - vacuum.juno
 
   # ------------------------------------------------------------------
   - title: Media
     path: media
     icon: mdi:television
-    cards:
-      - type: media-control
-        entity: media_player.fire_tv
-      - type: entities
-        title: Quick launch (Fire TV)
-        entities:
-          - entity: script.movie_night
+    theme: Jarvis
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Fire TV
+            icon: mdi:television
+          - type: media-control
+            entity: media_player.fire_tv
+          - type: tile
+            entity: script.movie_night
             name: "Movie Night (Netflix + dim lights)"
+            icon: mdi:movie-open
+            color: purple
+            tap_action:
+              action: call-service
+              service: script.movie_night
 
   # ------------------------------------------------------------------
   - title: Kitchen
     path: kitchen
     icon: mdi:fridge
-    cards:
-      - type: todo-list
-        entity: todo.shopping_list
-        title: Shopping list
-      - type: markdown
-        content: >
-          **Grocy** (full inventory + expiry tracking) lives at
-          [http://YOUR-LAPTOP-IP:9283](http://YOUR-LAPTOP-IP:9283)
-          once you run `docker compose --profile grocy up -d`.
+    theme: Jarvis
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Shopping list
+            icon: mdi:cart-outline
+          - type: todo-list
+            entity: todo.shopping_list
+      - type: grid
+        cards:
+          - type: heading
+            heading: Grocy
+            icon: mdi:food-apple
+          - type: markdown
+            content: >
+              **Grocy** (full inventory + expiry tracking) lives at
+              `http://<hub-ip>:9283` once you run
+              `docker compose --profile grocy up -d`.
 
   # ------------------------------------------------------------------
   - title: Cameras
     path: cameras
     icon: mdi:cctv
-    cards:
-      - type: markdown
-        content: >
-          **No cameras yet.** When you get one: put its RTSP URL in
-          `frigate/config.yml`, run `docker compose --profile cameras up -d`,
-          install the **Frigate** integration via HACS, then replace this
-          card with `picture-glance` cards for each camera. You'll be able
-          to check them from work through Tailscale + the Companion app.
-      # - type: picture-glance
-      #   title: Front door
-      #   camera_image: camera.front_door
-      #   camera_view: live
-      #   entities:
-      #     - binary_sensor.front_door_person_occupancy
+    theme: Jarvis
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Cameras
+            icon: mdi:cctv
+          - type: markdown
+            content: >
+              **No cameras yet.** When you get one: put its RTSP URL in
+              `frigate/config.yml`, run `docker compose --profile cameras up -d`,
+              install the **Frigate** integration via HACS, then replace this
+              card with `picture-glance` cards for each camera. You'll be able
+              to check them from work through Tailscale + the Companion app.
+          # - type: picture-glance
+          #   title: Front door
+          #   camera_image: camera.front_door
+          #   camera_view: live
+          #   entities:
+          #     - binary_sensor.front_door_person_occupancy
 
   # ------------------------------------------------------------------
   - title: System
     path: system
     icon: mdi:laptop
-    cards:
-      - type: entities
-        title: Hub (X1)
-        entities:
-          - entity: sensor.processor_use
+    theme: Jarvis
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hub (X1)
+            icon: mdi:laptop
+          - type: tile
+            entity: sensor.processor_use
             name: CPU
-          - entity: sensor.memory_use_percent
+            icon: mdi:chip
+            color: cyan
+          - type: tile
+            entity: sensor.memory_use_percent
             name: Memory
-          - entity: sensor.disk_use_percent
+            icon: mdi:memory
+            color: cyan
+          - type: tile
+            entity: sensor.disk_use_percent
             name: Disk
-      - type: history-graph
-        title: Hub load (24h)
-        hours_to_show: 24
-        entities:
-          - sensor.processor_use
-          - sensor.memory_use_percent
-      - type: markdown
-        content: >
-          Add your PCs here after Phase 17 (HASS.Agent / Wake-on-LAN):
-          power buttons, CPU/GPU load, lock buttons.
-      - type: markdown
-        title: Energy & car (later)
-        content: >
-          Smart plugs with power monitoring → uncomment `utility_meter` in
-          configuration.yaml and add an energy-distribution card here.
-          Car integrations (Ford/Tesla/Hyundai/etc.) add fuel/charge sensors
-          that feed the morning briefing.
+            icon: mdi:harddisk
+            color: cyan
+      - type: grid
+        cards:
+          - type: heading
+            heading: Hub load (24h)
+            icon: mdi:chart-line
+          - type: history-graph
+            hours_to_show: 24
+            entities:
+              - sensor.processor_use
+              - sensor.memory_use_percent
+      - type: grid
+        cards:
+          - type: heading
+            heading: Later
+            icon: mdi:road-variant
+          - type: markdown
+            content: >
+              Add your PCs here after Phase 17 (HASS.Agent / Wake-on-LAN):
+              power buttons, CPU/GPU load, lock buttons.
+
+              Smart plugs with power monitoring → uncomment `utility_meter` in
+              configuration.yaml and add an energy-distribution card here.
+              Car integrations (Ford/Tesla/Hyundai/etc.) add fuel/charge
+              sensors that feed the morning briefing.

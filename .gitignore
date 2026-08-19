@@ -12,6 +12,9 @@ ha-config/custom_sentences/en/*
 !ha-config/dashboards
 ha-config/dashboards/*
 !ha-config/dashboards/*.yaml
+!ha-config/themes
+ha-config/themes/*
+!ha-config/themes/*.yaml
 ha-config/automations/*
 !ha-config/automations/*.yaml
 ha-config/scripts/*
