@@ -190,6 +190,8 @@ views:
   # Wall+ — the upgraded touch-first wall display. Needs three free HACS
   # frontend cards (HACS -> Frontend -> search -> Download -> reload):
   #   1. "Bubble Card"      2. "Mushroom"      3. "mini-graph-card"
+  # Optional 4th: "card-mod" — unlocks the glow/shimmer styling below
+  # (the card_mod: blocks are silently ignored until it's installed).
   # Until they're installed this tab shows red "custom element" boxes —
   # the classic Wall tab keeps working regardless. Once you like Wall+,
   # point the kiosk at it:
@@ -210,6 +212,16 @@ views:
               <font size="7">**{{ now().strftime('%-I:%M %p') }}**</font>
 
               ### {{ now().strftime('%A, %B %-d') }}
+            card_mod:
+              style: |
+                ha-markdown {
+                  text-shadow: 0 0 24px rgba(0, 212, 255, 0.45);
+                  animation: jarvis-glow 3s ease-in-out infinite;
+                }
+                @keyframes jarvis-glow {
+                  0%, 100% { text-shadow: 0 0 16px rgba(0, 212, 255, 0.3); }
+                  50% { text-shadow: 0 0 34px rgba(0, 212, 255, 0.7); }
+                }
           - type: custom:mushroom-chips-card
             alignment: start
             chips:
@@ -249,6 +261,19 @@ views:
             content: >
               {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
                  or 'LifeOS not reachable — is the lifeos container up?' }}
+            card_mod:
+              style: |
+                ha-card {
+                  position: relative;
+                  overflow: hidden;
+                }
+                ha-card::before {
+                  content: '';
+                  position: absolute;
+                  top: 0; left: 0; right: 0; height: 1px;
+                  background: linear-gradient(90deg,
+                    transparent, rgba(0, 212, 255, 0.5), transparent);
+                }
 
       - type: grid
         cards:
@@ -262,6 +287,12 @@ views:
             name: Living Room
             icon: mdi:sofa
             show_state: true
+            sub_button:
+              - name: More
+                icon: mdi:dots-horizontal
+                tap_action:
+                  action: navigate
+                  navigation_path: "#living-room"
           - type: custom:bubble-card
             card_type: button
             button_type: slider
@@ -269,6 +300,60 @@ views:
             name: Bedroom
             icon: mdi:bed
             show_state: true
+            sub_button:
+              - name: More
+                icon: mdi:dots-horizontal
+                tap_action:
+                  action: navigate
+                  navigation_path: "#bedroom"
+          # Pop-up room panels — opened by the "More" sub-buttons above.
+          # Swap/add entities here as real devices get paired.
+          - type: vertical-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: pop-up
+                hash: "#living-room"
+                name: Living Room
+                icon: mdi:sofa
+              - type: tile
+                entity: light.living_room
+                name: Lights
+                color: amber
+                features:
+                  - type: light-brightness
+              - type: tile
+                entity: media_player.fire_tv
+                name: Fire TV
+                color: purple
+              - type: tile
+                entity: vacuum.juno
+                name: Juno
+                color: cyan
+                features:
+                  - type: vacuum-commands
+                    commands:
+                      - start_pause
+                      - return_home
+          - type: vertical-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: pop-up
+                hash: "#bedroom"
+                name: Bedroom
+                icon: mdi:bed
+              - type: tile
+                entity: light.bedroom
+                name: Lights
+                color: amber
+                features:
+                  - type: light-brightness
+              - type: tile
+                entity: input_boolean.sleep_mode
+                name: Sleep mode
+                icon: mdi:sleep
+                color: indigo
+                tap_action:
+                  action: toggle
           - type: heading
             heading: Scenes
             icon: mdi:palette
@@ -319,6 +404,23 @@ views:
           - type: heading
             heading: Hub vitals
             icon: mdi:pulse
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.processor_use
+                name: CPU %
+                color: "#00e5ff"
+              - entity: sensor.memory_use_percent
+                name: RAM %
+                color: "#c084fc"
+            hours_to_show: 2
+            points_per_hour: 30
+            line_width: 2
+            animate: true
+            lower_bound: 0
+            upper_bound: 100
+            show:
+              state: true
+              legend: true
           - type: custom:mini-graph-card
             entities:
               - entity: sensor.x1_cpu_temperature
