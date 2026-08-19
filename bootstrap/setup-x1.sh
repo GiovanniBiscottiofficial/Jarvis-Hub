@@ -18,6 +18,72 @@ fi
 echo "==> Disabling suspend/hibernate..."
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
+# 2b. Battery longevity: the hub lives on the charger, so cap charging at 80%
+# (ThinkPads expose this natively; huge difference for an always-plugged battery)
+if compgen -G '/sys/class/power_supply/BAT*/charge_control_end_threshold' >/dev/null; then
+  echo "==> Setting battery charge cap (60-80%) for longevity..."
+  sudo tee /etc/systemd/system/battery-charge-cap.service >/dev/null << 'UNIT'
+[Unit]
+Description=Cap battery charging at 80% (always-on hub longevity)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'for b in /sys/class/power_supply/BAT*; do \
+  [ -f "$b/charge_control_start_threshold" ] && echo 60 > "$b/charge_control_start_threshold"; \
+  [ -f "$b/charge_control_end_threshold" ] && echo 80 > "$b/charge_control_end_threshold"; done'
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now battery-charge-cap.service
+else
+  echo "==> (battery charge-cap not supported by this kernel/firmware — skipping)"
+fi
+
+# 2c. SSD health: periodic TRIM
+echo "==> Enabling weekly SSD trim..."
+sudo systemctl enable --now fstrim.timer 2>/dev/null || true
+
+# 2d. Safe-shutdown watchdog: during an outage, once the battery hits 10%
+# the hub stops the containers cleanly and powers off instead of dying
+# mid-write. Runs host-side every 2 minutes, independent of Home Assistant.
+echo "==> Installing low-battery safe-shutdown watchdog..."
+JARVIS_DIR="$(pwd)"
+sudo tee /usr/local/bin/jarvis-battwatch >/dev/null << WATCH
+#!/bin/sh
+# Power off safely when on battery and nearly empty.
+ONLINE=\$(head -qn1 /sys/class/power_supply/A*/online 2>/dev/null || echo 1)
+CAP=\$(head -qn1 /sys/class/power_supply/BAT*/capacity 2>/dev/null || echo 100)
+if [ "\$ONLINE" = "0" ] && [ "\$CAP" -le 10 ]; then
+  logger -t jarvis-battwatch "Battery \${CAP}% on battery power — safe shutdown"
+  cd "$JARVIS_DIR" && docker compose stop || true
+  systemctl poweroff
+fi
+WATCH
+sudo chmod +x /usr/local/bin/jarvis-battwatch
+sudo tee /etc/systemd/system/jarvis-battwatch.service >/dev/null << 'UNIT'
+[Unit]
+Description=Jarvis low-battery safe shutdown check
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/jarvis-battwatch
+UNIT
+sudo tee /etc/systemd/system/jarvis-battwatch.timer >/dev/null << 'UNIT'
+[Unit]
+Description=Run Jarvis low-battery check every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target
+UNIT
+sudo systemctl daemon-reload
+sudo systemctl enable --now jarvis-battwatch.timer
+
 # 3. Install Docker if missing
 if ! command -v docker >/dev/null 2>&1; then
   echo "==> Installing Docker..."

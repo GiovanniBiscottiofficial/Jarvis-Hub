@@ -212,6 +212,15 @@ Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
 - **Built-in UPS**: the X1's battery keeps the hub alive through outages, and it
   notices — a power cut pings your phone (with battery %), Jarvis announces it, and
   you get a "power restored" + low-battery warning too (`ha-config/automations/power.yaml`).
+- **Hardware self-care** (installed by `bootstrap/setup-x1.sh`; re-run it once to
+  pick these up):
+  - Battery charge cap at 80% — an always-plugged battery lasts years longer.
+  - Low-battery safe shutdown — at 10% during an outage a host-side watchdog stops
+    the containers cleanly and powers off instead of dying mid-write (Jarvis warns
+    you first at 20%).
+  - CPU temperature sensor + overheat alert if the hub runs hot for 5+ minutes.
+  - Weekly SSD trim, and Intel QuickSync hardware video decoding for Frigate
+    (camera streams stop costing CPU).
 
 ## The X1 as a sensor node
 

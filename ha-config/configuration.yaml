@@ -213,6 +213,16 @@ command_line:
       unit_of_measurement: "%"
       device_class: battery
       scan_interval: 60
+  # Hottest thermal zone on the X1 (CPU package) — feeds the overheat alert
+  # in automations/power.yaml and the diagnostic script.
+  - sensor:
+      name: X1 CPU temperature
+      unique_id: x1_cpu_temp
+      command: "cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | sort -n | tail -1 || echo 0"
+      unit_of_measurement: "°C"
+      device_class: temperature
+      value_template: "{{ (value | int(0) / 1000) | round(1) }}"
+      scan_interval: 60
 
 # Contextual awareness: what's happening in the house right now.
 # Works with the Fire TV out of the box; the "working" branch lights up

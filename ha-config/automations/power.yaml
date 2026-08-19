@@ -59,3 +59,31 @@
         message: >-
           Still no power and the hub is at
           {{ states('sensor.x1_battery') }}% — it will shut down soon.
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Battery critical. If power doesn't return soon I'll shut myself
+          down safely at ten percent.
+        urgent: true
+
+# The host-side watchdog installed by bootstrap/setup-x1.sh does the actual
+# safe power-off at 10% (stops the containers cleanly first) — it works even
+# if Home Assistant itself is struggling.
+
+- id: power_cpu_overheat
+  alias: "Power: CPU overheating"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.x1_cpu_temperature
+      above: 85
+      for: "00:05:00"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Hub running hot"
+        message: >-
+          CPU at {{ states('sensor.x1_cpu_temperature') }}°C for 5+ minutes.
+          Check ventilation — is something blocking the vents?
+    - service: script.jarvis_say
+      data:
+        message: "I'm running a little hot, sir. Some airflow would be appreciated."

@@ -11,6 +11,7 @@ jarvis_diagnostic:
           Processing power: {{ states('sensor.processor_use') | int(0) }} percent utilized.
           Memory: {{ states('sensor.memory_use_percent') | int(0) }} percent.
           Storage: {{ states('sensor.disk_use_percent') | int(0) }} percent.
+          Core temperature: {{ states('sensor.x1_cpu_temperature') | int(0) }} degrees.
           Power: {{ 'on mains' if is_state('binary_sensor.mains_power', 'on')
                     else 'on battery at ' ~ states('sensor.x1_battery') ~ ' percent' }}.
           {% set cpu = states('sensor.processor_use') | int(0) %}

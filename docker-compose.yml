@@ -97,6 +97,8 @@ services:
     shm_size: "128mb"
     environment:
       - TZ=${TZ:-America/New_York}
+    devices:
+      - /dev/dri:/dev/dri   # Intel QuickSync hardware video decoding
     ports:
       - "5000:5000"     # web UI + API
       - "8554:8554"     # RTSP restream

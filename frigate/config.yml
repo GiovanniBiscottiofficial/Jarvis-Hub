@@ -5,6 +5,12 @@
 mqtt:
   enabled: false
 
+# Intel QuickSync hardware video decoding — the X1's UHD 620 decodes camera
+# streams so the CPU doesn't have to (the compose file already passes
+# /dev/dri through to the container).
+ffmpeg:
+  hwaccel_args: preset-vaapi
+
 # Uncomment and edit when you have a camera. Most WiFi cams expose an
 # RTSP URL (check the camera app or ispyconnect.com for your model).
 # The X1's own webcam works today: run bootstrap/setup-satellite.sh,
