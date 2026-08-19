@@ -7,9 +7,9 @@ set -euo pipefail
 
 KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/wall}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
-# HiDPI zoom: the X1 Tablet's 3000x2000 panel needs ~2x to be readable.
-# Tune with e.g.  KIOSK_SCALE=1.75 bash bootstrap/setup-kiosk.sh
-KIOSK_SCALE="${KIOSK_SCALE:-2}"
+# HiDPI zoom: the X1 Tablet's 3000x2000 panel needs 2x+ to be readable.
+# Tune with e.g.  KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh
+KIOSK_SCALE="${KIOSK_SCALE:-2.25}"
 
 echo "==> Jarvis kiosk setup (URL: $KIOSK_URL, user: $KIOSK_USER, scale: ${KIOSK_SCALE}x)"
 
@@ -80,6 +80,6 @@ echo "    the little floating icon brings it back if hidden."
 echo "  - Log into HA once in that Chromium ('remember me') so it"
 echo "    stays signed in."
 echo "  - Different page? KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh"
-echo "  - Too big/small? KIOSK_SCALE=1.75 bash bootstrap/setup-kiosk.sh (then reboot)"
+echo "  - Too big/small? KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh (then reboot)"
 echo "  - Escape to a terminal any time: Ctrl+Alt+F2."
 echo "=========================================================="
