@@ -58,6 +58,14 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 
    Finish setup at `http://<laptop-ip>:32400/web`, then HA → Add Integration → **Plex**.
    The token is only needed the very first start — after that Plex stays claimed.
+7. Weather in the morning briefing — home coordinates into `.env`:
+
+   ```bash
+   cd ~/Jarvis-Hub
+   echo "LIFEOS_LAT=36.334154" >> .env
+   echo "LIFEOS_LON=-79.660757" >> .env
+   docker compose up -d lifeos
+   ```
 
 **Every optional `docker compose` profile (run the ones you want, in any order):**
 
