@@ -18,6 +18,32 @@ bash bootstrap/setup-x1.sh
 
 Then open `http://<laptop-ip>:8123`, create your account, and follow the phases below.
 
+## Build status — where we are
+
+**Built and in this repo (everything below is validated and pushed):**
+- Core stack: Home Assistant + LifeOS + optional profiles (voice, LLM, Grocy, cameras, Plex, Jellyfin)
+- LifeOS: briefings, protein/water/steps, meals & favorites, pantry/grocery, workouts,
+  weigh-ins, spending, bills, accounts, savings goals, weekly review, PWA install
+- Voice: ~60 sentence intents (ask/log/control), timers, reminders, context memory,
+  wisdom & sarcasm, diagnostics, announcements
+- Dashboard: Wall kiosk view, boot splash, holographic Jarvis avatar orb, Twin tab,
+  Media quick-launch tiles, dark-glass Jarvis theme, on-screen keyboard
+- Proactive layer: 6:30 workday wake-up, schedule-aware dinner nudge, medication +
+  hydration, circadian lighting, welcome home, nightly musing, power-outage alerts,
+  safe shutdown, charge cap, CPU temp watch, nightly backups
+- Jarvis knows: Giovanni works **Mon–Fri 8 AM–5 PM** (`binary_sensor.giovanni_work_hours`
+  + the personality doc) — automations time themselves around it
+- Scaffolded, waiting on hardware/integrations (each file says what to plug in):
+  thermostat/GPS/Waze arrival, calendar meeting prep, doorbell, gaming mode, emergency
+  sensors, security cameras/faces, air quality, energy pricing, sleep recap
+
+**Your to-do when you're back at the X1 (in order):**
+1. `cd ~/Jarvis-Hub && git pull && bash bootstrap/setup-x1.sh && docker compose up -d --build lifeos && docker restart homeassistant`
+2. Finish the voice pipeline if not done: Phase 3 below (Whisper/Piper/openWakeWord + "hey Jarvis")
+3. One-time remote access: `bash bootstrap/setup-remote-access.sh` (sign in via the printed link, then install the Tailscale app on your phone)
+4. The LLM brain (Phase 8) — this is the "spark": `docker compose --profile llm up -d`, pull llama3.2:3b, set it as the Assist conversation agent, paste in [docs/jarvis-personality.txt](docs/jarvis-personality.txt)
+5. Pair real devices as you get them (lights, vacuum, Fire TV — Phase 2/16) and swap the placeholder entity IDs
+
 ## What's in this repo
 
 | Path | What it is |
@@ -121,8 +147,9 @@ House control:
 
 All in `ha-config/automations/` — active immediately unless noted:
 
-- **Proactive**: workday wake-up briefing at 6:30, dinner suggestion at 4 PM
-  (`proactive.yaml`).
+- **Proactive**: workday wake-up briefing at 6:30; dinner suggestion at 4 PM on
+  weekends, 5:30 PM on workdays — Jarvis knows the Mon–Fri 8–5 schedule
+  (`proactive.yaml`, `binary_sensor.giovanni_work_hours` in `configuration.yaml`).
 - **Contextual**: quiet mode auto-on during movies via the `Current activity`
   sensor; dim red night-path light on late-night motion once a motion sensor
   is added (`contextual.yaml`, sensor in `configuration.yaml`).

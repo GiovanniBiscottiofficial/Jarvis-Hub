@@ -26,17 +26,37 @@
           {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
              or 'Your briefing will be ready shortly.' }}
 
-# Dinner nudge at 4 PM: pantry-matched pick + protein still needed today.
+# Dinner nudge: pantry-matched pick + protein still needed today.
 # Uses the same live LifeOS answer as "hey Jarvis, what's for dinner".
+# 4 PM on weekends; 5:30 PM on workdays (no point announcing to an
+# empty house while Giovanni is at work until 5).
 - id: jarvis_dinner_nudge
-  alias: "Proactive: 4 PM dinner suggestion"
+  alias: "Proactive: dinner suggestion"
   trigger:
     - platform: time
       at: "16:00:00"
+      id: weekend
+    - platform: time
+      at: "17:30:00"
+      id: workday
   condition:
     - condition: state
       entity_id: input_boolean.vacation_mode
       state: "off"
+    - condition: or
+      conditions:
+        - condition: and
+          conditions:
+            - condition: trigger
+              id: weekend
+            - condition: time
+              weekday: [sat, sun]
+        - condition: and
+          conditions:
+            - condition: trigger
+              id: workday
+            - condition: time
+              weekday: [mon, tue, wed, thu, fri]
   action:
     - service: script.jarvis_say
       data:

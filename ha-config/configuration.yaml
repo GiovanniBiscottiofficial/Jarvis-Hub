@@ -228,6 +228,14 @@ command_line:
 # Works with the Fire TV out of the box; the "working" branch lights up
 # once a desk-chair pressure mat or PC sensor is added.
 template:
+  - binary_sensor:
+      # Giovanni works Mon-Fri, 8 AM - 5 PM. Automations use this to avoid
+      # announcing to an empty house and to time evening routines.
+      - name: Giovanni work hours
+        unique_id: giovanni_work_hours
+        icon: mdi:briefcase-clock
+        state: >-
+          {{ now().weekday() < 5 and 8 <= now().hour < 17 }}
   - sensor:
       - name: Current activity
         unique_id: jarvis_current_activity
