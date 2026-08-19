@@ -26,6 +26,74 @@
           {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
              or 'Your briefing will be ready shortly.' }}
 
+# Out-the-door nudge: Giovanni leaves at 7:35 on workdays. A gentle heads-up
+# five minutes before, so mornings don't slip.
+- id: jarvis_leave_for_work
+  alias: "Proactive: time to leave for work"
+  trigger:
+    - platform: time
+      at: "07:30:00"
+  condition:
+    - condition: time
+      weekday: [mon, tue, wed, thu, fri]
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Five minutes, sir. Out the door by seven thirty-five keeps you
+          comfortably ahead of the eight o'clock start.
+
+# Evening workout nudge: Giovanni is building the evening-workout habit.
+# Weekdays at 6:30 PM — home from work, fed or about to be. Encouraging,
+# never shaming; say "I did my workout" to log it.
+- id: jarvis_workout_nudge
+  alias: "Proactive: evening workout nudge"
+  trigger:
+    - platform: time
+      at: "18:30:00"
+  condition:
+    - condition: time
+      weekday: [mon, tue, wed, thu, fri]
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Workout"
+        message: "Evening session, sir? Even 15 minutes keeps the habit alive."
+        data:
+          channel: health
+
+# Payday heads-up: paid on the 15th and the last day of the month, landing
+# 2 days early — so the 13th, and 2 days before month-end (day + 3 rolls
+# into the 1st exactly on that day).
+- id: jarvis_payday
+  alias: "Proactive: payday heads-up"
+  trigger:
+    - platform: time
+      at: "07:05:00"
+  condition:
+    - condition: template
+      value_template: >-
+        {{ now().day == 13 or (now() + timedelta(days=3)).day == 1 }}
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Payday, sir.
+          {{ state_attr('sensor.lifeos_answers', 'bills')
+             or 'A fine day to check Vault Flow before the money gets ideas.' }}
+    - service: notify.mobile_app_phone
+      data:
+        title: "Payday"
+        message: "Deposit day. Vault Flow is ready when you are."
+        data:
+          channel: money
+
 # Dinner nudge: pantry-matched pick + protein still needed today.
 # Uses the same live LifeOS answer as "hey Jarvis, what's for dinner".
 # 4 PM on weekends; 5:30 PM on workdays (no point announcing to an

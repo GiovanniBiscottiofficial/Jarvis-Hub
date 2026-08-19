@@ -1,12 +1,14 @@
 # Health routines: medication + hydration.
 
-# Morning medication reminder — flip input_boolean.medication_taken (or tap
-# "Taken" on the phone notification) to silence it for the day.
+# Morning vitamins reminder — 7:00 on purpose: Giovanni is out the door by
+# 7:35, so the nudge lands before he leaves. Silenced for the day by saying
+# "I took my vitamins" (logs to LifeOS), flipping input_boolean.medication_taken,
+# or tapping "Taken" on the phone notification.
 - id: jarvis_medication_reminder
-  alias: "Health: morning medication reminder"
+  alias: "Health: morning vitamins reminder"
   trigger:
     - platform: time
-      at: "08:00:00"
+      at: "07:00:00"
   condition:
     - condition: state
       entity_id: input_boolean.medication_taken
@@ -14,14 +16,17 @@
     - condition: state
       entity_id: input_boolean.vacation_mode
       state: "off"
+    - condition: template
+      value_template: >-
+        {{ not state_attr('sensor.lifeos_morning_briefing', 'vitamins_taken') }}
   action:
     - service: script.jarvis_say
       data:
-        message: "Good morning. Don't forget your medication, sir."
+        message: "Vitamins before you head out, sir."
     - service: notify.mobile_app_phone
       data:
-        title: "Medication"
-        message: "Morning meds — small thing, big consistency."
+        title: "Vitamins"
+        message: "Morning vitamins — small thing, big consistency."
         data:
           channel: health
           actions:
@@ -56,8 +61,8 @@
       state: "off"
     - service: notify.mobile_app_phone
       data:
-        title: "Medication"
-        message: "30 minutes later — meds still pending."
+        title: "Vitamins"
+        message: "30 minutes later — vitamins still pending."
         data:
           channel: health
           actions:

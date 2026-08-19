@@ -26,6 +26,8 @@
 # Needs: the Waze Travel Time integration (Settings -> Add Integration ->
 # "Waze Travel Time", origin person.giovanni, destination Home). It creates
 # a sensor like sensor.waze_travel_time — rename below to match, uncomment.
+# Also add a "Work" zone (Settings -> Areas & Zones -> Zones) at
+# 4411 W. Market St, Greensboro NC 27405 for morning commute-time sensors.
 # - id: jarvis_traffic_alert
 #   alias: "Location: heavy traffic heads-up"
 #   trigger:

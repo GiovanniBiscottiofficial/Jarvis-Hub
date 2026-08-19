@@ -2,8 +2,9 @@
 
 # Mood music: once you add the Spotify integration (Settings -> Add
 # Integration -> Spotify, free with any account), uncomment and swap in
-# your own playlists. LifeOS mood can drive it later; for now it keys off
-# time of day.
+# your own playlists. Giovanni's taste: R&B to relax (evenings), lo-fi to
+# focus (daytime) — the placeholders below are Spotify's "Chilled R&B",
+# "lofi beats", and "RNB X"; swap in your own playlist IDs.
 # - id: jarvis_mood_music
 #   alias: "Entertainment: mood music"
 #   trigger:
@@ -17,12 +18,12 @@
 #       data:
 #         media_content_type: playlist
 #         media_content_id: >-
-#           {% if now().hour < 10 %}
-#             spotify:playlist:37i9dQZF1DX0XUsuxWHRQd
-#           {% elif now().hour >= 21 %}
-#             spotify:playlist:37i9dQZF1DX4sWSpwq3LiO
+#           {% if now().hour >= 18 %}
+#             spotify:playlist:37i9dQZF1DX2UgsUIg75Vg   # Chilled R&B - relax
+#           {% elif 8 <= now().hour < 17 %}
+#             spotify:playlist:37i9dQZF1DWWQRwui0ExPn   # lofi beats - focus
 #           {% else %}
-#             spotify:playlist:37i9dQZF1DXcBWIGoYBM5M
+#             spotify:playlist:37i9dQZF1DX4SBhb3fqCJd   # RNB X
 #           {% endif %}
 
 # Movie's over -> bring the lights back gently (after the credits pause).

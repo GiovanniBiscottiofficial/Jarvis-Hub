@@ -31,8 +31,11 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 - Proactive layer: 6:30 workday wake-up, schedule-aware dinner nudge, medication +
   hydration, circadian lighting, welcome home, nightly musing, power-outage alerts,
   safe shutdown, charge cap, CPU temp watch, nightly backups
-- Jarvis knows: Giovanni works **Mon–Fri 8 AM–5 PM** (`binary_sensor.giovanni_work_hours`
-  + the personality doc) — automations time themselves around it
+- Jarvis knows Giovanni: **Mon–Fri 8–5** at the office (out the door by 7:35, nudge at
+  7:30), vitamins reminder at 7:00, evening-workout habit nudge at 6:30 PM, payday
+  heads-up (13th + 2 days before month-end), R&B/lo-fi music taste, Food Lion, the
+  Lexus, NBA/WNBA — all in `docs/jarvis-personality.txt` (for the LLM) and wired into
+  the proactive automations
 - Scaffolded, waiting on hardware/integrations (each file says what to plug in):
   thermostat/GPS/Waze arrival, calendar meeting prep, doorbell, gaming mode, emergency
   sensors, security cameras/faces, air quality, energy pricing, sleep recap
@@ -147,9 +150,11 @@ House control:
 
 All in `ha-config/automations/` — active immediately unless noted:
 
-- **Proactive**: workday wake-up briefing at 6:30; dinner suggestion at 4 PM on
-  weekends, 5:30 PM on workdays — Jarvis knows the Mon–Fri 8–5 schedule
-  (`proactive.yaml`, `binary_sensor.giovanni_work_hours` in `configuration.yaml`).
+- **Proactive**: workday wake-up briefing at 6:30; out-the-door nudge at 7:30
+  (leave by 7:35); evening workout nudge at 6:30 PM on weekdays; payday heads-up
+  on the 13th and 2 days before month-end; dinner suggestion at 4 PM on weekends,
+  5:30 PM on workdays — Jarvis knows the Mon–Fri 8–5 schedule (`proactive.yaml`,
+  `binary_sensor.giovanni_work_hours` in `configuration.yaml`).
 - **Contextual**: quiet mode auto-on during movies via the `Current activity`
   sensor; dim red night-path light on late-night motion once a motion sensor
   is added (`contextual.yaml`, sensor in `configuration.yaml`).
