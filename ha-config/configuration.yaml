@@ -128,6 +128,14 @@ rest_command:
     method: POST
     content_type: application/json
     payload: '{"glasses": {{ glasses | int(1) }}}'
+  lifeos_remember:
+    url: http://localhost:8090/api/memory
+    method: POST
+    content_type: application/json
+    payload: '{"fact": {{ fact | tojson }}}'
+  lifeos_forget:
+    url: http://localhost:8090/api/memory/forget
+    method: POST
   lifeos_workout:
     url: http://localhost:8090/api/body/workouts/log
     method: POST
@@ -157,6 +165,12 @@ input_boolean:
   quiet_mode:
     name: Quiet mode
     icon: mdi:volume-off
+  medication_taken:
+    name: Medication taken today
+    icon: mdi:pill
+  circadian_lighting:
+    name: Circadian lighting
+    icon: mdi:theme-light-dark
 
 # LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
 rest:
@@ -178,7 +192,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, goals, dinner, evening, nudge, nudge_id]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id]
 
 # The X1's built-in UPS: reads the laptop's own AC-adapter and battery
 # state from the kernel, so a power outage is detected the second the

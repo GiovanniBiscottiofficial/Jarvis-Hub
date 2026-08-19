@@ -1,0 +1,23 @@
+# "Jarvis, run a diagnostic" — a spoken systems report with real numbers
+# from the X1 (CPU, memory, disk, power), delivered with appropriate flair.
+jarvis_diagnostic:
+  alias: "Jarvis self-diagnostic"
+  icon: mdi:stethoscope
+  sequence:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Self-diagnostic complete.
+          Processing power: {{ states('sensor.processor_use') | int(0) }} percent utilized.
+          Memory: {{ states('sensor.memory_use_percent') | int(0) }} percent.
+          Storage: {{ states('sensor.disk_use_percent') | int(0) }} percent.
+          Power: {{ 'on mains' if is_state('binary_sensor.mains_power', 'on')
+                    else 'on battery at ' ~ states('sensor.x1_battery') ~ ' percent' }}.
+          {% set cpu = states('sensor.processor_use') | int(0) %}
+          {% if cpu < 50 %}
+            I am functioning at peak efficiency, sir.
+          {% elif cpu < 80 %}
+            Operating within normal parameters.
+          {% else %}
+            Running a bit warm — nothing I can't handle.
+          {% endif %}

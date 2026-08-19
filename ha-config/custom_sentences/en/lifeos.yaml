@@ -264,6 +264,37 @@ intents:
           - "thank you [jarvis]"
           - "thanks [jarvis]"
           - "good (job | work) [jarvis]"
+  JarvisRemember:
+    data:
+      - sentences:
+          - "remember that {fact}"
+          - "remember {fact}"
+          - "make a note that {fact}"
+  JarvisRecall:
+    data:
+      - sentences:
+          - "what did I ask you to remember"
+          - "what do you remember"
+          - "read [me] (my | your) (notes | memories)"
+          - "memory check"
+  JarvisForget:
+    data:
+      - sentences:
+          - "forget (that | the last thing)"
+          - "never mind that note"
+  JarvisMedsTaken:
+    data:
+      - sentences:
+          - "I took my (medication | meds | medicine)"
+          - "medication taken"
+          - "[I] took my pills"
+  JarvisDiagnostic:
+    data:
+      - sentences:
+          - "run a [self] diagnostic"
+          - "[run a] system (check | diagnostic)"
+          - "how are you (feeling | doing) [jarvis]"
+          - "diagnostic report"
 
 lists:
   grams:
@@ -281,6 +312,8 @@ lists:
   message:
     wildcard: true
   task:
+    wildcard: true
+  fact:
     wildcard: true
   minutes:
     range:

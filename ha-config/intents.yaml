@@ -308,3 +308,43 @@ JarvisHouseStatus:
       {{ 'Looks ready for the night.'
          if not on_lights
          else 'Say goodnight and I will shut things down.' }}
+
+JarvisRemember:
+  action:
+    - service: rest_command.lifeos_remember
+      data:
+        fact: "{{ fact }}"
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "Noted, sir — {{ fact }}. Filed away for safekeeping."
+
+JarvisRecall:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'memory') or 'LifeOS is not reachable right now.' }}"
+
+JarvisForget:
+  action:
+    - service: rest_command.lifeos_forget
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "Consider it forgotten, sir."
+
+JarvisMedsTaken:
+  action:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.medication_taken
+  speech:
+    text: "Medication logged. Consistency looks good on you, sir."
+
+JarvisDiagnostic:
+  action:
+    - service: script.turn_on
+      target:
+        entity_id: script.jarvis_diagnostic
+  speech:
+    text: "Running a full self-diagnostic now, sir."

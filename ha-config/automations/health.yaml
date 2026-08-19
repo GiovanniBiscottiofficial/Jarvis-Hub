@@ -1,0 +1,117 @@
+# Health routines: medication + hydration.
+
+# Morning medication reminder — flip input_boolean.medication_taken (or tap
+# "Taken" on the phone notification) to silence it for the day.
+- id: jarvis_medication_reminder
+  alias: "Health: morning medication reminder"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  condition:
+    - condition: state
+      entity_id: input_boolean.medication_taken
+      state: "off"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+  action:
+    - service: script.jarvis_say
+      data:
+        message: "Good morning. Don't forget your medication, sir."
+    - service: notify.mobile_app_phone
+      data:
+        title: "Medication"
+        message: "Morning meds — small thing, big consistency."
+        data:
+          channel: health
+          actions:
+            - action: "JARVIS_MEDS_TAKEN"
+              title: "Taken"
+            - action: "JARVIS_MEDS_SNOOZE"
+              title: "Remind in 30 min"
+
+- id: jarvis_medication_taken_action
+  alias: "Health: medication notification actions"
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: JARVIS_MEDS_TAKEN
+  action:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.medication_taken
+
+- id: jarvis_medication_snooze_action
+  alias: "Health: medication snooze"
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: JARVIS_MEDS_SNOOZE
+  action:
+    - delay: "00:30:00"
+    - condition: state
+      entity_id: input_boolean.medication_taken
+      state: "off"
+    - service: notify.mobile_app_phone
+      data:
+        title: "Medication"
+        message: "30 minutes later — meds still pending."
+        data:
+          channel: health
+          actions:
+            - action: "JARVIS_MEDS_TAKEN"
+              title: "Taken"
+
+- id: jarvis_medication_reset
+  alias: "Health: reset medication flag at midnight"
+  trigger:
+    - platform: time
+      at: "00:00:00"
+  action:
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.medication_taken
+
+# Hydration nudge — every 2 hours during the day, only if behind on the
+# real LifeOS water log. Tapping "Drank one" logs a glass straight to LifeOS.
+- id: jarvis_hydration_nudge
+  alias: "Health: hydration nudge"
+  trigger:
+    - platform: time_pattern
+      hours: "/2"
+  condition:
+    - condition: time
+      after: "09:59:00"
+      before: "20:01:00"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+    - condition: template
+      value_template: >-
+        {{ (state_attr('sensor.lifeos_answers', 'water_count') | int(0))
+           < (state_attr('sensor.lifeos_answers', 'water_target') | int(8)) }}
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Hydration"
+        message: >-
+          {{ state_attr('sensor.lifeos_answers', 'water') or 'Time for a glass of water.' }}
+        data:
+          channel: health
+          actions:
+            - action: "JARVIS_WATER_LOGGED"
+              title: "Drank one"
+
+- id: jarvis_hydration_action
+  alias: "Health: log water from notification"
+  trigger:
+    - platform: event
+      event_type: mobile_app_notification_action
+      event_data:
+        action: JARVIS_WATER_LOGGED
+  action:
+    - service: rest_command.lifeos_water
+      data:
+        glasses: 1

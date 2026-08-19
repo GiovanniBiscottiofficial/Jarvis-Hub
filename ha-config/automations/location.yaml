@@ -1,0 +1,106 @@
+# Location + calendar intelligence — scaffolds that switch on the day the
+# integrations land. Each block says exactly what it needs.
+
+# --- PREDICTIVE ARRIVAL PRE-HEAT -------------------------------------------
+# Needs: HA Companion app with location on (creates person.giovanni GPS),
+# and a thermostat (climate.thermostat). Uncomment once both exist.
+# - id: jarvis_predictive_arrival
+#   alias: "Location: pre-heat when almost home"
+#   trigger:
+#     - platform: template
+#       value_template: >-
+#         {{ distance('person.giovanni', 'zone.home') is not none
+#            and distance('person.giovanni', 'zone.home') < 5
+#            and states('person.giovanni') != 'home' }}
+#   action:
+#     - service: climate.set_temperature
+#       target:
+#         entity_id: climate.thermostat
+#       data:
+#         temperature: 72
+#     - service: notify.mobile_app_phone
+#       data:
+#         message: "Almost home — I've warmed the house for your arrival, sir."
+
+# --- TRAVEL TIME / TRAFFIC ALERT -------------------------------------------
+# Needs: the Waze Travel Time integration (Settings -> Add Integration ->
+# "Waze Travel Time", origin person.giovanni, destination Home). It creates
+# a sensor like sensor.waze_travel_time — rename below to match, uncomment.
+# - id: jarvis_traffic_alert
+#   alias: "Location: heavy traffic heads-up"
+#   trigger:
+#     - platform: numeric_state
+#       entity_id: sensor.waze_travel_time
+#       above: 45
+#   action:
+#     - service: notify.mobile_app_phone
+#       data:
+#         title: "Traffic"
+#         message: >-
+#           Traffic is heavy — {{ states('sensor.waze_travel_time') }} minutes
+#           home right now. Might be worth waiting it out.
+
+# --- MEETING PREP ----------------------------------------------------------
+# Needs: a calendar integration (e.g. Google Calendar -> calendar.giovanni).
+# Speaks a 15-minute warning and flips quiet mode on for important events.
+# - id: jarvis_meeting_prep
+#   alias: "Calendar: 15-minute meeting warning"
+#   trigger:
+#     - platform: calendar
+#       event: start
+#       entity_id: calendar.giovanni
+#       offset: "-00:15:00"
+#   action:
+#     - service: script.jarvis_say
+#       data:
+#         message: >-
+#           {{ trigger.calendar_event.summary }} starts in 15 minutes, sir.
+#     - if:
+#         - condition: template
+#           value_template: >-
+#             {{ 'interview' in trigger.calendar_event.summary | lower
+#                or 'important' in trigger.calendar_event.summary | lower }}
+#       then:
+#         - service: input_boolean.turn_on
+#           target:
+#             entity_id: input_boolean.quiet_mode
+
+# --- DOORBELL SOUND --------------------------------------------------------
+# Needs: a doorbell binary sensor + a chime file at
+# ha-config/media/jarvis_doorbell.mp3 (any short mp3 you like).
+# - id: jarvis_doorbell_sound
+#   alias: "Notifications: doorbell chime"
+#   trigger:
+#     - platform: state
+#       entity_id: binary_sensor.doorbell
+#       to: "on"
+#   action:
+#     - service: media_player.play_media
+#       target:
+#         entity_id: media_player.living_room_speaker
+#       data:
+#         media_content_id: "media-source://media_source/local/jarvis_doorbell.mp3"
+#         media_content_type: "audio/mp3"
+#     - service: script.jarvis_say
+#       data:
+#         message: "Someone is at the door, sir."
+
+# --- GAMING MODE -----------------------------------------------------------
+# Needs: a console integration (e.g. PS5 via the PlayStation Network
+# integration -> media_player.ps5) and a light near the setup.
+# - id: jarvis_gaming_mode
+#   alias: "Entertainment: gaming mode"
+#   trigger:
+#     - platform: state
+#       entity_id: media_player.ps5
+#       to: "playing"
+#   action:
+#     - service: light.turn_on
+#       target:
+#         entity_id: light.living_room
+#       data:
+#         rgb_color: [0, 255, 120]
+#         brightness: 60
+#     - service: script.jarvis_say
+#       data:
+#         message: "Gaming mode engaged. Good luck out there, sir."

@@ -110,6 +110,11 @@ House control:
   emergencies (also flips on automatically while the TV is playing)
 - "I'm having a bad day" · "I'm stressed" — cozy lights + a kind word
 - "thank you Jarvis" — he has opinions about his own brilliance
+- "remember that I park in spot 22B" · "what did I ask you to remember" ·
+  "forget that" — durable context memory (stored in LifeOS, survives restarts)
+- "I took my medication" — silences the morning reminder for the day
+- "run a diagnostic" · "how are you feeling Jarvis" — spoken systems report
+  with real CPU/memory/disk/power numbers
 
 ### Beyond the ordinary (the proactive layer)
 
@@ -128,6 +133,23 @@ All in `ha-config/automations/` — active immediately unless noted:
 - **Digital twin**: new **Twin** dashboard tab — live activity, house modes,
   power flow; drop `ha-config/www/floorplan.png` and uncomment the
   picture-elements block for a tappable floorplan.
+- **Health** (`health.yaml`): 8 AM medication reminder with a "Taken" /
+  "Remind in 30 min" button on your phone (resets nightly), and hydration
+  nudges every 2 hours that read your real LifeOS water log — tap "Drank one"
+  to log a glass without saying a word.
+- **Circadian lighting** (`circadian.yaml`): flip on the *Circadian lighting*
+  toggle and lights that are already on shift from energizing cool white by
+  day to warm candlelight at night (never turns anything on by itself); plus
+  a weekday sunrise-simulation ramp in the bedroom from 6:15, so the 6:30
+  briefing doesn't start in the dark. Edit the light entities to yours.
+- **Personality moments** (`personality.yaml`): a context-aware welcome-home
+  greeting (needs the Companion app person entity) and a nightly 10:45 PM
+  musing — both respect quiet/sleep/guest modes.
+- **Location & calendar scaffolds** (`location.yaml`, all commented with
+  exact instructions): pre-heat when you're 5 minutes from home (Companion
+  app GPS + thermostat), heavy-traffic alerts (Waze Travel Time), 15-minute
+  meeting prep with auto quiet mode (calendar integration), doorbell chime,
+  and gaming mode (PS5 integration).
 - **Needs hardware/integrations (safe to leave as-is until then)**:
   - Emergency response — all lights red + evacuation announce + phone alert on
     smoke/CO/leak (`emergency.yaml`; any Zigbee detector, leak sensors ~$12).

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 
 import httpx
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from ..db import active_profile, conn, get_setting
 from ..suggestions import suggest_meals
@@ -239,6 +240,43 @@ def weekly_review():
     }
 
 
+class MemoryIn(BaseModel):
+    fact: str
+
+
+@router.post("/memory")
+def remember(body: MemoryIn):
+    """'Remember that I park in spot 22B' — durable fact storage."""
+    fact = body.fact.strip()
+    with conn() as c:
+        c.execute("INSERT INTO memories(fact) VALUES(?)", (fact,))
+    return {"ok": True, "fact": fact}
+
+
+@router.post("/memory/forget")
+def forget():
+    """'Forget that' — drops the most recent memory."""
+    with conn() as c:
+        row = c.execute(
+            "SELECT id, fact FROM memories WHERE active=1 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return {"ok": False, "fact": ""}
+        c.execute("UPDATE memories SET active=0 WHERE id=?", (row["id"],))
+        return {"ok": True, "fact": row["fact"]}
+
+
+@router.get("/memory")
+def memories():
+    with conn() as c:
+        return [
+            dict(r)
+            for r in c.execute(
+                "SELECT id, ts, fact FROM memories WHERE active=1 ORDER BY ts"
+            ).fetchall()
+        ]
+
+
 @router.get("/ask")
 def ask():
     """One-shot spoken answers for voice intents (polled by Home Assistant
@@ -275,6 +313,12 @@ def ask():
             r["item"]
             for r in c.execute(
                 "SELECT item FROM grocery_list WHERE done=0 ORDER BY ts"
+            ).fetchall()
+        ]
+        memory_facts = [
+            r["fact"]
+            for r in c.execute(
+                "SELECT fact FROM memories WHERE active=1 ORDER BY ts DESC LIMIT 10"
             ).fetchall()
         ]
 
@@ -364,7 +408,14 @@ def ask():
     evening_parts.append(bills_speech)
     evening_speech = " ".join(evening_parts)
 
+    memory_speech = (
+        "You asked me to remember: " + "; ".join(memory_facts) + "."
+        if memory_facts
+        else "I don't have anything memorized yet — say 'remember that' and a fact."
+    )
+
     goals_speech = (
+
         "; ".join(
             f"{g['name']}: ${g['saved']:.0f}"
             + (f" of ${g['target']:.0f}" if g["target"] else "")
@@ -384,7 +435,10 @@ def ask():
         "spending": spending_speech,
         "grocery": grocery_speech,
         "water": water_speech,
+        "water_count": water,
+        "water_target": water_target,
         "goals": goals_speech,
+        "memory": memory_speech,
         "dinner": dinner_speech,
         "evening": evening_speech,
         "nudge": nudge_row["text"] if nudge_row else "",
