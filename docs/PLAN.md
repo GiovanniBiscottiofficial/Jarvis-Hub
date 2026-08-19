@@ -34,7 +34,10 @@ docker run -d \
 
 Then open `http://<laptop-ip>:8123` from any device on your WiFi, create your account, and finish onboarding.
 
-> Alternative: install **Home Assistant OS** directly on the laptop instead of Ubuntu+Docker. Easier add-on management (one-click Whisper/Piper installs), but the laptop becomes a dedicated appliance. Recommended if this laptop will ONLY be the hub.
+> We use **Ubuntu + Docker** (not Home Assistant OS) on purpose: the X1 runs more than
+> HA — LifeOS, Grocy, and Ollama live beside it in the same stack, and the laptop's own
+> screen doubles as a wall-hub display (`bootstrap/setup-kiosk.sh`). HAOS would lock the
+> machine down to HA only.
 
 ## Phase 2 — Connect your devices
 

@@ -24,6 +24,8 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 |---|---|
 | `docker-compose.yml` | The whole stack: Home Assistant + optional voice / Grocy / LLM profiles |
 | `bootstrap/setup-x1.sh` | One-time laptop prep (lid-close, no-sleep, Docker) + starts the stack |
+| `bootstrap/setup-kiosk.sh` | Turns the X1's screen into a Google-Home-style hub display (boots into the Jarvis dashboard fullscreen) |
+| `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -49,6 +51,31 @@ your real devices after connecting them (Settings → Devices & Services → Ent
 - [ ] **Phase 18 — LifeOS**: comes up with the core stack at `http://<laptop-ip>:8090` — Today tab (morning briefing, meal cards with Sometimes/Today overrides, protein/steps bars, vitamin streaks), Body Ops (weigh-ins, quick meal log, workout planner, photo meal logging, pantry + grocery suggestions), Vault Flow (accounts, deposits vs bills, payment recommendations, leftover, food-money nudges), Review tab (weekly review + household profiles). Auto-sync Apple Watch/scale by pointing the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health`. Optional: set `LIFEOS_LAT`/`LIFEOS_LON` in `.env` for weather in the briefing, and `GROCY_URL`/`GROCY_API_KEY` for pantry sync. Jarvis reads the briefing at 7:30 and the weekly review on Sundays (`ha-config/automations/briefing.yaml`)
 
 Everything else (dashboards, cameras, Zigbee sensors, custom wake word, the whole Jarvis roadmap) is in [docs/PLAN.md](docs/PLAN.md).
+
+## The hub display (Google-Home style)
+
+The X1 isn't just the server — its own screen becomes the house's control panel:
+
+```bash
+bash bootstrap/setup-kiosk.sh   # then reboot
+```
+
+It boots straight into the Jarvis dashboard, fullscreen, screen always on. Want it to
+show LifeOS instead? `KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh`.
+(Ctrl+Alt+F2 gets you back to a terminal any time.)
+
+## Access from anywhere
+
+On your wifi, every device already gets the full platform — HA at `:8123`, LifeOS at
+`:8090`. To log in from work or cellular (check cameras, flip lights, ask Jarvis to do
+things through the Companion app's Assist):
+
+```bash
+bash bootstrap/setup-remote-access.sh
+```
+
+That sets up Tailscale (free): a private encrypted tunnel between your phone and the
+hub. Nothing is opened to the public internet, and it works from any network.
 
 ## Useful commands
 
