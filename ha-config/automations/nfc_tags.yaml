@@ -1,0 +1,20 @@
+# NFC tag taps (stickers are ~$0.30 each).
+# Write each tag with the HA Companion app: Settings -> Tags -> Add tag ->
+# Write. Scanning a tag shows its ID there — paste the real IDs below.
+# Bedtime tag lives on the nightstand; leaving tag on the door frame.
+
+- id: nfc_bedtime_tap
+  alias: "NFC: nightstand tap -> goodnight"
+  trigger:
+    - platform: tag
+      tag_id: REPLACE-WITH-BEDTIME-TAG-ID
+  action:
+    - service: script.goodnight
+
+- id: nfc_leaving_tap
+  alias: "NFC: door-frame tap -> leaving"
+  trigger:
+    - platform: tag
+      tag_id: REPLACE-WITH-LEAVING-TAG-ID
+  action:
+    - service: script.leaving

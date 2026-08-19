@@ -81,6 +81,9 @@ input_boolean:
   sleep_mode:
     name: Sleep mode
     icon: mdi:sleep
+  vacation_mode:
+    name: Vacation mode
+    icon: mdi:beach
 
 # LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
 rest:

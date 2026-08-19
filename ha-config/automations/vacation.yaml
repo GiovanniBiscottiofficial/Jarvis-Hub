@@ -1,0 +1,44 @@
+# Vacation / occupancy theater: while input_boolean.vacation_mode is on,
+# the house fakes being lived-in with staggered, randomized light activity
+# instead of a dumb fixed timer. Toggle it from the dashboard before a trip.
+# Upgrade later: replay your real recorded light history via the
+# history_stats integration.
+
+- id: vacation_evening_lights
+  alias: "Vacation: evening lights on (staggered)"
+  trigger:
+    - platform: sun
+      event: sunset
+      offset: "-00:10:00"
+  condition:
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "on"
+  action:
+    - delay: "00:{{ range(0, 40) | random }}:00"
+    - service: light.turn_on
+      target:
+        entity_id: light.living_room
+    - delay: "00:{{ range(20, 55) | random }}:00"
+    - service: light.turn_on
+      target:
+        entity_id: light.bedroom
+
+- id: vacation_bedtime_lights
+  alias: "Vacation: bedtime wind-down (randomized)"
+  trigger:
+    - platform: time
+      at: "22:30:00"
+  condition:
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "on"
+  action:
+    - delay: "00:{{ range(0, 45) | random }}:00"
+    - service: light.turn_off
+      target:
+        entity_id: light.living_room
+    - delay: "00:{{ range(10, 35) | random }}:00"
+    - service: light.turn_off
+      target:
+        entity_id: light.bedroom

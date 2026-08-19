@@ -26,6 +26,7 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 | `bootstrap/setup-x1.sh` | One-time laptop prep (lid-close, no-sleep, Docker) + starts the stack |
 | `bootstrap/setup-kiosk.sh` | Turns the X1's screen into a Google-Home-style hub display (boots into the Jarvis dashboard fullscreen) |
 | `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
+| `bootstrap/setup-backups.sh` | Nightly 3 AM backup of the LifeOS DB + HA config (`backup.sh` runs one on demand; point `BACKUP_DIR` at a USB drive) |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -74,6 +75,10 @@ Vault Flow by voice:
 - "log a deposit of 500 to OnePay" · "add 200 to True Lion"
 - "mark rent paid" · "I paid the electric bill"
 
+House control:
+- "tell everyone dinner's ready" / "announce ..." — whole-house announcement
+  (edit the speaker in `ha-config/scripts/announce.yaml`)
+
 Jarvis also announces new LifeOS nudges through the house speaker and your phone
 (`ha-config/automations/nudges.yaml` — set your real speaker/notify entities there;
 nudges stay quiet during guest mode and sleep mode).
@@ -90,10 +95,21 @@ bash bootstrap/setup-kiosk.sh   # then reboot
 ```
 
 It boots straight into the **Wall** view of the Jarvis dashboard — big clock, the
-morning briefing, giant light/scene/vacuum tiles, and the shopping list — fullscreen,
+morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
+activity" feed of his recent actions — fullscreen,
 screen always on. Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
 (full dashboard) or `KIOSK_URL=http://localhost:8090` (LifeOS) before running the script.
 (Ctrl+Alt+F2 gets you back to a terminal any time.)
+
+## House modes & taps
+
+- **Vacation mode** (toggle on the Home tab): occupancy theater — staggered,
+  randomized evening lights so the house looks lived-in (`ha-config/automations/vacation.yaml`).
+- **NFC tags** (~$0.30 stickers): tap the nightstand tag for goodnight, the door-frame
+  tag for leaving. Write tags with the Companion app (Settings → Tags), then paste the
+  tag IDs into `ha-config/automations/nfc_tags.yaml`.
+- **Backups**: `bash bootstrap/setup-backups.sh` installs a nightly 3 AM backup of the
+  LifeOS database and HA config to `~/jarvis-backups` (or `BACKUP_DIR=/media/usb ...`).
 
 ## Access from anywhere
 

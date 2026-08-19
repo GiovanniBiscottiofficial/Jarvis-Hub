@@ -87,6 +87,12 @@ intents:
           - "mark {bill} [as] paid"
           - "I paid [the] {bill} [bill]"
           - "{bill} is paid"
+  JarvisAnnounce:
+    data:
+      - sentences:
+          - "announce {message}"
+          - "tell everyone [that] {message}"
+          - "tell the house [that] {message}"
 
 lists:
   grams:
@@ -100,6 +106,8 @@ lists:
   account:
     wildcard: true
   bill:
+    wildcard: true
+  message:
     wildcard: true
   pounds:
     range:

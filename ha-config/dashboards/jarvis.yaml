@@ -60,6 +60,12 @@ views:
             icon: mdi:account-group
             tap_action:
               action: toggle
+          - type: button
+            entity: input_boolean.vacation_mode
+            name: Vacation
+            icon: mdi:beach
+            tap_action:
+              action: toggle
 
       - type: markdown
         title: LifeOS briefing
@@ -140,6 +146,23 @@ views:
       - type: todo-list
         entity: todo.shopping_list
         title: Shopping list
+
+      # Jarvis status — his recent actions at a glance. Full transcripts of
+      # what he heard live in Settings -> Voice assistants -> (pipeline) -> Debug.
+      - type: logbook
+        title: Jarvis activity
+        hours_to_show: 12
+        entities:
+          - light.living_room
+          - light.bedroom
+          - vacuum.juno
+          - script.movie_night
+          - script.goodnight
+          - script.leaving
+          - script.announce
+          - input_boolean.guest_mode
+          - input_boolean.sleep_mode
+          - input_boolean.vacation_mode
 
   # ------------------------------------------------------------------
   - title: Vacuum

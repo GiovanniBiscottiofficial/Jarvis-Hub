@@ -83,3 +83,13 @@ LifeOSBillPaid:
         bill: "{{ bill }}"
   speech:
     text: "Marked {{ bill }} as paid this month."
+
+# --- house control ---
+
+JarvisAnnounce:
+  action:
+    - service: script.announce
+      data:
+        message: "{{ message }}"
+  speech:
+    text: "Announcing."
