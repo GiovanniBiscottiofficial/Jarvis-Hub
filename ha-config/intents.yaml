@@ -1,0 +1,30 @@
+# Spoken answers for the custom sentences in custom_sentences/en/lifeos.yaml.
+# Answers come from LifeOS via sensor.lifeos_answers (refreshed every 2 min).
+
+LifeOSProtein:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'protein') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSSteps:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'steps') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSBills:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'bills') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSMoney:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'money') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSMeals:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'meals') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSBriefing:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_morning_briefing', 'speech') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSWeeklyReview:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_weekly_review', 'speech') or 'LifeOS is not reachable right now.' }}"

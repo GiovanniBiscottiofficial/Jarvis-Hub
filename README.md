@@ -52,6 +52,19 @@ your real devices after connecting them (Settings → Devices & Services → Ent
 
 Everything else (dashboards, cameras, Zigbee sensors, custom wake word, the whole Jarvis roadmap) is in [docs/PLAN.md](docs/PLAN.md).
 
+## Ask Jarvis about your life
+
+Once the voice pipeline (Phase 3) is up, these work out of the box — by voice or typed
+into Assist (works remotely through the Companion app too):
+
+- "brief me" · "how did I do this week"
+- "how much protein do I have left" · "how's my steps"
+- "what bills are due this week" · "how much money do I have left"
+- "what can I eat"
+
+Sentences live in `ha-config/custom_sentences/en/lifeos.yaml`, answers in
+`ha-config/intents.yaml` (fed by LifeOS's `/api/ask`). Add your own phrasings any time.
+
 ## The hub display (Google-Home style)
 
 The X1 isn't just the server — its own screen becomes the house's control panel:

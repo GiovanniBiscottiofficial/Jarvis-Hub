@@ -3,6 +3,10 @@
 # Home Assistant runtime files (created by HA at startup; only track our curated config)
 ha-config/*
 !ha-config/configuration.yaml
+!ha-config/intents.yaml
+!ha-config/custom_sentences
+ha-config/custom_sentences/en/*
+!ha-config/custom_sentences/en/*.yaml
 !ha-config/automations
 !ha-config/scripts
 !ha-config/dashboards

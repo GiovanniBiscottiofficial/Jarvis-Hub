@@ -229,3 +229,61 @@ def weekly_review():
         "streaks": streaks,
         "speech": " ".join(parts),
     }
+
+
+@router.get("/ask")
+def ask():
+    """One-shot spoken answers for voice intents (polled by Home Assistant
+    as a REST sensor; each key is a ready-to-speak sentence)."""
+    today_iso = date.today().isoformat()
+    with conn() as c:
+        prof = active_profile(c)
+        pid = prof["id"]
+        protein = protein_today(c)
+        steps_row = c.execute(
+            "SELECT count FROM steps WHERE date=? AND profile_id=?",
+            (today_iso, pid),
+        ).fetchone()
+        bills = _bills_due_soon(c)
+        accounts = [dict(r) for r in c.execute("SELECT * FROM accounts").fetchall()]
+
+    target = prof["protein_target_g"]
+    left = max(0, round(target - protein))
+    protein_speech = (
+        f"You're at {round(protein)} of {round(target)} grams — "
+        + (f"{left} grams to go." if left else "target hit, nice.")
+    )
+
+    if bills:
+        bill_list = ", ".join(
+            f"{b['name']} ${b['amount']:.0f} on the {b['due_day']}" for b in bills
+        )
+        bills_speech = (
+            f"{len(bills)} bill{'s' if len(bills) != 1 else ''} due soon: {bill_list}."
+        )
+    else:
+        bills_speech = "No bills due this week."
+
+    total = sum(a["balance"] for a in accounts)
+    leftover = total - sum(b["amount"] for b in bills)
+    money_speech = (
+        f"${total:.0f} across accounts, ${leftover:.0f} left after upcoming bills."
+    )
+
+    steps = steps_row["count"] if steps_row else 0
+    steps_speech = f"{steps:,} steps today against a {prof['step_target']:,} target."
+
+    meals = suggest_meals(limit=2)
+    meals_speech = (
+        "You could make " + " or ".join(m["name"] for m in meals) + "."
+        if meals
+        else "No pantry-matched meals right now — log some pantry items."
+    )
+
+    return {
+        "protein": protein_speech,
+        "steps": steps_speech,
+        "bills": bills_speech,
+        "money": money_speech,
+        "meals": meals_speech,
+    }

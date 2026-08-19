@@ -6,6 +6,9 @@ default_config:
 automation: !include_dir_merge_list automations/
 script: !include_dir_merge_named scripts/
 
+# Voice Q&A — "Jarvis, how much protein do I have left?" etc.
+intent_script: !include intents.yaml
+
 # Jarvis Command Center dashboard (sidebar entry "Jarvis")
 lovelace:
   mode: storage
@@ -54,6 +57,13 @@ rest:
       - name: LifeOS weekly review
         value_template: "{{ value_json.period_start }}"
         json_attributes: [speech, avg_daily_protein_g, treats_this_week]
+  # Ready-to-speak answers for the voice intents in intents.yaml
+  - resource: http://localhost:8090/api/ask
+    scan_interval: 120
+    sensor:
+      - name: LifeOS answers
+        value_template: "{{ now().isoformat() }}"
+        json_attributes: [protein, steps, bills, money, meals]
 
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into

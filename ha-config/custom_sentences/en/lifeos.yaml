@@ -1,0 +1,48 @@
+# Ask Jarvis about LifeOS by voice (Assist). Answers live in intents.yaml.
+language: en
+intents:
+  LifeOSProtein:
+    data:
+      - sentences:
+          - "how much protein [do I have] left [today]"
+          - "how's my protein [today]"
+          - "protein check"
+          - "am I hitting my protein [target]"
+  LifeOSSteps:
+    data:
+      - sentences:
+          - "how many steps [do I have] [today]"
+          - "how's my steps [today]"
+          - "step check"
+  LifeOSBills:
+    data:
+      - sentences:
+          - "what bills are due [this week]"
+          - "do I have [any] bills due [soon]"
+          - "bill check"
+  LifeOSMoney:
+    data:
+      - sentences:
+          - "how much money do I have [left]"
+          - "what's left after bills"
+          - "money check"
+          - "vault check"
+  LifeOSMeals:
+    data:
+      - sentences:
+          - "what can I eat"
+          - "what can I make [for dinner]"
+          - "what should I eat"
+          - "meal ideas"
+  LifeOSBriefing:
+    data:
+      - sentences:
+          - "brief me"
+          - "[give me] [the] morning briefing"
+          - "what's my day look [ing] like"
+  LifeOSWeeklyReview:
+    data:
+      - sentences:
+          - "how did I do this week"
+          - "[give me] [the] weekly review"
+          - "how was my week"
