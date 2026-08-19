@@ -34,6 +34,12 @@ intents:
           - "what can I make [for dinner]"
           - "what should I eat"
           - "meal ideas"
+  LifeOSDinner:
+    data:
+      - sentences:
+          - "what('s | is )for dinner [tonight]"
+          - "what should I (make | eat) for dinner"
+          - "dinner ideas"
   LifeOSBriefing:
     data:
       - sentences:
@@ -69,6 +75,14 @@ intents:
       - sentences:
           - "log {steps} steps [today]"
           - "set [my] steps to {steps}"
+  LifeOSWorkout:
+    data:
+      - sentences:
+          - "I did my workout"
+          - "I finished my workout"
+          - "log a workout"
+          - "I worked out"
+          - "workout done"
   LifeOSTreat:
     data:
       - sentences:
@@ -179,6 +193,13 @@ intents:
           - "how are my savings [goals]"
           - "savings check"
           - "how much have I saved"
+  JarvisEveningReport:
+    data:
+      - sentences:
+          - "[give me the] evening report"
+          - "how did I do today"
+          - "recap my day"
+          - "end of day report"
   JarvisTimer:
     data:
       - sentences:

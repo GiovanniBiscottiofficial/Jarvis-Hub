@@ -47,6 +47,11 @@ class WaterIn(BaseModel):
     glasses: int = 1
 
 
+class WorkoutLogIn(BaseModel):
+    kind: str = "workout"
+    minutes: int = 15
+
+
 FAVORITE_SLOTS = ("breakfast", "lunch", "dinner", "snack")
 
 
@@ -260,6 +265,29 @@ def complete_workout(plan_id: int):
             (row["kind"], row["minutes"], row["profile_id"]),
         )
         return {"ok": True, "message": f"{row['kind']} done — logged."}
+
+
+@router.post("/workouts/log")
+def log_workout(body: WorkoutLogIn):
+    """'I did my workout' — completes today's pending planned session if one
+    exists, otherwise logs a freestyle session."""
+    with conn() as c:
+        pid = active_profile(c)["id"]
+        plan = c.execute(
+            "SELECT * FROM workout_plan WHERE date=? AND profile_id=?"
+            " AND done=0 ORDER BY id LIMIT 1",
+            (_today(), pid),
+        ).fetchone()
+        if plan:
+            c.execute("UPDATE workout_plan SET done=1 WHERE id=?", (plan["id"],))
+            kind, minutes = plan["kind"], plan["minutes"]
+        else:
+            kind, minutes = body.kind, body.minutes
+        c.execute(
+            "INSERT INTO workouts(kind,minutes,profile_id) VALUES(?,?,?)",
+            (kind, minutes, pid),
+        )
+        return {"ok": True, "kind": kind, "minutes": minutes}
 
 
 @router.get("/favorites")

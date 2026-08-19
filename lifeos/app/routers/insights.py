@@ -257,6 +257,14 @@ def ask():
         nudge_row = c.execute(
             "SELECT id, text FROM nudges WHERE resolved=0 ORDER BY ts DESC LIMIT 1"
         ).fetchone()
+        vit_row = c.execute(
+            "SELECT taken FROM vitamins WHERE date=? AND profile_id=?",
+            (today_iso, pid),
+        ).fetchone()
+        workouts_done = c.execute(
+            "SELECT COUNT(*) n FROM workouts WHERE date(ts)=? AND profile_id=?",
+            (today_iso, pid),
+        ).fetchone()
         spent_week = week_spending(c)
         water = water_today(c)
         goals = [
@@ -321,6 +329,41 @@ def ask():
         + (" — target hit." if water >= water_target else ".")
     )
 
+    dinner_speech = (
+        (
+            "You could make " + " or ".join(m["name"] for m in meals)
+            if meals
+            else "Nothing pantry-matched tonight — sweet potatoes and grilled "
+            "chicken never miss"
+        )
+        + (
+            f" — {left} grams of protein still to go."
+            if left
+            else " — protein target already hit."
+        )
+    )
+
+    evening_parts = [
+        "Evening report.",
+        f"Protein: {round(protein)} of {round(target)} grams.",
+        f"Water: {water} of {water_target} glasses.",
+        f"Steps: {steps:,} of {prof['step_target']:,}.",
+    ]
+    if workouts_done["n"]:
+        evening_parts.append(
+            f"{workouts_done['n']} workout"
+            f"{'s' if workouts_done['n'] != 1 else ''} done."
+        )
+    evening_parts.append(
+        "Vitamins taken."
+        if vit_row and vit_row["taken"]
+        else "Vitamins still pending."
+    )
+    if spent_week:
+        evening_parts.append(f"${spent_week:.0f} spent this week.")
+    evening_parts.append(bills_speech)
+    evening_speech = " ".join(evening_parts)
+
     goals_speech = (
         "; ".join(
             f"{g['name']}: ${g['saved']:.0f}"
@@ -342,6 +385,8 @@ def ask():
         "grocery": grocery_speech,
         "water": water_speech,
         "goals": goals_speech,
+        "dinner": dinner_speech,
+        "evening": evening_speech,
         "nudge": nudge_row["text"] if nudge_row else "",
         "nudge_id": nudge_row["id"] if nudge_row else 0,
     }

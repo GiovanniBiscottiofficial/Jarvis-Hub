@@ -21,6 +21,20 @@ LifeOSMeals:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'meals') or 'LifeOS is not reachable right now.' }}"
 
+LifeOSDinner:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'dinner') or 'LifeOS is not reachable right now.' }}"
+
+JarvisEveningReport:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'evening') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSWorkout:
+  action:
+    - service: rest_command.lifeos_workout
+  speech:
+    text: "Workout logged — nice work, sir."
+
 LifeOSBriefing:
   speech:
     text: "{{ state_attr('sensor.lifeos_morning_briefing', 'speech') or 'LifeOS is not reachable right now.' }}"

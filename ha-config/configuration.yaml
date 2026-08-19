@@ -128,6 +128,11 @@ rest_command:
     method: POST
     content_type: application/json
     payload: '{"glasses": {{ glasses | int(1) }}}'
+  lifeos_workout:
+    url: http://localhost:8090/api/body/workouts/log
+    method: POST
+    content_type: application/json
+    payload: '{}'
   lifeos_goal_contribute:
     url: http://localhost:8090/api/vault/goals/contribute
     method: POST
@@ -170,7 +175,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, goals, nudge, nudge_id]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, goals, dinner, evening, nudge, nudge_id]
 
 # The X1's built-in UPS: reads the laptop's own AC-adapter and battery
 # state from the kernel, so a power outage is detected the second the

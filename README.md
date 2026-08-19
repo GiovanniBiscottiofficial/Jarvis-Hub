@@ -65,7 +65,10 @@ Ask:
 - "brief me" · "how did I do this week"
 - "how much protein do I have left" · "how's my steps"
 - "what bills are due this week" · "how much money do I have left"
-- "what can I eat"
+- "what can I eat" · "what's for dinner" — pantry-matched picks plus how much
+  protein you still need today
+- "evening report" · "how did I do today" — the day's recap: protein, water,
+  steps, workouts, vitamins, spending, and upcoming bills
 - "how much have I spent this week" · "what's on the grocery list"
 - "how much water have I had today" · "water check"
 - "how are my savings" · "how much have I saved"
@@ -76,6 +79,8 @@ Log (Jarvis writes straight into LifeOS):
 - "I took my vitamins" · "log 45 grams of protein"
 - "log a weigh-in of 185" · "log 6000 steps"
 - "I'm having a treat" — schedules the 15-min balance circuit automatically
+- "I did my workout" · "log a workout" — completes today's planned session
+  (or logs a freestyle one) so streaks stay honest
 - "I spent 40 at the gas station" — discretionary spending (shows up in the
   briefing and weekly review)
 - "add chicken to the grocery list" · "we're out of milk"

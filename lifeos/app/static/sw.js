@@ -1,6 +1,6 @@
 // Minimal service worker: makes LifeOS installable and shows the app shell
 // when the hub is briefly unreachable. API calls always go to the network.
-const CACHE = "lifeos-v1";
+const CACHE = "lifeos-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.json", "icon.svg"];
 
 self.addEventListener("install", (e) => {
