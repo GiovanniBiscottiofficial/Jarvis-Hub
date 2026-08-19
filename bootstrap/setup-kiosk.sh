@@ -7,8 +7,11 @@ set -euo pipefail
 
 KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/wall}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
+# HiDPI zoom: the X1 Tablet's 3000x2000 panel needs ~2x to be readable.
+# Tune with e.g.  KIOSK_SCALE=1.75 bash bootstrap/setup-kiosk.sh
+KIOSK_SCALE="${KIOSK_SCALE:-2}"
 
-echo "==> Jarvis kiosk setup (URL: $KIOSK_URL, user: $KIOSK_USER)"
+echo "==> Jarvis kiosk setup (URL: $KIOSK_URL, user: $KIOSK_USER, scale: ${KIOSK_SCALE}x)"
 
 echo "==> Installing minimal X session + Chromium..."
 sudo apt-get update
@@ -37,6 +40,9 @@ xset -dpms
 xset s noblank
 unclutter -idle 5 &  # hide the mouse cursor when idle
 openbox-session &
+# HiDPI: scale the keyboard and other GTK bits
+export GDK_SCALE=2
+export GDK_DPI_SCALE=1
 # On-screen touch keyboard: pops up when you tap a text field;
 # when hidden, a small floating icon brings it back.
 gsettings set org.onboard layout Compact || true
@@ -47,6 +53,7 @@ onboard &
 chromium-browser --kiosk --noerrdialogs --disable-infobars \\
   --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
   --force-renderer-accessibility \\
+  --force-device-scale-factor=${KIOSK_SCALE} \\
   "${KIOSK_URL}"
 EOF
 sudo chown "${KIOSK_USER}:" "${KIOSK_HOME}/.xinitrc"
@@ -73,5 +80,6 @@ echo "    the little floating icon brings it back if hidden."
 echo "  - Log into HA once in that Chromium ('remember me') so it"
 echo "    stays signed in."
 echo "  - Different page? KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh"
+echo "  - Too big/small? KIOSK_SCALE=1.75 bash bootstrap/setup-kiosk.sh (then reboot)"
 echo "  - Escape to a terminal any time: Ctrl+Alt+F2."
 echo "=========================================================="
