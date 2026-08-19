@@ -5,6 +5,7 @@
 #   docker compose --profile grocy up -d     (fridge/pantry inventory)
 #   docker compose --profile llm up -d       (local Ollama LLM)
 #   docker compose --profile cameras up -d   (Frigate NVR — needs cameras + frigate/config.yml)
+#   docker compose --profile media up -d     (Plex media server)
 
 services:
   homeassistant:
@@ -106,6 +107,29 @@ services:
       - ./frigate:/config
       - frigate-media:/media/frigate
 
+  # ---------- Media server (profile: media) ----------
+  # First run: grab a claim token from https://plex.tv/claim (valid 4 min),
+  # put it in .env as PLEX_CLAIM, then: docker compose --profile media up -d
+  # Put movies/shows/music under ~/jarvis-media (or change MEDIA_DIR in .env).
+  # Then in HA: Settings → Devices & Services → Add Integration → Plex.
+  plex:
+    container_name: plex
+    image: lscr.io/linuxserver/plex:latest
+    profiles: [media]
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/New_York}
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
+    devices:
+      - /dev/dri:/dev/dri   # Intel QuickSync hardware transcoding
+    volumes:
+      - plex-config:/config
+      - ${MEDIA_DIR:-${HOME}/jarvis-media}:/media
+
   # ---------- Local LLM (profile: llm) ----------
   # After first start: docker exec -it ollama ollama pull llama3.2:3b
   ollama:
@@ -119,6 +143,7 @@ services:
       - ollama-data:/root/.ollama
 
 volumes:
+  plex-config:
   lifeos-data:
   whisper-data:
   piper-data:
