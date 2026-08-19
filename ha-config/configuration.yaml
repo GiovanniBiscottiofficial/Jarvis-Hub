@@ -3,6 +3,20 @@
 
 default_config:
 
+# The X1's own kiosk screen logs in automatically (no keyboard needed);
+# every other device still gets the normal password login.
+homeassistant:
+  auth_providers:
+    - type: trusted_networks
+      trusted_networks:
+        - 127.0.0.1
+        - ::1
+        # To auto-login other screens on your home wifi too, add your
+        # LAN subnet (check with: ip route | grep default):
+        # - 192.168.1.0/24
+      allow_bypass_login: true
+    - type: homeassistant
+
 automation: !include_dir_merge_list automations/
 script: !include_dir_merge_named scripts/
 
