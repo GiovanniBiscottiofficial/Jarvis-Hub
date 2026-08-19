@@ -87,6 +87,61 @@ intents:
           - "mark {bill} [as] paid"
           - "I paid [the] {bill} [bill]"
           - "{bill} is paid"
+  LifeOSAddBill:
+    data:
+      - sentences:
+          - "add a bill called {bill} for {amount} [dollars] due [on] [the] {due_day}"
+          - "add a bill {bill} for {amount} [dollars] due [on] [the] {due_day}"
+          - "new bill {bill} {amount} [dollars] due [on] [the] {due_day}"
+  LifeOSAddAccount:
+    data:
+      - sentences:
+          - "add an account called {account}"
+          - "create [an] account [called] {account}"
+  LifeOSSpend:
+    data:
+      - sentences:
+          - "I spent {amount} [dollars] at {merchant}"
+          - "log spending of {amount} [dollars] at {merchant}"
+      - sentences:
+          - "I spent {amount} [dollars]"
+          - "log spending of {amount} [dollars]"
+        slots:
+          merchant: ""
+  LifeOSSpendCheck:
+    data:
+      - sentences:
+          - "how much have I spent [this week]"
+          - "spending check"
+          - "what's my spending [this week]"
+  LifeOSGroceryAdd:
+    data:
+      - sentences:
+          - "add {item} to [the] grocery list"
+          - "put {item} on [the] grocery list"
+          - "we're out of {item}"
+          - "we are out of {item}"
+  LifeOSGroceryList:
+    data:
+      - sentences:
+          - "what('s | is )on the grocery list"
+          - "read [me] the grocery list"
+          - "grocery [list] check"
+  LifeOSGroceryClear:
+    data:
+      - sentences:
+          - "clear the grocery list"
+          - "empty the grocery list"
+  LifeOSLogUsual:
+    data:
+      - sentences:
+          - "log my usual {slot}"
+          - "I had my usual {slot}"
+  LifeOSSetUsual:
+    data:
+      - sentences:
+          - "set my usual {slot} to {meal}"
+          - "my usual {slot} is {meal}"
   JarvisAnnounce:
     data:
       - sentences:
@@ -109,6 +164,20 @@ lists:
     wildcard: true
   message:
     wildcard: true
+  merchant:
+    wildcard: true
+  item:
+    wildcard: true
+  meal:
+    wildcard: true
+  due_day:
+    wildcard: true
+  slot:
+    values:
+      - breakfast
+      - lunch
+      - dinner
+      - snack
   pounds:
     range:
       from: 60

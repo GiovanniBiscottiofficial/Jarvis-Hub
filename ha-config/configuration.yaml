@@ -68,6 +68,38 @@ rest_command:
   lifeos_resolve_nudge:
     url: http://localhost:8090/api/vault/nudges/{{ nudge_id }}/resolve
     method: POST
+  lifeos_add_bill:
+    url: http://localhost:8090/api/vault/bills
+    method: POST
+    content_type: application/json
+    # due_day comes in spoken ("the 15th") — strip everything but digits
+    payload: '{"name": {{ bill | tojson }}, "amount": {{ amount }}, "due_day": {{ due_day | regex_replace("[^0-9]", "") | int(1) }}}'
+  lifeos_add_account:
+    url: http://localhost:8090/api/vault/accounts
+    method: POST
+    content_type: application/json
+    payload: '{"name": {{ account | tojson }}}'
+  lifeos_spend:
+    url: http://localhost:8090/api/vault/spending
+    method: POST
+    content_type: application/json
+    payload: '{"amount": {{ amount }}, "merchant": {{ merchant | tojson }}}'
+  lifeos_grocery_add:
+    url: http://localhost:8090/api/pantry/grocery
+    method: POST
+    content_type: application/json
+    payload: '{"item": {{ item | tojson }}}'
+  lifeos_grocery_clear:
+    url: http://localhost:8090/api/pantry/grocery/clear
+    method: POST
+  lifeos_favorite_log:
+    url: http://localhost:8090/api/body/favorites/{{ slot }}/log
+    method: POST
+  lifeos_favorite_set:
+    url: http://localhost:8090/api/body/favorites/{{ slot }}
+    method: PUT
+    content_type: application/json
+    payload: '{"meal": {{ meal | tojson }}}'
 
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:
@@ -105,7 +137,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, nudge, nudge_id]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, nudge, nudge_id]
 
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into

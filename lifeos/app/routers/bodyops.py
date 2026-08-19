@@ -39,6 +39,13 @@ class WorkoutPlanIn(BaseModel):
     minutes: int = 15
 
 
+class FavoriteIn(BaseModel):
+    meal: str
+
+
+FAVORITE_SLOTS = ("breakfast", "lunch", "dinner", "snack")
+
+
 PHOTO_DIR = os.environ.get("LIFEOS_PHOTOS", "/data/photos")
 
 
@@ -224,6 +231,76 @@ def complete_workout(plan_id: int):
             (row["kind"], row["minutes"], row["profile_id"]),
         )
         return {"ok": True, "message": f"{row['kind']} done — logged."}
+
+
+@router.get("/favorites")
+def list_favorites():
+    with conn() as c:
+        return [
+            dict(r)
+            for r in c.execute("SELECT * FROM favorites ORDER BY slot").fetchall()
+        ]
+
+
+@router.put("/favorites/{slot}")
+def set_favorite(slot: str, body: FavoriteIn):
+    """'Set my usual breakfast to sweet potato and eggs' — fuzzy-matches the
+    meal library so the favorite carries real macros."""
+    slot = slot.lower()
+    if slot not in FAVORITE_SLOTS:
+        raise HTTPException(400, f"slot must be one of {FAVORITE_SLOTS}")
+    spoken = body.meal.strip()
+    # spoken names say "and" where the meal library uses "+"
+    normalized = spoken.replace(" and ", " + ")
+    with conn() as c:
+        row = c.execute(
+            "SELECT name, protein_g, calories FROM meals"
+            " WHERE name LIKE ? COLLATE NOCASE OR name LIKE ? COLLATE NOCASE"
+            " OR ? LIKE '%' || name || '%' COLLATE NOCASE"
+            " OR ? LIKE '%' || name || '%' COLLATE NOCASE"
+            " ORDER BY LENGTH(name) LIMIT 1",
+            (f"%{spoken}%", f"%{normalized}%", spoken, normalized),
+        ).fetchone()
+        name, protein, cals = (
+            (row["name"], row["protein_g"], row["calories"])
+            if row
+            else (spoken, 0, 0)
+        )
+        c.execute(
+            "INSERT INTO favorites(slot,meal_name,protein_g,calories)"
+            " VALUES(?,?,?,?) ON CONFLICT(slot) DO UPDATE SET"
+            " meal_name=excluded.meal_name, protein_g=excluded.protein_g,"
+            " calories=excluded.calories",
+            (slot, name, protein, cals),
+        )
+        return {"ok": True, "slot": slot, "meal": name, "matched": bool(row)}
+
+
+@router.post("/favorites/{slot}/log")
+def log_favorite(slot: str):
+    """'Log my usual breakfast' — logs the saved favorite with its macros."""
+    slot = slot.lower()
+    with conn() as c:
+        row = c.execute(
+            "SELECT * FROM favorites WHERE slot=?", (slot,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                404,
+                f"no usual {slot} saved yet — say 'set my usual {slot} to ...'",
+            )
+        c.execute(
+            "INSERT INTO meal_log(name,protein_g,calories,profile_id)"
+            " VALUES(?,?,?,?)",
+            (
+                row["meal_name"],
+                row["protein_g"],
+                row["calories"],
+                active_profile(c)["id"],
+            ),
+        )
+        return {"ok": True, "meal": row["meal_name"],
+                "protein_today": protein_today(c)}
 
 
 @router.post("/meals/photo")

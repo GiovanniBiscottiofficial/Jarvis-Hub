@@ -84,6 +84,72 @@ LifeOSBillPaid:
   speech:
     text: "Marked {{ bill }} as paid this month."
 
+LifeOSAddBill:
+  action:
+    - service: rest_command.lifeos_add_bill
+      data:
+        bill: "{{ bill }}"
+        amount: "{{ amount }}"
+        due_day: "{{ due_day }}"
+  speech:
+    text: "Added the {{ bill }} bill — {{ amount }} dollars due on the {{ due_day }}."
+
+LifeOSAddAccount:
+  action:
+    - service: rest_command.lifeos_add_account
+      data:
+        account: "{{ account }}"
+  speech:
+    text: "Added {{ account }} to your accounts."
+
+LifeOSSpend:
+  action:
+    - service: rest_command.lifeos_spend
+      data:
+        amount: "{{ amount }}"
+        merchant: "{{ merchant }}"
+  speech:
+    text: "Spent {{ amount }} dollars{{ ' at ' + merchant if merchant else '' }} — logged."
+
+LifeOSSpendCheck:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'spending') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSGroceryAdd:
+  action:
+    - service: rest_command.lifeos_grocery_add
+      data:
+        item: "{{ item }}"
+  speech:
+    text: "{{ item }} is on the grocery list."
+
+LifeOSGroceryList:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'grocery') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSGroceryClear:
+  action:
+    - service: rest_command.lifeos_grocery_clear
+  speech:
+    text: "Grocery list cleared."
+
+LifeOSLogUsual:
+  action:
+    - service: rest_command.lifeos_favorite_log
+      data:
+        slot: "{{ slot }}"
+  speech:
+    text: "Logged your usual {{ slot }} — if you haven't set one yet, say: set my usual {{ slot }} to, then the meal."
+
+LifeOSSetUsual:
+  action:
+    - service: rest_command.lifeos_favorite_set
+      data:
+        slot: "{{ slot }}"
+        meal: "{{ meal }}"
+  speech:
+    text: "Your usual {{ slot }} is now {{ meal }}."
+
 # --- house control ---
 
 JarvisAnnounce:

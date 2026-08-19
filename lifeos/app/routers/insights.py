@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from ..db import active_profile, conn
 from ..suggestions import suggest_meals
 from .bodyops import protein_today, streak
+from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
 
@@ -95,6 +96,7 @@ def morning_briefing():
             ).fetchall()
         ]
         vitamin_streak = streak(c, "vitamins")
+        spent_week = week_spending(c)
 
     total = sum(a["balance"] for a in accounts)
     bills_total = sum(b["amount"] for b in bills)
@@ -121,6 +123,8 @@ def morning_briefing():
         )
     else:
         parts.append(f"No bills due this week; ${total:.0f} available.")
+    if spent_week:
+        parts.append(f"Discretionary spending is ${spent_week:.0f} this week.")
     if workouts:
         parts.append(f"On the plan: {workouts[0]['kind']}.")
     if meals:
@@ -184,6 +188,7 @@ def weekly_review():
             (week_ago, pid),
         ).fetchone()
         streaks = {"vitamins": streak(c, "vitamins"), "steps": streak(c, "steps")}
+        spent_week = week_spending(c)
 
     weight_delta = (
         round(weights[-1]["weight_lb"] - weights[0]["weight_lb"], 1)
@@ -209,6 +214,8 @@ def weekly_review():
         f"${deposits_row['s']:.0f} came in this week and "
         f"${bills_paid['s']:.0f} of bills are paid this month."
     )
+    if spent_week:
+        parts.append(f"Discretionary spending was ${spent_week:.0f}.")
     if treats["n"]:
         parts.append(
             f"{treats['n']} treat{'s' if treats['n'] != 1 else ''} logged and "
@@ -225,6 +232,7 @@ def weekly_review():
         "money_in": deposits_row["s"],
         "bills_paid_this_month": bills_paid["s"],
         "treats_this_week": treats["n"],
+        "spending_this_week": spent_week,
         "workouts_this_week": workouts_done["n"],
         "streaks": streaks,
         "speech": " ".join(parts),
@@ -249,6 +257,13 @@ def ask():
         nudge_row = c.execute(
             "SELECT id, text FROM nudges WHERE resolved=0 ORDER BY ts DESC LIMIT 1"
         ).fetchone()
+        spent_week = week_spending(c)
+        grocery = [
+            r["item"]
+            for r in c.execute(
+                "SELECT item FROM grocery_list WHERE done=0 ORDER BY ts"
+            ).fetchall()
+        ]
 
     target = prof["protein_target_g"]
     left = max(0, round(target - protein))
@@ -283,12 +298,26 @@ def ask():
         else "No pantry-matched meals right now — log some pantry items."
     )
 
+    spending_speech = (
+        f"You've spent ${spent_week:.0f} this week."
+        if spent_week
+        else "No discretionary spending logged this week."
+    )
+
+    grocery_speech = (
+        "On the grocery list: " + ", ".join(grocery) + "."
+        if grocery
+        else "The grocery list is empty."
+    )
+
     return {
         "protein": protein_speech,
         "steps": steps_speech,
         "bills": bills_speech,
         "money": money_speech,
         "meals": meals_speech,
+        "spending": spending_speech,
+        "grocery": grocery_speech,
         "nudge": nudge_row["text"] if nudge_row else "",
         "nudge_id": nudge_row["id"] if nudge_row else 0,
     }

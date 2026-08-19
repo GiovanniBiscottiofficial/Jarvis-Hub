@@ -65,15 +65,23 @@ Ask:
 - "how much protein do I have left" · "how's my steps"
 - "what bills are due this week" · "how much money do I have left"
 - "what can I eat"
+- "how much have I spent this week" · "what's on the grocery list"
 
 Log (Jarvis writes straight into LifeOS):
 - "I took my vitamins" · "log 45 grams of protein"
 - "log a weigh-in of 185" · "log 6000 steps"
 - "I'm having a treat" — schedules the 15-min balance circuit automatically
+- "I spent 40 at the gas station" — discretionary spending (shows up in the
+  briefing and weekly review)
+- "add chicken to the grocery list" · "we're out of milk" · "clear the grocery list"
+- "set my usual breakfast to sweet potato and eggs", then "log my usual
+  breakfast" — one-phrase meal logging with real macros
 
 Vault Flow by voice:
 - "log a deposit of 500 to OnePay" · "add 200 to True Lion"
 - "mark rent paid" · "I paid the electric bill"
+- "add a bill called internet for 80 dollars due on the 15th"
+- "add an account called savings"
 
 House control:
 - "tell everyone dinner's ready" / "announce ..." — whole-house announcement

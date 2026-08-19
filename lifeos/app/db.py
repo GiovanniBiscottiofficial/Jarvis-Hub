@@ -119,6 +119,27 @@ CREATE TABLE IF NOT EXISTS deposits (
     source TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS spending (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    amount REAL NOT NULL,
+    merchant TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS grocery_list (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    item TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS favorites (
+    slot TEXT PRIMARY KEY,
+    meal_name TEXT NOT NULL,
+    protein_g REAL NOT NULL DEFAULT 0,
+    calories REAL NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS nudges (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),

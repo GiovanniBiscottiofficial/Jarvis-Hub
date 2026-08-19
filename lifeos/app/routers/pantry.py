@@ -29,6 +29,42 @@ class PantryItemIn(BaseModel):
     protein_g_per_serving: float = 0
 
 
+class GroceryItemIn(BaseModel):
+    item: str
+
+
+@router.get("/grocery")
+def grocery_list():
+    with conn() as c:
+        return [
+            dict(r)
+            for r in c.execute(
+                "SELECT * FROM grocery_list WHERE done=0 ORDER BY ts"
+            ).fetchall()
+        ]
+
+
+@router.post("/grocery")
+def grocery_add(body: GroceryItemIn):
+    item = body.item.strip()
+    with conn() as c:
+        existing = c.execute(
+            "SELECT id FROM grocery_list WHERE done=0"
+            " AND item=? COLLATE NOCASE",
+            (item,),
+        ).fetchone()
+        if existing is None:
+            c.execute("INSERT INTO grocery_list(item) VALUES(?)", (item,))
+        return {"ok": True, "item": item}
+
+
+@router.post("/grocery/clear")
+def grocery_clear():
+    with conn() as c:
+        c.execute("UPDATE grocery_list SET done=1 WHERE done=0")
+        return {"ok": True}
+
+
 @router.get("")
 def list_pantry():
     with conn() as c:

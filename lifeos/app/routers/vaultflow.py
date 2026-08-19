@@ -1,5 +1,5 @@
 """Vault Flow: accounts, deposits vs bills, payment recommendations, nudges."""
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -40,6 +40,11 @@ class DepositByNameIn(BaseModel):
 
 class BillPaidByNameIn(BaseModel):
     name: str
+
+
+class SpendIn(BaseModel):
+    amount: float
+    merchant: str = ""
 
 
 def _month() -> str:
@@ -156,6 +161,39 @@ def mark_paid_by_name(body: BillPaidByNameIn):
             "UPDATE bills SET paid_month=? WHERE id=?", (_month(), row["id"])
         )
         return {"ok": True, "bill": row["name"]}
+
+
+@router.post("/spending")
+def log_spending(body: SpendIn):
+    with conn() as c:
+        c.execute(
+            "INSERT INTO spending(amount,merchant) VALUES(?,?)",
+            (body.amount, body.merchant.strip()),
+        )
+        return {"ok": True, "week_total": week_spending(c)}
+
+
+@router.get("/spending")
+def list_spending():
+    week_ago = (date.today() - timedelta(days=7)).isoformat()
+    with conn() as c:
+        entries = [
+            dict(r)
+            for r in c.execute(
+                "SELECT * FROM spending WHERE date(ts)>=? ORDER BY ts DESC",
+                (week_ago,),
+            ).fetchall()
+        ]
+        return {"week_total": week_spending(c), "entries": entries}
+
+
+def week_spending(c) -> float:
+    week_ago = (date.today() - timedelta(days=7)).isoformat()
+    row = c.execute(
+        "SELECT COALESCE(SUM(amount),0) s FROM spending WHERE date(ts)>=?",
+        (week_ago,),
+    ).fetchone()
+    return row["s"]
 
 
 @router.get("/plan")
