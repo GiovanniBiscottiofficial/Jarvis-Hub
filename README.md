@@ -27,6 +27,7 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 | `bootstrap/setup-kiosk.sh` | Turns the X1's screen into a Google-Home-style hub display (boots into the Jarvis dashboard fullscreen) |
 | `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
 | `bootstrap/setup-backups.sh` | Nightly 3 AM backup of the LifeOS DB + HA config (`backup.sh` runs one on demand; point `BACKUP_DIR` at a USB drive) |
+| `bootstrap/setup-satellite.sh` | Turns the X1's own mic into a "hey Jarvis" satellite and its webcam into an RTSP camera for Frigate/HA |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -124,6 +125,26 @@ Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
   tag IDs into `ha-config/automations/nfc_tags.yaml`.
 - **Backups**: `bash bootstrap/setup-backups.sh` installs a nightly 3 AM backup of the
   LifeOS database and HA config to `~/jarvis-backups` (or `BACKUP_DIR=/media/usb ...`).
+- **Built-in UPS**: the X1's battery keeps the hub alive through outages, and it
+  notices — a power cut pings your phone (with battery %), Jarvis announces it, and
+  you get a "power restored" + low-battery warning too (`ha-config/automations/power.yaml`).
+
+## The X1 as a sensor node
+
+The laptop's own mic and webcam become house hardware:
+
+```bash
+bash bootstrap/setup-satellite.sh
+```
+
+- **Mic → "hey Jarvis" satellite**: after the script, add the **Wyoming** integration
+  once more (host `localhost`, port **10700**), assign your Jarvis pipeline to the new
+  satellite, and the laptop listens for "hey Jarvis" room-wide — answers come out its
+  speakers.
+- **Webcam → camera**: a local stream at `rtsp://<laptop-ip>:8556/x1_webcam`. Quick
+  view: HA → Add Integration → **Generic Camera** with that URL. Person detection:
+  uncomment the `x1_webcam` block in `frigate/config.yml` and run
+  `docker compose --profile cameras up -d`.
 
 ## Access from anywhere
 

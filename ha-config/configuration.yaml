@@ -162,6 +162,26 @@ rest:
         value_template: "{{ now().isoformat() }}"
         json_attributes: [protein, steps, bills, money, meals, spending, grocery, nudge, nudge_id]
 
+# The X1's built-in UPS: reads the laptop's own AC-adapter and battery
+# state from the kernel, so a power outage is detected the second the
+# adapter drops (see automations/power.yaml).
+command_line:
+  - binary_sensor:
+      name: Mains power
+      unique_id: x1_mains_power
+      command: "head -qn1 /sys/class/power_supply/A*/online 2>/dev/null || echo 1"
+      payload_on: "1"
+      payload_off: "0"
+      device_class: power
+      scan_interval: 30
+  - sensor:
+      name: X1 battery
+      unique_id: x1_battery
+      command: "head -qn1 /sys/class/power_supply/BAT*/capacity 2>/dev/null || echo 100"
+      unit_of_measurement: "%"
+      device_class: battery
+      scan_interval: 60
+
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into
 # daily/monthly totals for the dashboard.

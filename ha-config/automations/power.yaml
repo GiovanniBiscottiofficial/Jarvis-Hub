@@ -1,0 +1,61 @@
+# The X1's battery is a built-in UPS: when the house loses power the hub
+# keeps running on battery, notices the AC adapter dropped, and alerts
+# your phone. Uses the laptop's own power sensors (configuration.yaml,
+# "command_line") — no extra hardware needed.
+
+- id: power_outage
+  alias: "Power: outage detected"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.mains_power
+      from: "on"
+      to: "off"
+      for: "00:02:00"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Power outage"
+        message: >-
+          The house lost power. The hub is running on battery
+          ({{ states('sensor.x1_battery') }}%).
+    - service: persistent_notification.create
+      data:
+        title: "Power outage"
+        message: >-
+          Mains power dropped at {{ now().strftime('%-I:%M %p') }}.
+          Hub battery: {{ states('sensor.x1_battery') }}%.
+    - service: script.jarvis_say
+      data:
+        message: "Heads up — the power just went out. I'm running on battery."
+
+- id: power_restored
+  alias: "Power: restored"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.mains_power
+      from: "off"
+      to: "on"
+      for: "00:01:00"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Power restored"
+        message: "Mains power is back. Hub battery: {{ states('sensor.x1_battery') }}%."
+
+- id: power_battery_critical
+  alias: "Power: hub battery critical"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.x1_battery
+      below: 20
+  condition:
+    - condition: state
+      entity_id: binary_sensor.mains_power
+      state: "off"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Hub battery critical"
+        message: >-
+          Still no power and the hub is at
+          {{ states('sensor.x1_battery') }}% — it will shut down soon.

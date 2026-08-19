@@ -236,10 +236,10 @@ Spread over months, and every dollar keeps working — no subscriptions, ever.
 
 ## Phase 14 — Outside-the-box ideas
 
-### The X1 itself is secret hardware
-- **Built-in UPS**: the laptop battery keeps the hub alive through power outages — automate a "power is out" phone alert (mains-powered sensor goes offline → notify).
-- **Screen** as a Magic Mirror-style always-on status display (kiosk mode pointed at a dashboard).
-- **Webcam** as a Frigate camera; **built-in mic** as a voice satellite — the hub doubles as a sensor node.
+### The X1 itself is secret hardware — ALL BUILT
+- **Built-in UPS** ✔: outage/restore/low-battery alerts from the laptop's own AC + battery sensors (`ha-config/automations/power.yaml`).
+- **Screen** ✔: Magic Mirror-style always-on hub display (`bootstrap/setup-kiosk.sh`).
+- **Webcam + mic** ✔: `bootstrap/setup-satellite.sh` makes the webcam an RTSP camera (Frigate/HA-ready) and the mic a "hey Jarvis" satellite.
 
 ### The vacuum is a robot, not just a vacuum
 - **Patrol mode**: away-mode automation sends the Juno roaming as a mobile deterrent/noise-maker.

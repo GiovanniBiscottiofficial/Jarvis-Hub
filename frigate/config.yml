@@ -7,7 +7,23 @@ mqtt:
 
 # Uncomment and edit when you have a camera. Most WiFi cams expose an
 # RTSP URL (check the camera app or ispyconnect.com for your model).
+# The X1's own webcam works today: run bootstrap/setup-satellite.sh,
+# then uncomment the x1_webcam block below.
 # cameras:
+#   x1_webcam:
+#     ffmpeg:
+#       inputs:
+#         - path: rtsp://127.0.0.1:8556/x1_webcam
+#           roles: [detect, record]
+#     detect:
+#       width: 1280
+#       height: 720
+#     record:
+#       enabled: true
+#       retain:
+#         days: 3
+#     objects:
+#       track: [person]
 #   front_door:
 #     ffmpeg:
 #       inputs:
