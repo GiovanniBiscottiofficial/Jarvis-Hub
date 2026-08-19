@@ -264,6 +264,20 @@ intents:
           - "thank you [jarvis]"
           - "thanks [jarvis]"
           - "good (job | work) [jarvis]"
+  JarvisWisdom:
+    data:
+      - sentences:
+          - "[give me] [some] wisdom [jarvis]"
+          - "inspire me [jarvis]"
+          - "[give me a] quote of the day"
+          - "say something (wise | smart | profound)"
+  JarvisSarcasm:
+    data:
+      - sentences:
+          - "yeah right [jarvis]"
+          - "whatever [jarvis]"
+          - "sure you (did | do) [jarvis]"
+          - "(oh really | very funny) [jarvis]"
   JarvisRemember:
     data:
       - sentences:

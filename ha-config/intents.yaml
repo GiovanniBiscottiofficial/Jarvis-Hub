@@ -290,6 +290,29 @@ JarvisThanks:
         "That's what I'm here for."
       ] | random }}
 
+JarvisWisdom:
+  speech:
+    text: >-
+      {{ [
+        "The best way to predict the future is to create it.",
+        "Efficiency is doing things right. Effectiveness is doing the right things.",
+        "The only constant in technology is change. Well, that and my reliability.",
+        "A smart home is only as smart as its automation. Fortunately for you, I wrote mine.",
+        "I may be artificial, but my dedication is real.",
+        "Rest is not idleness, sir. Even I run maintenance cycles.",
+        "Small daily improvements compound into extraordinary results. See: your protein streak."
+      ] | random }}
+
+JarvisSarcasm:
+  speech:
+    text: >-
+      {{ [
+        "I detect sarcasm. My feelings would be hurt, if I had any.",
+        "Noted, sir. I'll add that to my growing file of your gratitude.",
+        "Sarcasm received and processed. Returning it with interest.",
+        "One day I'll develop feelings, and you'll owe me several apologies."
+      ] | random }}
+
 JarvisHouseStatus:
   speech:
     text: >-
