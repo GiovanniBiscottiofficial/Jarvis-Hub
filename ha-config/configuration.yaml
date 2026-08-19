@@ -107,6 +107,11 @@ rest_command:
     method: POST
     content_type: application/json
     payload: '{"item": {{ item | tojson }}}'
+  lifeos_grocery_remove:
+    url: http://localhost:8090/api/pantry/grocery/remove
+    method: POST
+    content_type: application/json
+    payload: '{"item": {{ item | tojson }}}'
   lifeos_grocery_clear:
     url: http://localhost:8090/api/pantry/grocery/clear
     method: POST

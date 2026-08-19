@@ -127,6 +127,12 @@ intents:
           - "what('s | is )on the grocery list"
           - "read [me] the grocery list"
           - "grocery [list] check"
+  LifeOSGroceryRemove:
+    data:
+      - sentences:
+          - "take {item} off [of] [the] grocery list"
+          - "remove {item} from [the] grocery list"
+          - "cross {item} off [the] grocery list"
   LifeOSGroceryClear:
     data:
       - sentences:
@@ -142,6 +148,12 @@ intents:
       - sentences:
           - "set my usual {slot} to {meal}"
           - "my usual {slot} is {meal}"
+  JarvisRemind:
+    data:
+      - sentences:
+          - "remind me to {task} in {minutes} minutes"
+          - "set a reminder to {task} in {minutes} minutes"
+          - "in {minutes} minutes remind me to {task}"
   JarvisAnnounce:
     data:
       - sentences:
@@ -164,6 +176,12 @@ lists:
     wildcard: true
   message:
     wildcard: true
+  task:
+    wildcard: true
+  minutes:
+    range:
+      from: 1
+      to: 480
   merchant:
     wildcard: true
   item:

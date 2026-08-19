@@ -1,0 +1,25 @@
+# "Jarvis, remind me to move the laundry in 30 minutes."
+# Runs in parallel so several reminders can be pending at once; each one
+# is spoken through the house and left as a notification in HA.
+reminder:
+  alias: "Jarvis reminder"
+  icon: mdi:alarm
+  mode: parallel
+  max: 10
+  fields:
+    message:
+      description: "What to be reminded about"
+      example: "move the laundry"
+    minutes:
+      description: "How many minutes from now"
+      example: "30"
+  sequence:
+    - delay:
+        minutes: "{{ minutes | int(1) }}"
+    - service: script.jarvis_say
+      data:
+        message: "Reminder: {{ message }}."
+    - service: persistent_notification.create
+      data:
+        title: "Jarvis reminder"
+        message: "{{ message }}"

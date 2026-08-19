@@ -58,6 +58,19 @@ def grocery_add(body: GroceryItemIn):
         return {"ok": True, "item": item}
 
 
+@router.post("/grocery/remove")
+def grocery_remove(body: GroceryItemIn):
+    item = body.item.strip()
+    with conn() as c:
+        c.execute(
+            "UPDATE grocery_list SET done=1 WHERE done=0"
+            " AND (item=? COLLATE NOCASE"
+            " OR item LIKE ? COLLATE NOCASE)",
+            (item, f"%{item}%"),
+        )
+        return {"ok": True, "item": item}
+
+
 @router.post("/grocery/clear")
 def grocery_clear():
     with conn() as c:

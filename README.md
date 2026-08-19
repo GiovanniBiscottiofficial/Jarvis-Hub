@@ -73,7 +73,9 @@ Log (Jarvis writes straight into LifeOS):
 - "I'm having a treat" — schedules the 15-min balance circuit automatically
 - "I spent 40 at the gas station" — discretionary spending (shows up in the
   briefing and weekly review)
-- "add chicken to the grocery list" · "we're out of milk" · "clear the grocery list"
+- "add chicken to the grocery list" · "we're out of milk"
+- "take chicken off the grocery list" · "clear the grocery list"
+- "remind me to move the laundry in 30 minutes"
 - "set my usual breakfast to sweet potato and eggs", then "log my usual
   breakfast" — one-phrase meal logging with real macros
 

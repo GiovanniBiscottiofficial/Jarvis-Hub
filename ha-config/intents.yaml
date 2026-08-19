@@ -127,6 +127,14 @@ LifeOSGroceryList:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'grocery') or 'LifeOS is not reachable right now.' }}"
 
+LifeOSGroceryRemove:
+  action:
+    - service: rest_command.lifeos_grocery_remove
+      data:
+        item: "{{ item }}"
+  speech:
+    text: "Took {{ item }} off the grocery list."
+
 LifeOSGroceryClear:
   action:
     - service: rest_command.lifeos_grocery_clear
@@ -151,6 +159,18 @@ LifeOSSetUsual:
     text: "Your usual {{ slot }} is now {{ meal }}."
 
 # --- house control ---
+
+JarvisRemind:
+  action:
+    - service: script.turn_on
+      target:
+        entity_id: script.reminder
+      data:
+        variables:
+          message: "{{ task }}"
+          minutes: "{{ minutes }}"
+  speech:
+    text: "Got it — I'll remind you to {{ task }} in {{ minutes }} minutes."
 
 JarvisAnnounce:
   action:

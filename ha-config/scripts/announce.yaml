@@ -10,7 +10,6 @@ announce:
       description: "What Jarvis should say"
       example: "Dinner's ready"
   sequence:
-    - service: tts.google_translate_say
+    - service: script.jarvis_say
       data:
-        entity_id: media_player.living_room_speaker
         message: "{{ message }}"

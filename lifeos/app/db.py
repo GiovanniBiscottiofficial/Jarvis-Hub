@@ -156,7 +156,7 @@ DEFAULT_SETTINGS = {
     "active_profile": "1",
 }
 
-SEED_PROFILES = ["Keona"]
+SEED_PROFILES = ["Giovanni"]
 
 SEED_MEALS = [
     # name, minutes, protein_g, calories, tags, avoided
@@ -232,6 +232,12 @@ def init_db() -> None:
             )
         for a in SEED_ACCOUNTS:
             c.execute("INSERT OR IGNORE INTO accounts(name) VALUES(?)", (a,))
+        # correct the old seed name on existing databases (before seeding,
+        # so the rename never collides with a freshly inserted 'Giovanni')
+        c.execute(
+            "UPDATE profiles SET name='Giovanni' WHERE name='Keona'"
+            " AND NOT EXISTS (SELECT 1 FROM profiles WHERE name='Giovanni')"
+        )
         for p in SEED_PROFILES:
             c.execute("INSERT OR IGNORE INTO profiles(name) VALUES(?)", (p,))
 
