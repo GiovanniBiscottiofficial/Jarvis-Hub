@@ -66,6 +66,16 @@ views:
               • "Hey Jarvis, set a timer for 10 minutes"
               • "Hey Jarvis, add milk to the grocery list"
 
+              **For fun:**
+              • "Hey Jarvis, tell me a joke"
+              • "Hey Jarvis, fun fact"
+              • "Hey Jarvis, would you rather"
+              • "Hey Jarvis, rock paper scissors — I pick rock"
+              • "Hey Jarvis, I'm bored"
+              • "Hey Jarvis, compliment me"
+              • "Hey Jarvis, party time"
+              • "Hey Jarvis, I am Iron Man"
+
       - type: grid
         cards:
           - type: heading

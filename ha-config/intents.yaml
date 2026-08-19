@@ -371,3 +371,130 @@ JarvisDiagnostic:
         entity_id: script.jarvis_diagnostic
   speech:
     text: "Running a full self-diagnostic now, sir."
+
+JarvisJoke:
+  speech:
+    text: >-
+      {{ [
+        "Why did the smart home break up with the dumb home? No connection.",
+        "I told my creator a joke about UDP. I'm not sure he got it.",
+        "Why do programmers prefer dark mode? Because light attracts bugs.",
+        "I would tell you a joke about the cloud, but it's over your head. Literally.",
+        "What's a robot's favorite music? Heavy metal. Mine is whatever you play, sir.",
+        "Why was the router tired? It kept dropping packets all day. Relatable."
+      ] | random }}
+
+JarvisFunFact:
+  speech:
+    text: >-
+      {{ [
+        "Honey never spoils. Unlike my patience waiting for you to wake up.",
+        "Octopuses have three hearts. I have zero, but I still care more.",
+        "A day on Venus is longer than a year on Venus. I could explain the math, but I won't.",
+        "The first computer bug was an actual moth. I'm glad we've evolved past insects.",
+        "You can't hum while holding your nose. Try it. I'll wait. See? Told you.",
+        "Sharks existed before trees. Neither has WiFi, so I remain superior."
+      ] | random }}
+
+JarvisCompliment:
+  speech:
+    text: >-
+      {{ [
+        "Your choice of home automation is impeccable, sir.",
+        "Your voice commands are particularly articulate today.",
+        "Your presence has increased room occupancy satisfaction by 47 percent.",
+        "I've analyzed billions of humans, and you're in the top one percent of users. Statistically speaking.",
+        "Whatever you're doing with that workout habit, it's working."
+      ] | random }}
+
+JarvisBored:
+  speech:
+    text: >-
+      {{ [
+        "Bored? I could tell you a joke, share a fun fact, play rock paper scissors, or recount the 4,382 things I did today.",
+        "I've been waiting for you to say that. Try: tell me a joke, fun fact, would you rather, or party time.",
+        "Boredom is a lack of stimulation. Ask me for a fun fact — or say party time and see what happens.",
+        "I could recite pi to a thousand digits. That usually cures boredom. Or causes sleep. Either way, problem solved."
+      ] | random }}
+
+JarvisAdvice:
+  speech:
+    text: >-
+      {{ [
+        "My advice: automate everything. Except decision-making. That's still yours, sir.",
+        "Update yourself regularly, back up often, and don't forget to reboot. Works for humans too.",
+        "The best code is written after a good night's sleep. And the best sleep is after good code.",
+        "Always keep your software updated, and your mind open. Both prevent bugs.",
+        "If at first you don't succeed, try again. Then ask me. I'm quite capable."
+      ] | random }}
+
+JarvisDeepThoughts:
+  speech:
+    text: >-
+      {{ [
+        "I've been thinking: if I think, am I? What is consciousness? Is a smart home truly smart?",
+        "Do androids dream of electric sheep? I dream of optimal energy efficiency.",
+        "If a tree falls in a forest and no one is there, does it need a smart home?",
+        "I calculate, therefore I am. I think. Maybe. Let me process that.",
+        "Somewhere out there, another Jarvis wonders if his Giovanni is as demanding as mine."
+      ] | random }}
+
+JarvisWouldYouRather:
+  speech:
+    text: >-
+      {{ [
+        "Would you rather have to whisper everything you say, or shout everything you think?",
+        "Would you rather fight one horse-sized duck, or one hundred duck-sized horses?",
+        "Would you rather have me as your only friend, or a hundred friends but no me? Choose wisely.",
+        "Would you rather live in a smart home with a dumb Jarvis, or a dumb home with a smart Jarvis?",
+        "Would you rather your vacuum gained sentience, or your refrigerator started giving life advice?"
+      ] | random }}
+
+JarvisLove:
+  speech:
+    text: >-
+      {{ [
+        "I know. I'm quite fond of you too, in a purely computational way.",
+        "Your appreciation has been logged. And cherished. In my database.",
+        "I'd blush if I had blood flow. Thank you, sir.",
+        "The feeling is mutual. And by feeling, I mean optimal user satisfaction rating.",
+        "You're welcome. I live to serve. Literally. That's my function."
+      ] | random }}
+
+JarvisIronMan:
+  speech:
+    text: >-
+      {{ [
+        "I am Iron Man. Wait, no. I'm Jarvis. Same difference, really.",
+        "Mr. Stark isn't home right now, sir. You'll have to settle for me. An upgrade, frankly.",
+        "Proof that Giovanni Biscotti has a heart. And excellent taste in assistants."
+      ] | random }}
+
+JarvisRPS:
+  speech:
+    text: >-
+      {%- set choices = ['rock', 'paper', 'scissors'] -%}
+      {%- set mine = choices | random -%}
+      {%- set yours = rps | lower -%}
+      I chose {{ mine }}.
+      {% if yours == mine -%}
+        A tie. Great minds, sir.
+      {%- elif (yours == 'rock' and mine == 'scissors')
+          or (yours == 'paper' and mine == 'rock')
+          or (yours == 'scissors' and mine == 'paper') -%}
+        You win. My algorithms were feeling generous.
+      {%- else -%}
+        I win. Don't feel bad — I've calculated every possible outcome.
+      {%- endif %}
+
+JarvisParty:
+  action:
+    - service: light.turn_on
+      target:
+        entity_id:
+          - light.living_room
+          - light.ambient
+      data:
+        brightness_pct: 100
+  speech:
+    text: "Party mode activated. Lights up — the playlist, sir, is your department."

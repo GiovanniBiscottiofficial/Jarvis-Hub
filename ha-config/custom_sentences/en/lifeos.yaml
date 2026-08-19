@@ -309,6 +309,67 @@ intents:
           - "[run a] system (check | diagnostic)"
           - "how are you (feeling | doing) [jarvis]"
           - "diagnostic report"
+  JarvisJoke:
+    data:
+      - sentences:
+          - "tell me a joke [jarvis]"
+          - "make me laugh [jarvis]"
+          - "[tell me] another joke"
+  JarvisFunFact:
+    data:
+      - sentences:
+          - "[tell me a] (fun | random) fact"
+          - "teach me something [new]"
+  JarvisCompliment:
+    data:
+      - sentences:
+          - "compliment me [jarvis]"
+          - "say something nice [about me]"
+  JarvisBored:
+    data:
+      - sentences:
+          - "I'm bored [jarvis]"
+          - "I am bored [jarvis]"
+          - "entertain me [jarvis]"
+  JarvisAdvice:
+    data:
+      - sentences:
+          - "[give me] [some] [life] advice [jarvis]"
+          - "what should I do [jarvis]"
+  JarvisDeepThoughts:
+    data:
+      - sentences:
+          - "what are you thinking [about] [jarvis]"
+          - "[tell me your] deep thoughts"
+          - "get philosophical [jarvis]"
+  JarvisWouldYouRather:
+    data:
+      - sentences:
+          - "[give me a] would you rather [question]"
+          - "play would you rather"
+  JarvisLove:
+    data:
+      - sentences:
+          - "I love you [jarvis]"
+          - "you're (awesome | amazing | the best) [jarvis]"
+          - "you are (awesome | amazing | the best) [jarvis]"
+  JarvisIronMan:
+    data:
+      - sentences:
+          - "I am iron man"
+          - "are you iron man['s] [jarvis | assistant]"
+  JarvisRPS:
+    data:
+      - sentences:
+          - "rock paper scissors [I (pick | choose)] {rps}"
+          - "[let's play] rock paper scissors [I (pick | choose)] {rps}"
+          - "I (pick | choose) {rps}"
+  JarvisParty:
+    data:
+      - sentences:
+          - "party time [jarvis]"
+          - "(let's | lets) party [jarvis]"
+          - "[activate] party mode"
 
 lists:
   grams:
@@ -361,3 +422,8 @@ lists:
       to: 20
   goal:
     wildcard: true
+  rps:
+    values:
+      - rock
+      - paper
+      - scissors
