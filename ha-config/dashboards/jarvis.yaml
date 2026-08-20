@@ -464,6 +464,10 @@ views:
             tap_action:
               action: navigate
               navigation_path: /lifeos-app/app
+            button_action:
+              tap_action:
+                action: navigate
+                navigation_path: /lifeos-app/app
           - type: custom:bubble-card
             card_type: button
             button_type: name
@@ -473,6 +477,10 @@ views:
             tap_action:
               action: navigate
               navigation_path: /jarvis-hub/media
+            button_action:
+              tap_action:
+                action: navigate
+                navigation_path: /jarvis-hub/media
           - type: custom:bubble-card
             card_type: button
             button_type: name
@@ -482,6 +490,10 @@ views:
             tap_action:
               action: navigate
               navigation_path: /jarvis-hub/system
+            button_action:
+              tap_action:
+                action: navigate
+                navigation_path: /jarvis-hub/system
           - type: custom:bubble-card
             card_type: button
             button_type: name
@@ -491,6 +503,10 @@ views:
             tap_action:
               action: url
               url_path: /local/jarvis-idle.html
+            button_action:
+              tap_action:
+                action: url
+                url_path: /local/jarvis-idle.html
 
       - type: grid
         cards:
