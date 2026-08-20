@@ -280,6 +280,10 @@ views:
               - type: entity
                 entity: sensor.x1_cpu_temperature
                 icon_color: orange
+              - type: entity
+                entity: sensor.system_monitor_disk_usage
+                icon: mdi:harddisk
+                icon_color: blue
               - type: template
                 icon: mdi:sleep
                 icon_color: >-
@@ -495,11 +499,27 @@ views:
             upper_bound: 100
             show:
               fill: fade
+          - type: custom:mini-graph-card
+            entities:
+              - entity: sensor.system_monitor_thinkpad_fan_speed
+                name: Fan RPM
+            hours_to_show: 6
+            points_per_hour: 12
+            line_color: "#f59e0b"
+            line_width: 2
+            animate: true
+            show:
+              fill: fade
           - type: heading
             heading: Shopping
             icon: mdi:cart-outline
           - type: todo-list
             entity: todo.shopping_list
+          - type: heading
+            heading: Errands
+            icon: mdi:run-fast
+          - type: todo-list
+            entity: todo.errands
 
   # ------------------------------------------------------------------
   - title: Home
@@ -526,6 +546,24 @@ views:
 
               LifeOS lives at `http://<hub-ip>:8090` — add it to your
               phone's home screen.
+          - type: heading
+            heading: Calendar
+            icon: mdi:calendar
+          - type: calendar
+            initial_view: listWeek
+            entities:
+              - calendar.jarvis_calendar
+          - type: heading
+            heading: Today
+            icon: mdi:earth
+          - type: tile
+            entity: sensor.season
+            icon: mdi:sprout
+          - type: tile
+            entity: sensor.moon_phase
+          - type: tile
+            entity: binary_sensor.workday_sensor_us
+            name: Workday
 
       - type: grid
         cards:
