@@ -37,6 +37,23 @@ sudo mkdir -p /opt/wyoming-satellite
 sudo python3 -m venv /opt/wyoming-satellite/venv
 sudo /opt/wyoming-satellite/venv/bin/pip install --upgrade pip wyoming-satellite
 
+# Prefer a USB microphone whenever one is plugged in. The X1 Tablet Gen 3's
+# built-in mic array is not wired to the audio codec Linux can see (its ACPI
+# NHLT table is empty), so the codec's "internal mic" is electrical noise —
+# any cheap USB mic works instantly and this makes it the default on boot.
+sudo tee /usr/local/bin/jarvis-pick-mic >/dev/null <<'MIC'
+#!/bin/sh
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+usb=$(pactl list short sources 2>/dev/null | grep -i usb | grep -v monitor | head -1 | cut -f2)
+if [ -n "$usb" ]; then
+  pactl set-default-source "$usb"
+  wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0 2>/dev/null
+  logger -t jarvis-pick-mic "Using USB mic: $usb"
+fi
+exit 0
+MIC
+sudo chmod +x /usr/local/bin/jarvis-pick-mic
+
 sudo tee /etc/systemd/system/wyoming-satellite.service >/dev/null <<EOF
 [Unit]
 Description=Jarvis voice satellite (X1 mic + speakers)
@@ -47,6 +64,7 @@ User=${SAT_USER}
 # Route aplay/arecord through the user's PipeWire session; without this the
 # ALSA default device fails with "Host is down" and Jarvis stays silent.
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "${SAT_USER}")
+ExecStartPre=/usr/local/bin/jarvis-pick-mic
 ExecStart=/opt/wyoming-satellite/venv/bin/python -m wyoming_satellite \\
   --name "${SAT_NAME}" \\
   --uri tcp://0.0.0.0:10700 \\

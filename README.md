@@ -318,6 +318,11 @@ bash bootstrap/setup-satellite.sh
   once more (host `localhost`, port **10700**), assign your Jarvis pipeline to the new
   satellite, and the laptop listens for "hey Jarvis" room-wide — answers come out its
   speakers.
+- **⚠️ X1 Tablet Gen 3 needs a USB mic**: this model's built-in mic array isn't wired
+  to the audio codec Linux can see — recordings from it are pure electrical noise, on
+  any driver. Plug in **any cheap USB microphone** (~$10–15; a small USB conference
+  mic is ideal for room-wide pickup) and the satellite auto-selects it on boot.
+  Speakers still work built-in — only the mic needs the dongle.
 - **Webcam → camera**: a local stream at `rtsp://<laptop-ip>:8556/x1_webcam`. Quick
   view: HA → Add Integration → **Generic Camera** with that URL. Person detection:
   uncomment the `x1_webcam` block in `frigate/config.yml` and run
