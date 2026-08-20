@@ -7,6 +7,7 @@
 #   docker compose --profile cameras up -d   (Frigate NVR — needs cameras + frigate/config.yml)
 #   docker compose --profile media up -d     (Plex media server)
 #   docker compose --profile jellyfin up -d  (Jellyfin — free/open-source alternative to Plex)
+#   docker compose --profile gestures up -d --build  (hand-gesture kiosk control via the webcam)
 
 services:
   homeassistant:
@@ -161,6 +162,25 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+
+  # ---------- Hand-gesture kiosk control (profile: gestures) ----------
+  # Watches the go2rtc webcam stream (setup-satellite.sh) for swipes and
+  # drives the kiosk's X display. Containerized because MediaPipe needs
+  # Python <=3.12.
+  gestures:
+    container_name: gestures
+    build: ./gestures
+    profiles: [gestures]
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - DISPLAY=:0
+      - XAUTHORITY=/xauth
+      - GESTURE_SOURCE=rtsp://127.0.0.1:8556/x1_webcam
+      # Tuning: GESTURE_COOLDOWN_S, GESTURE_X_TRAVEL, GESTURE_Y_TRAVEL
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${HOME}/.Xauthority:/xauth:ro
 
 volumes:
   plex-config:
