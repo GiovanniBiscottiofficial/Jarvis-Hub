@@ -215,6 +215,8 @@ intents:
           - "what's my net worth"
           - "how much debt do I have [left]"
           - "net worth check"
+          - "when will I be debt free"
+          - "when am I debt free"
           - "how much cash do I have across [all] my accounts"
   JarvisEveningReport:
     data:

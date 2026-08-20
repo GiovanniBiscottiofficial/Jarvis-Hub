@@ -237,9 +237,16 @@ async function loadBudget() {
     <div class="line"><span>Bucket contributions</span><span>−$${o.bucket_contribution.toFixed(2)}</span></div>`;
   const auditCls =
     o.audit === "balanced" ? "good" : o.audit === "buffered" ? "" : "warn";
-  $("audit-badge").innerHTML =
+  let auditHtml =
     `<span class="tag ${auditCls}">audit: ${o.audit}</span>
      <div class="muted">${o.audit_note}</div>`;
+  if (o.auto_shift && o.auto_shift.suggestions.length) {
+    auditHtml += `<div class="muted">Auto-shift: slide ${o.auto_shift.suggestions
+      .map((s) => `${s.name} ($${s.amount.toFixed(0)})`)
+      .join(", ")} to next check → frees $${o.auto_shift.shiftable.toFixed(2)}${
+      o.auto_shift.covers_deficit ? " — covers the gap" : " — still short"}</div>`;
+  }
+  $("audit-badge").innerHTML = auditHtml;
 
   const bl = $("budget-bills");
   bl.innerHTML = "";
@@ -276,7 +283,11 @@ async function loadBudget() {
     opt.value = a.id; opt.textContent = a.name;
     bsel.appendChild(opt);
   });
-  acc.innerHTML += `<div class="line"><strong>Ecosystem cash</strong>
+  acc.innerHTML += `<div class="line"><span>Protected savings <span class="muted">(never counted as spendable)</span></span>
+    <span>$${o.protected_cash.toFixed(2)}</span></div>
+    <div class="line"><span>Free pocket cash <span class="muted">(OnePay after commitments)</span></span>
+    <span class="${o.pocket_cash >= 0 ? "good-text" : "warn-text"}">$${o.pocket_cash.toFixed(2)}</span></div>
+    <div class="line"><strong>Ecosystem cash</strong>
     <strong>$${o.ecosystem_cash.toFixed(2)}</strong></div>`;
 
   const fl = $("budget-funds");
@@ -289,6 +300,16 @@ async function loadBudget() {
       <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
       <span>$${g.saved.toFixed(0)}${g.target ? " / $" + g.target.toFixed(0) : ""}
         <span class="muted">+$${g.monthly.toFixed(0)}/mo</span></span>`;
+    if (g.monthly > 0) {
+      const add = document.createElement("button");
+      add.className = "secondary";
+      add.textContent = `+$${(g.monthly / 2).toFixed(0)}`;
+      add.onclick = async () => {
+        await api(`/api/budget/funds/${g.id}/contribute`, "POST", { amount: g.monthly / 2 });
+        loadBudget();
+      };
+      div.appendChild(add);
+    }
     fl.appendChild(div);
   });
 
@@ -330,8 +351,27 @@ async function loadBudget() {
       <span class="muted">(bills $${p.bills.toFixed(0)})</span></span>
       <span class="${p.surplus >= 0 ? "good-text" : "warn-text"}">${p.surplus >= 0 ? "+" : ""}$${p.surplus.toFixed(0)}
         <span class="muted">buffer $${p.projected_buffer.toFixed(0)}</span></span></div>`)
-    .join("");
+    .join("") +
+    (o.debt_free && o.debt_free.checks
+      ? `<div class="line"><strong>Debt-free horizon</strong>
+         <strong>${o.debt_free.period} (${o.debt_free.checks} checks)</strong></div>`
+      : "");
 }
+
+async function dispatchWindfall(route) {
+  const amount = parseFloat($("wf-amount").value);
+  if (isNaN(amount) || amount <= 0) return;
+  const r = await api("/api/budget/windfall", "POST", { amount, route });
+  $("wf-amount").value = "";
+  const parts = r.debt_payments.map((p) => `${p.debt} −$${p.paid.toFixed(2)}`);
+  if (r.to_buckets > 0) parts.push(`buckets +$${r.to_buckets.toFixed(2)}`);
+  if (r.kept_in_onepay > 0) parts.push(`OnePay buffer +$${r.kept_in_onepay.toFixed(2)}`);
+  $("wf-result").textContent = "Routed: " + parts.join(", ");
+  loadBudget();
+}
+$("wf-debt").onclick = () => dispatchWindfall("debt");
+$("wf-split").onclick = () => dispatchWindfall("split");
+$("wf-buffer").onclick = () => dispatchWindfall("buffer");
 
 $("bal-btn").onclick = async () => {
   const balance = parseFloat($("bal-amount").value);
