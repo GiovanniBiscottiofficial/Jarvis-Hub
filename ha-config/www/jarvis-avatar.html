@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Jarvis holographic avatar — a live rotating wireframe orb.
+<!-- Jarvis holographic avatar — layered particle globe with a living core.
      Served by Home Assistant at  /local/jarvis-avatar.html
      Used as an iframe card on the Wall dashboard. Self-contained
      (no CDN), so it works offline like the boot splash. -->
@@ -13,17 +13,18 @@
   html, body { height: 100%; overflow: hidden; background: transparent; }
   body {
     display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(circle at 50% 50%, #001428 0%, #000810 100%);
+    background: radial-gradient(circle at 50% 42%, #00182e 0%, #000810 62%, #000509 100%);
   }
   canvas { display: block; }
   .label {
-    position: fixed; bottom: 8%; width: 100%;
-    text-align: center; color: #00d4ff;
+    position: fixed; bottom: 7%; width: 100%;
+    text-align: center; color: #7ee9ff;
     font-family: "Segoe UI", Roboto, sans-serif;
-    font-size: 0.9em; letter-spacing: 0.5em; text-transform: uppercase;
-    opacity: 0.7; animation: breathe 3s ease-in-out infinite;
+    font-size: 0.85em; letter-spacing: 0.55em; text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.8);
+    opacity: 0.75; animation: breathe 4s ease-in-out infinite;
   }
-  @keyframes breathe { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+  @keyframes breathe { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
 </style>
 </head>
 <body>
@@ -40,21 +41,30 @@
   window.addEventListener('resize', resize);
   resize();
 
-  // Points along latitude + longitude rings of a unit sphere.
-  const LAT = 9, LON = 12, SEG = 60;
+  // --- particle sphere: points scattered on a unit sphere (fibonacci) ----
+  const N = 420, pts = [];
+  const GA = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (i / (N - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const th = GA * i;
+    pts.push([Math.cos(th) * r, y, Math.sin(th) * r]);
+  }
+
+  // sparse long/lat guide rings so it still reads as a globe
   const rings = [];
-  for (let i = 1; i < LAT; i++) {
-    const phi = Math.PI * i / LAT, ring = [];
-    for (let j = 0; j <= SEG; j++) {
-      const th = 2 * Math.PI * j / SEG;
+  for (const phi of [Math.PI * 0.30, Math.PI * 0.5, Math.PI * 0.70]) {
+    const ring = [];
+    for (let j = 0; j <= 80; j++) {
+      const th = 2 * Math.PI * j / 80;
       ring.push([Math.sin(phi) * Math.cos(th), Math.cos(phi), Math.sin(phi) * Math.sin(th)]);
     }
     rings.push(ring);
   }
-  for (let i = 0; i < LON; i++) {
-    const th = Math.PI * i / LON * 2, ring = [];
-    for (let j = 0; j <= SEG; j++) {
-      const phi = 2 * Math.PI * j / SEG;
+  for (let i = 0; i < 3; i++) {
+    const th = Math.PI * i / 3, ring = [];
+    for (let j = 0; j <= 80; j++) {
+      const phi = 2 * Math.PI * j / 80;
       ring.push([Math.sin(phi) * Math.cos(th), Math.cos(phi), Math.sin(phi) * Math.sin(th)]);
     }
     rings.push(ring);
@@ -68,45 +78,117 @@
     return [x1, y1, z2];
   }
 
+  function project(p, cx, cy, R) {
+    const [x, y, z] = p;
+    const persp = 1 / (1.9 - z * 0.55);
+    return [cx + x * R * persp * 1.45, cy + y * R * persp * 1.45, z, persp];
+  }
+
   let t = 0;
   function draw() {
     const w = canvas.width, h = canvas.height;
     const cx = w / 2, cy = h / 2;
-    const R = Math.min(w, h) * 0.30 * (1 + 0.03 * Math.sin(t * 2));
+    const R = Math.min(w, h) * 0.30;
+    const breathe = 0.5 + 0.5 * Math.sin(t * 1.6);
     ctx.clearRect(0, 0, w, h);
 
-    // pulsing core glow
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.6);
-    glow.addColorStop(0, 'rgba(0, 212, 255, ' + (0.22 + 0.08 * Math.sin(t * 3)) + ')');
-    glow.addColorStop(1, 'rgba(0, 212, 255, 0)');
+    // ambient halo
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.9);
+    glow.addColorStop(0, 'rgba(0, 190, 255, ' + (0.16 + 0.06 * breathe) + ')');
+    glow.addColorStop(0.6, 'rgba(0, 150, 230, 0.05)');
+    glow.addColorStop(1, 'rgba(0, 150, 230, 0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
 
-    const ax = 0.4 + t * 0.15, ay = t * 0.4;
+    const ax = 0.35 + Math.sin(t * 0.12) * 0.12, ay = t * 0.28;
+
+    // guide rings (very faint)
     for (const ring of rings) {
       ctx.beginPath();
       let started = false;
       for (const p of ring) {
-        const [x, y, z] = rotate(p, ax, ay);
-        const persp = 1 / (1.8 - z * 0.6);
-        const sx = cx + x * R * persp * 1.4;
-        const sy = cy + y * R * persp * 1.4;
+        const [sx, sy] = project(rotate(p, ax, ay), cx, cy, R);
         if (!started) { ctx.moveTo(sx, sy); started = true; }
         else ctx.lineTo(sx, sy);
       }
-      ctx.strokeStyle = 'rgba(0, 212, 255, 0.28)';
+      ctx.strokeStyle = 'rgba(0, 200, 255, 0.10)';
       ctx.lineWidth = 1;
       ctx.stroke();
     }
 
-    // bright core
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.25);
-    core.addColorStop(0, 'rgba(224, 247, 250, ' + (0.75 + 0.2 * Math.sin(t * 3)) + ')');
-    core.addColorStop(1, 'rgba(0, 212, 255, 0)');
-    ctx.fillStyle = core;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 0.25, 0, 2 * Math.PI);
-    ctx.fill();
+    // particle shell — back half dim, front half bright
+    for (const p of pts) {
+      const r3 = rotate(p, ax, ay);
+      const [sx, sy, z, persp] = project(r3, cx, cy, R);
+      const depth = (z + 1) / 2;                       // 0 back .. 1 front
+      const a = 0.06 + depth * depth * 0.75;
+      const size = (0.6 + depth * 1.6) * persp * (Math.min(w, h) / 320);
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, 2 * Math.PI);
+      ctx.fillStyle = depth > 0.82
+        ? 'rgba(210, 245, 255, ' + a + ')'
+        : 'rgba(0, 212, 255, ' + a + ')';
+      ctx.fill();
+    }
+
+    // orbit rings — three tilted ellipses, each with a tracer satellite
+    const orbits = [
+      { tilt: 0.45, phase: 0,    speed: 0.55, rr: 1.28 },
+      { tilt: -0.6, phase: 2.1,  speed: -0.4, rr: 1.42 },
+      { tilt: 1.2,  phase: 4.2,  speed: 0.3,  rr: 1.55 },
+    ];
+    for (const o of orbits) {
+      ctx.beginPath();
+      let started = false;
+      for (let j = 0; j <= 90; j++) {
+        const a2 = 2 * Math.PI * j / 90;
+        const p = rotate([Math.cos(a2) * o.rr, 0, Math.sin(a2) * o.rr], o.tilt, ay * 0.4 + o.phase);
+        const [sx, sy] = project(p, cx, cy, R);
+        if (!started) { ctx.moveTo(sx, sy); started = true; }
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = 'rgba(0, 220, 255, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // tracer
+      const ta = t * o.speed + o.phase;
+      const tp = rotate([Math.cos(ta) * o.rr, 0, Math.sin(ta) * o.rr], o.tilt, ay * 0.4 + o.phase);
+      const [tx, ty, tz] = project(tp, cx, cy, R);
+      const tg = ctx.createRadialGradient(tx, ty, 0, tx, ty, 7);
+      tg.addColorStop(0, 'rgba(220, 250, 255, ' + (0.5 + ((tz + 1) / 2) * 0.5) + ')');
+      tg.addColorStop(1, 'rgba(0, 212, 255, 0)');
+      ctx.fillStyle = tg;
+      ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 2 * Math.PI); ctx.fill();
+    }
+
+    // iris — segmented counter-rotating arc rings around the core
+    const iris = [
+      { r: 0.34, segs: 3, gap: 0.5, speed: 0.7,  width: 2.2, alpha: 0.55 },
+      { r: 0.27, segs: 4, gap: 0.35, speed: -0.5, width: 1.6, alpha: 0.45 },
+      { r: 0.20, segs: 2, gap: 0.8, speed: 1.1,  width: 1.2, alpha: 0.6 },
+    ];
+    for (const ring of iris) {
+      const rr = R * ring.r;
+      const span = (2 * Math.PI / ring.segs) * (1 - ring.gap);
+      for (let s = 0; s < ring.segs; s++) {
+        const start = t * ring.speed + s * 2 * Math.PI / ring.segs;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, start, start + span);
+        ctx.strokeStyle = 'rgba(140, 235, 255, ' + (ring.alpha * (0.7 + 0.3 * breathe)) + ')';
+        ctx.lineWidth = ring.width;
+        ctx.stroke();
+      }
+    }
+
+    // living core — layered bloom that breathes
+    const coreR = R * (0.13 + 0.015 * breathe);
+    const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3.4);
+    bloom.addColorStop(0, 'rgba(235, 251, 255, ' + (0.85 + 0.15 * breathe) + ')');
+    bloom.addColorStop(0.25, 'rgba(120, 230, 255, 0.45)');
+    bloom.addColorStop(0.6, 'rgba(0, 190, 255, 0.12)');
+    bloom.addColorStop(1, 'rgba(0, 190, 255, 0)');
+    ctx.fillStyle = bloom;
+    ctx.beginPath(); ctx.arc(cx, cy, coreR * 3.4, 0, 2 * Math.PI); ctx.fill();
 
     t += 0.01;
     requestAnimationFrame(draw);

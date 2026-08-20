@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- LifeOS wrapper — embeds the LifeOS app (port 8090) full-screen using
+     whatever hostname you reached HA on (localhost on the kiosk, LAN IP on
+     your phone, Tailscale IP remotely), so the link works from anywhere.
+     Served at  /local/lifeos.html  and used by the LifeOS sidebar panel. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #04070f; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<iframe id="app" allow="camera; microphone"></iframe>
+<script>
+  document.getElementById('app').src =
+    location.protocol + '//' + location.hostname + ':8090/';
+</script>
+</body>
+</html>

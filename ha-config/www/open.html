@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- Local-service launcher — redirects to another port on the same host
+     HA was reached on, so tiles work from the kiosk, LAN, and Tailscale.
+     Usage:  /local/open.html?port=8096          (Jellyfin)
+             /local/open.html?port=9283&path=/    (Grocy)  -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Opening…</title></head>
+<body style="background:#04070f">
+<script>
+  const q = new URLSearchParams(location.search);
+  const port = q.get('port');
+  const path = q.get('path') || '/';
+  if (port && /^\d+$/.test(port)) {
+    location.replace(location.protocol + '//' + location.hostname + ':' + port + path);
+  }
+</script>
+</body>
+</html>

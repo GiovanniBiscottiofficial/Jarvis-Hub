@@ -10,9 +10,15 @@
 #   ⌨  Keyboard — shows/hides the on-screen keyboard
 set -euo pipefail
 
-# Boots into the animated Jarvis splash, which hands over to the Wall view.
-# Boots to Wall+ with ?kiosk (kiosk-mode.js hides the HA header/sidebar).
+# First boot shows the animated Jarvis splash, which hands over to the Wall
+# view. The ⌂ Home button and the idle screen navigate straight to the
+# dashboard (no splash) — the splash is boot-only.
+# Wall+ uses ?kiosk (kiosk-mode.js hides the HA header/sidebar).
+DASH_URL="${DASH_URL:-http://localhost:8123/jarvis-hub/wall-plus?kiosk}"
+IDLE_URL="${IDLE_URL:-http://localhost:8123/local/jarvis-idle.html}"
 KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus%3Fkiosk}"
+# Minutes of no touch before the ambient idle screen takes over (0 = never)
+IDLE_MINUTES="${IDLE_MINUTES:-7}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
 # HiDPI zoom: the X1 Tablet's 3000x2000 panel needs 2x+ to be readable.
 # Tune with e.g.  KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh
@@ -24,7 +30,7 @@ echo "==> Installing minimal X session + Chromium..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils unclutter chromium-browser \
-  onboard dbus-x11 at-spi2-core python3-tk
+  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl
 
 echo "==> Auto-login on tty1..."
 sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -40,18 +46,50 @@ sudo tee /opt/jarvis-kiosk/hub-bar.py >/dev/null <<'PYEOF'
 #!/usr/bin/env python3
 """Floating always-on-top touch bar for the Jarvis kiosk.
 
-Home: closes Chromium; the kiosk session relaunches it on the dashboard.
+Home: navigates the running Chromium tab straight to the dashboard over the
+DevTools protocol — instant, no splash, no relaunch. Falls back to killing
+Chromium (the session loop relaunches it) only if DevTools is unreachable.
 Keyboard: toggles the onboard on-screen keyboard over D-Bus.
 """
+import json
+import os
 import subprocess
+import urllib.request
+
 import tkinter as tk
 
 BG = "#0b1220"
 FG = "#38e1ff"
+DEVTOOLS = "http://127.0.0.1:9222"
+DASH_URL = os.environ.get("JARVIS_DASH_URL", "http://localhost:8123/jarvis-hub/wall-plus?kiosk")
+
+
+def _devtools(path: str, method: str = "GET") -> object:
+    req = urllib.request.Request(DEVTOOLS + path, method=method)
+    with urllib.request.urlopen(req, timeout=3) as resp:
+        body = resp.read()
+    return json.loads(body) if body.strip() else None
 
 
 def go_home() -> None:
-    subprocess.Popen(["pkill", "-f", "chromium"])
+    try:
+        from urllib.parse import quote
+        pages = [t for t in _devtools("/json/list") if t.get("type") == "page"]
+        # open the dashboard in a fresh tab (PUT on new Chromium, GET on old)
+        try:
+            new = _devtools("/json/new?" + quote(DASH_URL, safe=""), method="PUT")
+        except Exception:
+            new = _devtools("/json/new?" + quote(DASH_URL, safe=""))
+        new_id = (new or {}).get("id")
+        # close every other tab so kiosk Chromium shows only the dashboard
+        for page in pages:
+            if page.get("id") and page["id"] != new_id:
+                try:
+                    _devtools("/json/close/" + page["id"])
+                except Exception:
+                    pass
+    except Exception:
+        subprocess.Popen(["pkill", "-f", "chromium"])
 
 
 def toggle_keyboard() -> None:
@@ -93,6 +131,42 @@ root.mainloop()
 PYEOF
 sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
 
+echo "==> Idle watcher (ambient clock screen after inactivity)..."
+sudo tee /opt/jarvis-kiosk/idle-watch.sh >/dev/null <<'SHEOF'
+#!/usr/bin/env bash
+# Drift to the ambient idle screen after N minutes without touch input.
+# Tapping the idle screen navigates itself back to the dashboard, which
+# also resets the X idle counter — no wake logic needed here.
+IDLE_MINUTES="${1:-7}"
+IDLE_URL="${2:-http://localhost:8123/local/jarvis-idle.html}"
+DEVTOOLS="http://127.0.0.1:9222"
+[ "$IDLE_MINUTES" = "0" ] && exit 0
+THRESH_MS=$((IDLE_MINUTES * 60000))
+while true; do
+  sleep 20
+  idle=$(xprintidle 2>/dev/null) || continue
+  [ "$idle" -lt "$THRESH_MS" ] && continue
+  # already ambient (or splash still up)? do nothing
+  current=$(curl -fsS --max-time 3 "$DEVTOOLS/json/list" 2>/dev/null) || continue
+  echo "$current" | grep -q "jarvis-idle.html" && continue
+  echo "$current" | grep -q "jarvis-splash.html" && continue
+  # open the idle page in a new tab, then close the others
+  enc_url=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$IDLE_URL")
+  new_id=$(curl -fsS --max-time 3 -X PUT "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+  [ -n "$new_id" ] || new_id=$(curl -fsS --max-time 3 "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+  [ -n "$new_id" ] || continue
+  echo "$current" | python3 -c "
+import json, sys
+for t in json.load(sys.stdin):
+    if t.get('type') == 'page' and t.get('id') and t['id'] != '$new_id':
+        print(t['id'])
+" | while read -r tid; do
+    curl -fsS --max-time 3 "$DEVTOOLS/json/close/$tid" >/dev/null 2>&1
+  done
+done
+SHEOF
+sudo chmod +x /opt/jarvis-kiosk/idle-watch.sh
+
 echo "==> Kiosk session (openbox + fullscreen Chromium)..."
 KIOSK_HOME=$(eval echo "~${KIOSK_USER}")
 sudo tee "${KIOSK_HOME}/.xinitrc" >/dev/null <<EOF
@@ -106,6 +180,7 @@ xset -dpms
 xset s noblank
 unclutter -idle 5 &  # hide the mouse cursor when idle
 openbox-session &
+export JARVIS_DASH_URL="${DASH_URL}"
 # HiDPI: scale the keyboard and other GTK bits
 export GDK_SCALE=2
 export GDK_DPI_SCALE=1
@@ -125,14 +200,22 @@ gsettings set org.onboard.window.landscape height 800 || true
 onboard --startup-delay=3 &
 # Floating Home + Keyboard buttons (bottom-left corner)
 /opt/jarvis-kiosk/hub-bar.py &
-# Chromium runs in a loop: the ⌂ Home button closes it, and it comes
-# straight back on the Jarvis dashboard (via the boot splash).
+# Ambient idle screen: after a few minutes of no touch, drift to the
+# dim clock screen; any tap on it returns to the dashboard.
+/opt/jarvis-kiosk/idle-watch.sh "${IDLE_MINUTES}" "${IDLE_URL}" &
+# Chromium relaunch loop. The splash shows ONLY on the first launch of the
+# session (real boot); if Chromium is ever closed/crashes it comes back
+# directly on the dashboard — and the ⌂ Home button never relaunches it,
+# it just navigates the running tab.
+FIRST_URL="${KIOSK_URL}"
 while true; do
   chromium-browser --kiosk --noerrdialogs --disable-infobars \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
     --force-renderer-accessibility \\
+    --remote-debugging-port=9222 \\
     --force-device-scale-factor=${KIOSK_SCALE} \\
-    "${KIOSK_URL}"
+    "\${FIRST_URL}"
+  FIRST_URL="${DASH_URL}"
   sleep 1
 done
 EOF
@@ -155,8 +238,12 @@ echo " Kiosk installed. Reboot and the X1 boots straight into"
 echo " the Jarvis dashboard, fullscreen."
 echo ""
 echo " Tips:"
-echo "  - Bottom-left corner: ⌂ returns to the dashboard from any"
-echo "    app; ⌨ shows/hides the on-screen keyboard."
+echo "  - Bottom-left corner: ⌂ jumps straight to the dashboard from"
+echo "    any app (no splash — that's boot-only now); ⌨ shows/hides"
+echo "    the on-screen keyboard."
+echo "  - After ${IDLE_MINUTES} min of no touch the ambient clock screen"
+echo "    appears; tap anywhere to get the dashboard back."
+echo "    Change it: IDLE_MINUTES=15 bash bootstrap/setup-kiosk.sh (0 = off)"
 echo "  - Log into HA once in that Chromium ('remember me') so it"
 echo "    stays signed in."
 echo "  - Different page? KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh"

@@ -37,6 +37,12 @@ lovelace:
       icon: mdi:robot
       show_in_sidebar: true
       filename: dashboards/jarvis.yaml
+    lifeos-app:
+      mode: yaml
+      title: LifeOS
+      icon: mdi:heart-pulse
+      show_in_sidebar: true
+      filename: dashboards/lifeos.yaml
 
 # Local shopping list ("Jarvis, add milk to the shopping list")
 shopping_list:

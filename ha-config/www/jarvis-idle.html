@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!-- Jarvis ambient idle screen — what the wall shows when nobody is using it.
+     Served by Home Assistant at  /local/jarvis-idle.html
+     The kiosk idle watcher navigates here after a few minutes of no touch;
+     tapping anywhere returns to the Wall dashboard. Self-contained, offline. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS — Ambient</title>
+<style>
+  @font-face {
+    font-family: 'Orbitron';
+    src: url('/local/fonts/orbitron.woff2') format('woff2');
+    font-weight: 400 900;
+  }
+  @font-face {
+    font-family: 'Rajdhani';
+    src: url('/local/fonts/rajdhani-500.woff2') format('woff2');
+    font-weight: 500;
+  }
+  * { margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; cursor: none; }
+  body {
+    background: radial-gradient(ellipse 80% 60% at 50% 30%, #010b16 0%, #000308 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #cfeeff; user-select: none; -webkit-user-select: none;
+  }
+  #clock {
+    font-family: 'Orbitron', sans-serif; font-weight: 600;
+    font-size: 15vw; letter-spacing: 0.06em; line-height: 1;
+    color: #d8f4ff; text-shadow: 0 0 40px rgba(0, 200, 255, 0.35);
+    animation: dim 8s ease-in-out infinite;
+  }
+  #date {
+    font-family: 'Rajdhani', sans-serif; font-size: 2.6vw;
+    letter-spacing: 0.45em; text-transform: uppercase;
+    color: #6fb5d3; margin-top: 2vh; opacity: 0.8;
+  }
+  #orb { width: 12vh; height: 12vh; margin-top: 6vh; position: relative; }
+  #orb .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    animation: spin 14s linear infinite;
+  }
+  #orb .ring.r2 { inset: 18%; animation-duration: 9s; animation-direction: reverse; border-color: rgba(0, 212, 255, 0.25); }
+  #orb .core {
+    position: absolute; inset: 38%; border-radius: 50%;
+    background: radial-gradient(circle, #eafcff 0%, rgba(0, 200, 255, 0.6) 45%, transparent 75%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+  #hint {
+    font-family: 'Rajdhani', sans-serif; font-size: 1.4vw;
+    letter-spacing: 0.4em; text-transform: uppercase;
+    color: #3f6b84; margin-top: 5vh; animation: dim 6s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.08); opacity: 1; } }
+  @keyframes dim { 0%,100% { opacity: 0.55; } 50% { opacity: 0.95; } }
+</style>
+</head>
+<body>
+<div id="clock">--:--</div>
+<div id="date"></div>
+<div id="orb"><div class="ring"></div><div class="ring r2"></div><div class="core"></div></div>
+<div id="hint">tap anywhere</div>
+<script>
+  const WALL = '/jarvis-hub/wall-plus?kiosk';
+  function tick() {
+    const d = new Date();
+    let h = d.getHours() % 12; if (h === 0) h = 12;
+    document.getElementById('clock').textContent =
+      h + ':' + String(d.getMinutes()).padStart(2, '0');
+    document.getElementById('date').textContent =
+      d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+  tick();
+  setInterval(tick, 5000);
+  // any touch/click/key wakes the wall back up
+  for (const ev of ['pointerdown', 'touchstart', 'keydown']) {
+    window.addEventListener(ev, () => { location.href = WALL; }, { once: true });
+  }
+</script>
+</body>
+</html>

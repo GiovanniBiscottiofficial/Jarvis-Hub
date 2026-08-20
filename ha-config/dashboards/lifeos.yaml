@@ -1,0 +1,12 @@
+# LifeOS sidebar panel — the LifeOS app full-screen inside Home Assistant.
+# The wrapper page picks the right host automatically (kiosk/LAN/Tailscale).
+title: LifeOS
+views:
+  - title: LifeOS
+    path: app
+    theme: Jarvis
+    panel: true
+    cards:
+      - type: iframe
+        url: /local/lifeos.html
+        aspect_ratio: 100%

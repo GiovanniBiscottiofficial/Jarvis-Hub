@@ -30,10 +30,18 @@ notification buttons.
 
 ## 2. USB microphone (~$10–15) 🟢
 
-The X1's built-in mic array is dead at the hardware level (empty ACPI table —
-no Linux driver can see it). Any USB mic/conference puck fixes it.
+**Try the free fix first — the BIOS may have the mic disabled.** The deep-dive
+found the codec's internal-mic pin captures only electrical noise and the ACPI
+NHLT table (which describes the mic array to the OS) is empty — the classic
+signature of the ThinkPad BIOS microphone kill-switch. Check it:
 
-1. Plug it in. 2. `sudo systemctl restart wyoming-satellite` (or reboot).
+1. Reboot, tap **F1** at the Lenovo logo to enter BIOS Setup.
+2. **Security → I/O Port Access → Microphone** → set **Enabled**.
+3. Save & exit (F10), boot, then say "hey Jarvis".
+
+If it's already Enabled and there's still no pickup, the mic array genuinely
+isn't wired to any Linux-visible path — then any USB mic/conference puck fixes
+it: 1. Plug it in. 2. `sudo systemctl restart wyoming-satellite` (or reboot).
 3. Say "hey Jarvis". The satellite auto-detects USB mics first.
 
 **Wakes up:** hands-free voice — all ~60 built-in intents, from across the room.

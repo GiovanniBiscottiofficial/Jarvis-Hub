@@ -452,6 +452,45 @@ views:
               service: vacuum.start
               target:
                 entity_id: vacuum.juno
+          - type: heading
+            heading: Jarvis OS
+            icon: mdi:apps
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            card_layout: large
+            name: LifeOS
+            icon: mdi:heart-pulse
+            tap_action:
+              action: navigate
+              navigation_path: /lifeos-app/app
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            card_layout: large
+            name: Apps & Media
+            icon: mdi:television-play
+            tap_action:
+              action: navigate
+              navigation_path: /jarvis-hub/media
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            card_layout: large
+            name: System
+            icon: mdi:chip
+            tap_action:
+              action: navigate
+              navigation_path: /jarvis-hub/system
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            card_layout: large
+            name: Ambient mode
+            icon: mdi:weather-night
+            tap_action:
+              action: url
+              url_path: /local/jarvis-idle.html
 
       - type: grid
         cards:
@@ -718,6 +757,60 @@ views:
               url_path: "https://open.spotify.com"
           - type: tile
             entity: sun.sun
+            name: YouTube Music
+            icon: mdi:music-circle
+            color: red
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://music.youtube.com"
+          - type: tile
+            entity: sun.sun
+            name: Twitch
+            icon: mdi:twitch
+            color: purple
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://twitch.tv"
+          - type: tile
+            entity: sun.sun
+            name: Hulu
+            icon: mdi:play-box
+            color: green
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://hulu.com"
+          - type: tile
+            entity: sun.sun
+            name: Disney+
+            icon: mdi:movie-star
+            color: blue
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://disneyplus.com"
+          - type: tile
+            entity: sun.sun
+            name: Prime Video
+            icon: mdi:filmstrip
+            color: cyan
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://primevideo.com"
+          - type: tile
+            entity: sun.sun
+            name: Max
+            icon: mdi:alpha-m-circle
+            color: indigo
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "https://max.com"
+          - type: tile
+            entity: sun.sun
             name: GeForce Now
             icon: mdi:gamepad-variant
             color: purple
@@ -727,13 +820,31 @@ views:
               url_path: "https://play.geforcenow.com"
           - type: tile
             entity: sun.sun
-            name: Plex / Jellyfin
-            icon: mdi:play-network
+            name: Plex
+            icon: mdi:plex
             color: amber
             hide_state: true
             tap_action:
               action: url
               url_path: "https://app.plex.tv"
+          - type: tile
+            entity: sun.sun
+            name: Jellyfin (local)
+            icon: mdi:play-network
+            color: amber
+            hide_state: true
+            tap_action:
+              action: url
+              url_path: "/local/open.html?port=8096"
+          - type: tile
+            entity: sun.sun
+            name: LifeOS
+            icon: mdi:heart-pulse
+            color: cyan
+            hide_state: true
+            tap_action:
+              action: navigate
+              navigation_path: /lifeos-app/app
           # Once the Plex or Jellyfin integration is added, drop a real
           # media-control card here for its player:
           # - type: media-control
