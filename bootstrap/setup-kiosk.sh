@@ -30,7 +30,10 @@ echo "==> Jarvis kiosk setup (Wayland/Weston, user: $KIOSK_USER, scale: ${KIOSK_
 echo "==> Installing Weston + Chromium + helpers..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
-  weston swayidle chromium-browser python3-websocket curl
+  weston chromium-browser python3-websocket curl
+
+# the idle watcher reads /dev/input to notice touches
+sudo usermod -aG input "${KIOSK_USER}"
 
 # snap chromium: make sure it may talk to the Wayland socket
 if snap list chromium >/dev/null 2>&1; then
@@ -86,8 +89,9 @@ export JARVIS_DASH_URL="${DASH_URL}"
 export JARVIS_IDLE_URL="${IDLE_URL}"
 
 # Ambient idle screen after ${IDLE_MINUTES} min of no input (0 = disabled).
+# (Weston has no idle-notify protocol, so we watch /dev/input directly.)
 if [ "${IDLE_MINUTES}" != "0" ]; then
-  swayidle timeout $(( IDLE_MINUTES * 60 )) /opt/jarvis-kiosk/go-idle.sh &
+  /opt/jarvis-kiosk/idle-watch.py "${IDLE_MINUTES}" &
 fi
 
 # Floating ⌂ Home button on non-Jarvis pages (Netflix, YouTube, ...)
@@ -110,6 +114,57 @@ while true; do
 done
 EOF
 sudo chmod +x /opt/jarvis-kiosk/session.sh
+
+echo "==> Idle watcher (reads /dev/input, Weston has no idle protocol)..."
+sudo tee /opt/jarvis-kiosk/idle-watch.py >/dev/null <<'PYEOF'
+#!/usr/bin/env python3
+"""Fire go-idle.sh after N minutes without any input events.
+
+Watches every /dev/input/event* device (touch, keyboard, mouse) directly,
+rescanning once a minute so hotplugged devices are picked up. go-idle.sh
+is a no-op when the idle or splash screen is already showing.
+"""
+import glob
+import os
+import select
+import subprocess
+import sys
+import time
+
+THRESH = max(1, int(sys.argv[1] if len(sys.argv) > 1 else 7)) * 60
+
+last_input = time.time()
+while True:
+    fds = []
+    for path in glob.glob("/dev/input/event*"):
+        try:
+            fds.append(os.open(path, os.O_RDONLY | os.O_NONBLOCK))
+        except OSError:
+            pass
+    if not fds:
+        time.sleep(15)
+        continue
+    poller = select.poll()
+    for fd in fds:
+        poller.register(fd, select.POLLIN)
+    rescan_at = time.time() + 60
+    while time.time() < rescan_at:
+        for fd, _ in poller.poll(2000):
+            try:
+                os.read(fd, 4096)
+            except OSError:
+                pass
+            last_input = time.time()
+        if time.time() - last_input >= THRESH:
+            subprocess.call(["/opt/jarvis-kiosk/go-idle.sh"])
+            last_input = time.time()
+    for fd in fds:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+PYEOF
+sudo chmod +x /opt/jarvis-kiosk/idle-watch.py
 
 echo "==> Idle handoff script..."
 sudo tee /opt/jarvis-kiosk/go-idle.sh >/dev/null <<'SHEOF'
