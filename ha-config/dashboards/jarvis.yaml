@@ -228,13 +228,20 @@ views:
               ### {{ now().strftime('%A, %B %-d') }}
             card_mod:
               style: |
+                ha-card {
+                  background: none !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  overflow: visible !important;
+                }
+                ha-card::after { display: none; }
                 ha-markdown {
                   font-family: 'Orbitron', sans-serif;
                   letter-spacing: 0.06em;
                   animation: jarvis-glow 3.5s ease-in-out infinite;
                 }
                 ha-markdown-element > font {
-                  font-size: 4.4rem;
+                  font-size: 3.8rem;
                   line-height: 1.05;
                   background: linear-gradient(180deg, #eafcff 20%, #00e5ff 90%);
                   -webkit-background-clip: text;

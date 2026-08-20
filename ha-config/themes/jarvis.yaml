@@ -35,12 +35,11 @@ Jarvis:
   card-mod-card: |
     ha-card {
       position: relative;
-      overflow: visible;
     }
     ha-card::after {
       content: '';
       position: absolute;
-      inset: -1px;
+      inset: 0;
       pointer-events: none;
       --jb: rgba(0, 229, 255, 0.85);
       background:
