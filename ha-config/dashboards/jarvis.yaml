@@ -65,6 +65,9 @@ views:
               • "Hey Jarvis, add 50 to my vacation fund"
               • "Hey Jarvis, set a timer for 10 minutes"
               • "Hey Jarvis, add milk to the grocery list"
+              • "Hey Jarvis, good morning" / "goodnight"
+              • "Hey Jarvis, what's the weather like?"
+              • "Hey Jarvis, what can you do?"
 
               **For fun:**
               • "Hey Jarvis, tell me a joke"
@@ -75,6 +78,7 @@ views:
               • "Hey Jarvis, compliment me"
               • "Hey Jarvis, party time"
               • "Hey Jarvis, I am Iron Man"
+              • "Hey Jarvis, flip a coin" / "roll the dice"
 
       - type: grid
         cards:

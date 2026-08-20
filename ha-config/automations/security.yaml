@@ -4,41 +4,43 @@
 # Double Take (HACS or its own container) publishing to MQTT.
 # EDIT: person names, lock.front_door, camera entity IDs.
 
-# Known face at the door -> welcome home (add lock.unlock once you have a
-# smart lock — left commented on purpose: auto-unlock is a real decision).
-- id: jarvis_known_face
-  alias: "Security: known face at the door"
-  trigger:
-    - platform: mqtt
-      topic: "double-take/matches/giovanni"
-  condition:
-    - condition: state
-      entity_id: input_boolean.guest_mode
-      state: "off"
-  action:
-    # - service: lock.unlock
-    #   target:
-    #     entity_id: lock.front_door
-    - service: script.jarvis_say
-      data:
-        message: "Welcome home, sir."
+# Known face at the door -> welcome home. Scaffold — uncomment once Frigate +
+# the MQTT integration are set up (docker compose --profile cameras up -d,
+# then Settings -> Add Integration -> MQTT). Add lock.unlock once you have a
+# smart lock — left commented on purpose: auto-unlock is a real decision.
+# - id: jarvis_known_face
+#   alias: "Security: known face at the door"
+#   trigger:
+#     - platform: mqtt
+#       topic: "double-take/matches/giovanni"
+#   condition:
+#     - condition: state
+#       entity_id: input_boolean.guest_mode
+#       state: "off"
+#   action:
+#     # - service: lock.unlock
+#     #   target:
+#     #     entity_id: lock.front_door
+#     - service: script.jarvis_say
+#       data:
+#         message: "Welcome home, sir."
 
-# Unknown face at the door -> Jarvis announces a visitor (guest arrival).
-- id: jarvis_unknown_face
-  alias: "Security: unknown visitor at the door"
-  trigger:
-    - platform: mqtt
-      topic: "double-take/unknown"
-  action:
-    - service: script.jarvis_say
-      data:
-        message: "Someone is at the door. I don't recognize them."
-    - service: notify.mobile_app_phone
-      data:
-        title: "Visitor"
-        message: "Unknown person at the front door."
-        data:
-          image: /api/frigate/notifications/snapshot.jpg
+# # Unknown face at the door -> Jarvis announces a visitor (guest arrival).
+# - id: jarvis_unknown_face
+#   alias: "Security: unknown visitor at the door"
+#   trigger:
+#     - platform: mqtt
+#       topic: "double-take/unknown"
+#   action:
+#     - service: script.jarvis_say
+#       data:
+#         message: "Someone is at the door. I don't recognize them."
+#     - service: notify.mobile_app_phone
+#       data:
+#         title: "Visitor"
+#         message: "Unknown person at the front door."
+#         data:
+#           image: /api/frigate/notifications/snapshot.jpg
 
 # Threat detection: front door opens while nobody's home -> rich actionable
 # alert with a camera snapshot and one-tap responses.
@@ -113,14 +115,15 @@
       target:
         entity_id: lock.front_door
 
-# Gesture control: wave at a camera to get Jarvis's attention.
-# Needs Double Take gesture events (or a Frigate zone named "wave_zone").
-- id: jarvis_hand_wave
-  alias: "Gesture: hand wave -> Jarvis listens"
-  trigger:
-    - platform: mqtt
-      topic: "double-take/gestures/wave"
-  action:
-    - service: script.jarvis_say
-      data:
-        message: "Yes? How can I help?"
+# Gesture control: wave at a camera to get Jarvis's attention. Scaffold —
+# uncomment with the MQTT integration + Double Take gesture events
+# (or a Frigate zone named "wave_zone").
+# - id: jarvis_hand_wave
+#   alias: "Gesture: hand wave -> Jarvis listens"
+#   trigger:
+#     - platform: mqtt
+#       topic: "double-take/gestures/wave"
+#   action:
+#     - service: script.jarvis_say
+#       data:
+#         message: "Yes? How can I help?"

@@ -370,6 +370,43 @@ intents:
           - "party time [jarvis]"
           - "(let's | lets) party [jarvis]"
           - "[activate] party mode"
+  JarvisGoodMorning:
+    data:
+      - sentences:
+          - "good morning [jarvis]"
+          - "morning [jarvis]"
+          - "[jarvis] I'm (up | awake)"
+  JarvisGoodnight:
+    data:
+      - sentences:
+          - "good night [jarvis]"
+          - "goodnight [jarvis]"
+          - "[jarvis] I'm going to (bed | sleep)"
+          - "[jarvis] time for bed"
+  JarvisWeather:
+    data:
+      - sentences:
+          - "(what's | what is | how's | how is) the weather [like] [today | outside | right now]"
+          - "(is it | will it be) (cold | hot | raining | rainy) [today | outside]"
+          - "(what's | what is) it like outside"
+          - "do I need a jacket [today]"
+  JarvisCoinFlip:
+    data:
+      - sentences:
+          - "flip a coin [jarvis]"
+          - "[jarvis] heads or tails"
+          - "coin (flip | toss)"
+  JarvisDice:
+    data:
+      - sentences:
+          - "roll (a die | the dice | a dice) [jarvis]"
+          - "[jarvis] roll for me"
+  JarvisCapabilities:
+    data:
+      - sentences:
+          - "what can you do [jarvis]"
+          - "[jarvis] what are your (capabilities | features | skills)"
+          - "help [me] [jarvis] what do you do"
 
 lists:
   grams:

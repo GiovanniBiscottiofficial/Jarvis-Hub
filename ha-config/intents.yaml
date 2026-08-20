@@ -498,3 +498,81 @@ JarvisParty:
         brightness_pct: 100
   speech:
     text: "Party mode activated. Lights up — the playlist, sir, is your department."
+
+JarvisGoodMorning:
+  speech:
+    text: >-
+      {%- set h = now().hour -%}
+      {%- if h < 5 -%}
+        Technically it's still night, sir, but I admire the ambition.
+      {%- elif h < 12 -%}
+        Good morning, sir.
+      {%- elif h < 18 -%}
+        It's the afternoon, sir — but good morning to you too.
+      {%- else -%}
+        Sir, it's the evening. Rough day?
+      {%- endif %}
+      {{ state_attr('sensor.lifeos_morning_briefing', 'speech') or '' }}
+
+JarvisGoodnight:
+  action:
+    - service: script.goodnight
+  speech:
+    text: >-
+      {{ [
+        "Goodnight, sir. Shutting the house down. I'll keep watch.",
+        "Sleep well, sir. Lights out, doors watched, all systems on standby.",
+        "Goodnight. I'll wake you if anything needs your attention. It won't.",
+        "Rest up, sir. The house is in good hands. Mine, technically."
+      ] | random }}
+
+JarvisWeather:
+  speech:
+    text: >-
+      {%- set w = 'weather.forecast_home' -%}
+      {%- if states(w) in ['unknown', 'unavailable'] -%}
+        The weather service isn't reporting right now, sir.
+      {%- else -%}
+        {%- set t = state_attr(w, 'temperature') -%}
+        It's {{ states(w) | replace('-', ' ') }} and {{ t }} degrees outside.
+        {%- if states(w) in ['rainy', 'pouring', 'lightning', 'lightning-rainy', 'snowy-rainy'] %}
+          Take a jacket — and maybe an umbrella.
+        {%- elif t is not none and t | float(60) < 45 %}
+          Yes, you need a jacket, sir.
+        {%- elif t is not none and t | float(60) > 85 %}
+          Dress light. And hydrate — I'm tracking that, remember.
+        {%- endif %}
+      {%- endif %}
+
+JarvisCoinFlip:
+  speech:
+    text: >-
+      {{ ["Heads.", "Tails."] | random }}
+      {{ [
+        "Fate has spoken.",
+        "For the record, I knew before it landed.",
+        "Best two out of three, if you disagree.",
+        ""
+      ] | random }}
+
+JarvisDice:
+  speech:
+    text: >-
+      You rolled a {{ range(1, 7) | random }}.
+      {{ [
+        "The dice are digital, but the luck is real.",
+        "I promise the random number generator is fair. Mostly.",
+        ""
+      ] | random }}
+
+JarvisCapabilities:
+  speech:
+    text: >-
+      Quite a lot, sir. I track your protein, water, weight, steps, and
+      workouts. I manage your money — bills, spending, savings goals, and
+      your budget. I run the grocery list, suggest dinner from the pantry,
+      and give you morning briefings and evening reports. I control the
+      lights, movie mode, and party mode. I remember things you tell me,
+      set timers and reminders, and I keep an eye on the house. And if you
+      just want a joke or a coin flip, I do those too. Say, try saying,
+      what's for dinner.

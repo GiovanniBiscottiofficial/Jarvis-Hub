@@ -1,7 +1,7 @@
 # Environmental awareness: weather + air quality reactions.
 # Wind/rain sensors come free with any weather integration (Settings ->
 # Add Integration -> Met.no / AccuWeather / OpenWeatherMap).
-# EDIT: weather.home to your weather entity; cover/fan entities if you have them.
+# EDIT: weather.forecast_home to your weather entity; cover/fan entities if you have them.
 
 # Storm prep: high wind -> secure the house and announce it.
 - id: jarvis_storm_prep
@@ -9,7 +9,7 @@
   trigger:
     - platform: template
       value_template: >-
-        {{ (state_attr('weather.home', 'wind_speed') | float(0)) > 30 }}
+        {{ (state_attr('weather.forecast_home', 'wind_speed') | float(0)) > 30 }}
   mode: single
   action:
     # - service: cover.close_cover
@@ -19,7 +19,7 @@
       data:
         title: "Storm watch"
         message: >-
-          Wind is at {{ state_attr('weather.home', 'wind_speed') }} —
+          Wind is at {{ state_attr('weather.forecast_home', 'wind_speed') }} —
           consider securing anything loose outside.
     - service: script.jarvis_say
       data:
@@ -36,47 +36,47 @@
   condition:
     - condition: template
       value_template: >-
-        {{ states('weather.home') in ['rainy', 'pouring', 'lightning',
-                                      'lightning-rainy', 'snowy-rainy'] }}
+        {{ states('weather.forecast_home') in ['rainy', 'pouring', 'lightning',
+                                               'lightning-rainy', 'snowy-rainy'] }}
   action:
     - service: script.jarvis_say
       data:
         message: "Rain is expected today — take a jacket, sir."
 
-# Air quality: PM2.5 spikes -> purifier on + alert.
-# EDIT: sensor.air_quality_pm25 (any cheap PM2.5 sensor or an outdoor AQI
-# integration like AirNow) and fan.air_purifier (a smart-plugged purifier).
-- id: jarvis_air_quality
-  alias: "Environment: poor air quality response"
-  trigger:
-    - platform: numeric_state
-      entity_id: sensor.air_quality_pm25
-      above: 35
-      for: "00:10:00"
-  action:
-    - service: fan.turn_on
-      target:
-        entity_id: fan.air_purifier
-    - service: notify.mobile_app_phone
-      data:
-        title: "Air quality"
-        message: "PM2.5 is elevated ({{ states('sensor.air_quality_pm25') }}). Air purifier activated."
-    - service: script.jarvis_say
-      data:
-        message: "Air quality has dropped. I've turned on the purifier."
-
-- id: jarvis_air_quality_clear
-  alias: "Environment: air quality recovered"
-  trigger:
-    - platform: numeric_state
-      entity_id: sensor.air_quality_pm25
-      below: 20
-      for: "00:30:00"
-  condition:
-    - condition: state
-      entity_id: fan.air_purifier
-      state: "on"
-  action:
-    - service: fan.turn_off
-      target:
-        entity_id: fan.air_purifier
+# Air quality: PM2.5 spikes -> purifier on + alert. Scaffold — uncomment once
+# a PM2.5 sensor (any cheap Zigbee one, or an AQI integration like AirNow)
+# and fan.air_purifier (a smart-plugged purifier) exist.
+# - id: jarvis_air_quality
+#   alias: "Environment: poor air quality response"
+#   trigger:
+#     - platform: numeric_state
+#       entity_id: sensor.air_quality_pm25
+#       above: 35
+#       for: "00:10:00"
+#   action:
+#     - service: fan.turn_on
+#       target:
+#         entity_id: fan.air_purifier
+#     - service: notify.mobile_app_phone
+#       data:
+#         title: "Air quality"
+#         message: "PM2.5 is elevated ({{ states('sensor.air_quality_pm25') }}). Air purifier activated."
+#     - service: script.jarvis_say
+#       data:
+#         message: "Air quality has dropped. I've turned on the purifier."
+#
+# - id: jarvis_air_quality_clear
+#   alias: "Environment: air quality recovered"
+#   trigger:
+#     - platform: numeric_state
+#       entity_id: sensor.air_quality_pm25
+#       below: 20
+#       for: "00:30:00"
+#   condition:
+#     - condition: state
+#       entity_id: fan.air_purifier
+#       state: "on"
+#   action:
+#     - service: fan.turn_off
+#       target:
+#         entity_id: fan.air_purifier
