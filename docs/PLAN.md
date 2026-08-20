@@ -2,6 +2,13 @@
 
 Goal: replace Alexa/Google Home with a private, local-first hub running Home Assistant, controlling your **Monster Illuminessence lights** and **iHome AutoVac Juno (iHRV9)**, with an offline voice assistant.
 
+> **BUILD STATUS: software complete.** Every phase below that can be expressed
+> as code is written, validated, and deployed to the X1 — HA + LifeOS + local
+> voice + LLM + kiosk HUD + proactive layer + backups + remote access. The only
+> remaining work is physical: pairing devices. Follow
+> **[CONNECT-DEVICES.md](CONNECT-DEVICES.md)** — it maps every device to the
+> exact steps and the dormant features that wake up when it's connected.
+
 ---
 
 ## Phase 0 — Prep the laptop (~1 hour)

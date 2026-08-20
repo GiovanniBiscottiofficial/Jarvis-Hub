@@ -87,3 +87,33 @@
     - service: script.jarvis_say
       data:
         message: "I'm running a little hot, sir. Some airflow would be appreciated."
+
+# Disk-space guard: nightly backups quietly stop working if the disk fills.
+# Warn well before that point so old backups/media can be pruned in time.
+- id: power_disk_space_low
+  alias: "System: disk filling up"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.system_monitor_disk_usage
+      above: 85
+      for: "00:10:00"
+  mode: single
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Hub disk almost full"
+        message: >-
+          Disk is at {{ states('sensor.system_monitor_disk_usage') }}% —
+          backups will start failing if it fills. Prune old backups
+          (~/jarvis-backups) or media to free space.
+    - service: persistent_notification.create
+      data:
+        title: "Disk almost full"
+        message: >-
+          {{ states('sensor.system_monitor_disk_usage') }}% used.
+          Nightly backups need free space — time to clean up.
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Storage is getting tight, sir — the disk is at
+          {{ states('sensor.system_monitor_disk_usage') | round(0) }} percent.

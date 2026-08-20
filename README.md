@@ -20,6 +20,11 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 
 ## Build status — where we are
 
+**Software: complete.** Everything that can be built as code is built, deployed
+to the X1, and verified live. The only remaining work is connecting physical
+devices — the full device-by-device playbook (what to pair, exact steps, and
+which dormant features wake up) is **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVICES.md)**.
+
 **Built and in this repo (everything below is validated and pushed):**
 - Core stack: Home Assistant + LifeOS + optional profiles (voice, LLM, Grocy, cameras, Plex, Jellyfin)
 - LifeOS: briefings, protein/water/steps, meals & favorites, pantry/grocery, workouts,

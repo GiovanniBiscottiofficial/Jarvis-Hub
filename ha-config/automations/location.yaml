@@ -43,43 +43,45 @@
 #           home right now. Might be worth waiting it out.
 
 # --- MEETING PREP ----------------------------------------------------------
-# Needs: a calendar integration (e.g. Google Calendar -> calendar.giovanni).
-# Speaks a 15-minute warning and flips quiet mode on for important events.
-# - id: jarvis_meeting_prep
-#   alias: "Calendar: 15-minute meeting warning"
-#   trigger:
-#     - platform: calendar
-#       event: start
-#       entity_id: calendar.giovanni
-#       offset: "-00:15:00"
-#   action:
-#     - service: script.jarvis_say
-#       data:
-#         message: >-
-#           {{ trigger.calendar_event.summary }} starts in 15 minutes, sir.
-#     - if:
-#         - condition: template
-#           value_template: >-
-#             {{ 'interview' in trigger.calendar_event.summary | lower
-#                or 'important' in trigger.calendar_event.summary | lower }}
-#       then:
-#         - service: input_boolean.turn_on
-#           target:
-#             entity_id: input_boolean.quiet_mode
-#     # Video-call events also get camera-ready lighting: bright + neutral
-#     - if:
-#         - condition: template
-#           value_template: >-
-#             {{ 'zoom' in trigger.calendar_event.summary | lower
-#                or 'meet' in trigger.calendar_event.summary | lower
-#                or 'call' in trigger.calendar_event.summary | lower }}
-#       then:
-#         - service: light.turn_on
-#           target:
-#             entity_id: light.living_room
-#           data:
-#             brightness_pct: 100
-#             color_temp_kelvin: 4000
+# Live: watches the local Jarvis Calendar (add events from the Calendar
+# sidebar). Speaks a 15-minute warning and flips quiet mode on for important
+# events. Swap/add calendar.giovanni here if Google Calendar is added later.
+- id: jarvis_meeting_prep
+  alias: "Calendar: 15-minute meeting warning"
+  trigger:
+    - platform: calendar
+      event: start
+      entity_id: calendar.jarvis_calendar
+      offset: "-00:15:00"
+  action:
+    - service: script.jarvis_say
+      data:
+        message: >-
+          {{ trigger.calendar_event.summary }} starts in 15 minutes, sir.
+    - if:
+        - condition: template
+          value_template: >-
+            {{ 'interview' in trigger.calendar_event.summary | lower
+               or 'important' in trigger.calendar_event.summary | lower }}
+      then:
+        - service: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.quiet_mode
+    # Video-call events also get camera-ready lighting: bright + neutral.
+    # Uncomment once a real light is paired.
+    # - if:
+    #     - condition: template
+    #       value_template: >-
+    #         {{ 'zoom' in trigger.calendar_event.summary | lower
+    #            or 'meet' in trigger.calendar_event.summary | lower
+    #            or 'call' in trigger.calendar_event.summary | lower }}
+    #   then:
+    #     - service: light.turn_on
+    #       target:
+    #         entity_id: light.living_room
+    #       data:
+    #         brightness_pct: 100
+    #         color_temp_kelvin: 4000
 
 # --- DOORBELL SOUND --------------------------------------------------------
 # Needs: a doorbell binary sensor + a chime file at
