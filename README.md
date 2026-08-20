@@ -283,7 +283,9 @@ also viewable any time at `http://<hub-ip>:8123/local/jarvis-splash.html`), whic
 hands over to the **Wall** view of the Jarvis dashboard — big clock, the
 morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
 activity" feed of his recent actions — fullscreen,
-screen always on, in the dark-glass **Jarvis** theme (`ha-config/themes/jarvis.yaml`;
+screen always on, running on a lightweight **Wayland** compositor (Weston) with
+Chromium in native Wayland mode for smooth touch and proper HiDPI,
+in the dark-glass **Jarvis** theme (`ha-config/themes/jarvis.yaml`;
 set it everywhere from your HA profile → Theme → Jarvis). No keyboard needed: the
 X1's screen logs into HA automatically (localhost is a trusted network) and an
 on-screen touch keyboard pops up whenever you tap a text box.

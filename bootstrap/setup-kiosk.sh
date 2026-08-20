@@ -2,18 +2,19 @@
 # Turn the X1's own screen into a Google-Home-style hub display:
 # boots straight into the Jarvis dashboard, fullscreen, no desktop.
 # Run AFTER setup-x1.sh:  bash bootstrap/setup-kiosk.sh
-# Works on Ubuntu Server (installs a minimal graphical session) or Desktop.
 #
-# Two always-on-top touch buttons live in the bottom-left corner:
-#   ⌂  Home     — returns to the Jarvis dashboard from anywhere
-#                 (Netflix, YouTube, any quick-launch app)
-#   ⌨  Keyboard — shows/hides the on-screen keyboard
+# Wayland-native kiosk: a lightweight Weston compositor runs Chromium in
+# native Wayland mode (smooth touch, proper HiDPI, no X server).
+#   - Touch works natively; the on-screen keyboard (weston-keyboard) pops up
+#     automatically when a text field is tapped.
+#   - A floating ⌂ Home button is injected into every non-Jarvis page
+#     (Netflix, YouTube, ...) so you can always get back to the dashboard.
+#   - The boot splash shows ONLY on the first launch of the session; the
+#     Home button and idle screen go straight to the dashboard.
+#   - After IDLE_MINUTES without touch the ambient clock screen takes over;
+#     tap anywhere on it to return. The screen itself never blanks or sleeps.
 set -euo pipefail
 
-# First boot shows the animated Jarvis splash, which hands over to the Wall
-# view. The ⌂ Home button and the idle screen navigate straight to the
-# dashboard (no splash) — the splash is boot-only.
-# Wall+ uses ?kiosk (kiosk-mode.js hides the HA header/sidebar).
 DASH_URL="${DASH_URL:-http://localhost:8123/jarvis-hub/wall-plus?kiosk}"
 IDLE_URL="${IDLE_URL:-http://localhost:8123/local/jarvis-idle.html}"
 KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus%3Fkiosk}"
@@ -24,13 +25,17 @@ KIOSK_USER="${KIOSK_USER:-$USER}"
 # Tune with e.g.  KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh
 KIOSK_SCALE="${KIOSK_SCALE:-2.25}"
 
-echo "==> Jarvis kiosk setup (URL: $KIOSK_URL, user: $KIOSK_USER, scale: ${KIOSK_SCALE}x)"
+echo "==> Jarvis kiosk setup (Wayland/Weston, user: $KIOSK_USER, scale: ${KIOSK_SCALE}x)"
 
-echo "==> Installing minimal X session + Chromium..."
+echo "==> Installing Weston + Chromium + helpers..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
-  xorg xserver-xorg openbox x11-xserver-utils unclutter chromium-browser \
-  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl
+  weston swayidle chromium-browser python3-websocket curl
+
+# snap chromium: make sure it may talk to the Wayland socket
+if snap list chromium >/dev/null 2>&1; then
+  sudo snap connect chromium:wayland 2>/dev/null || true
+fi
 
 echo "==> Auto-login on tty1..."
 sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -40,177 +45,62 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin ${KIOSK_USER} --noclear %I \$TERM
 EOF
 
-echo "==> Hub bar (floating Home + Keyboard touch buttons)..."
 sudo mkdir -p /opt/jarvis-kiosk
-sudo tee /opt/jarvis-kiosk/hub-bar.py >/dev/null <<'PYEOF'
-#!/usr/bin/env python3
-"""Floating always-on-top touch bar for the Jarvis kiosk.
+# retire the old X11 hub bar if a previous version installed it
+sudo rm -f /opt/jarvis-kiosk/hub-bar.py /opt/jarvis-kiosk/idle-watch.sh
 
-Home: navigates the running Chromium tab straight to the dashboard over the
-DevTools protocol — instant, no splash, no relaunch. Falls back to killing
-Chromium (the session loop relaunches it) only if DevTools is unreachable.
-Keyboard: toggles the onboard on-screen keyboard over D-Bus.
-"""
-import json
-import os
-import subprocess
-import urllib.request
-
-import tkinter as tk
-
-BG = "#0b1220"
-FG = "#38e1ff"
-DEVTOOLS = "http://127.0.0.1:9222"
-DASH_URL = os.environ.get("JARVIS_DASH_URL", "http://localhost:8123/jarvis-hub/wall-plus?kiosk")
-
-
-def _devtools(path: str, method: str = "GET") -> object:
-    req = urllib.request.Request(DEVTOOLS + path, method=method)
-    with urllib.request.urlopen(req, timeout=3) as resp:
-        body = resp.read()
-    return json.loads(body) if body.strip() else None
-
-
-def go_home() -> None:
-    try:
-        from urllib.parse import quote
-        pages = [t for t in _devtools("/json/list") if t.get("type") == "page"]
-        # open the dashboard in a fresh tab (PUT on new Chromium, GET on old)
-        try:
-            new = _devtools("/json/new?" + quote(DASH_URL, safe=""), method="PUT")
-        except Exception:
-            new = _devtools("/json/new?" + quote(DASH_URL, safe=""))
-        new_id = (new or {}).get("id")
-        # close every other tab so kiosk Chromium shows only the dashboard
-        for page in pages:
-            if page.get("id") and page["id"] != new_id:
-                try:
-                    _devtools("/json/close/" + page["id"])
-                except Exception:
-                    pass
-    except Exception:
-        subprocess.Popen(["pkill", "-f", "chromium"])
-
-
-def toggle_keyboard() -> None:
-    subprocess.Popen([
-        "dbus-send", "--type=method_call",
-        "--dest=org.onboard.Onboard",
-        "/org/onboard/Onboard/Keyboard",
-        "org.onboard.Onboard.Keyboard.ToggleVisible",
-    ])
-
-
-root = tk.Tk()
-root.overrideredirect(True)
-root.attributes("-topmost", True)
-root.configure(bg=BG)
-
-style = {
-    "bg": BG, "fg": FG, "activebackground": "#122036",
-    "activeforeground": FG, "bd": 0, "highlightthickness": 0,
-    "font": ("DejaVu Sans", 40), "width": 2, "height": 1,
-}
-tk.Button(root, text="\u2302", command=go_home, **style).pack(side="left")
-tk.Button(root, text="\u2328", command=toggle_keyboard, **style).pack(side="left")
-
-root.update_idletasks()
-x = 8
-y = root.winfo_screenheight() - root.winfo_reqheight() - 8
-root.geometry(f"+{x}+{y}")
-
-
-def stay_on_top() -> None:
-    root.lift()
-    root.attributes("-topmost", True)
-    root.after(3000, stay_on_top)
-
-
-stay_on_top()
-root.mainloop()
-PYEOF
-sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
-
-echo "==> Idle watcher (ambient clock screen after inactivity)..."
-sudo tee /opt/jarvis-kiosk/idle-watch.sh >/dev/null <<'SHEOF'
-#!/usr/bin/env bash
-# Drift to the ambient idle screen after N minutes without touch input.
-# Tapping the idle screen navigates itself back to the dashboard, which
-# also resets the X idle counter — no wake logic needed here.
-IDLE_MINUTES="${1:-7}"
-IDLE_URL="${2:-http://localhost:8123/local/jarvis-idle.html}"
-DEVTOOLS="http://127.0.0.1:9222"
-[ "$IDLE_MINUTES" = "0" ] && exit 0
-THRESH_MS=$((IDLE_MINUTES * 60000))
-while true; do
-  sleep 20
-  idle=$(xprintidle 2>/dev/null) || continue
-  [ "$idle" -lt "$THRESH_MS" ] && continue
-  # already ambient (or splash still up)? do nothing
-  current=$(curl -fsS --max-time 3 "$DEVTOOLS/json/list" 2>/dev/null) || continue
-  echo "$current" | grep -q "jarvis-idle.html" && continue
-  echo "$current" | grep -q "jarvis-splash.html" && continue
-  # open the idle page in a new tab, then close the others
-  enc_url=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$IDLE_URL")
-  new_id=$(curl -fsS --max-time 3 -X PUT "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
-  [ -n "$new_id" ] || new_id=$(curl -fsS --max-time 3 "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
-  [ -n "$new_id" ] || continue
-  echo "$current" | python3 -c "
-import json, sys
-for t in json.load(sys.stdin):
-    if t.get('type') == 'page' and t.get('id') and t['id'] != '$new_id':
-        print(t['id'])
-" | while read -r tid; do
-    curl -fsS --max-time 3 "$DEVTOOLS/json/close/$tid" >/dev/null 2>&1
-  done
+echo "==> Weston config..."
+# weston-keyboard lives in different dirs across releases
+WKBD=""
+for p in /usr/libexec/weston-keyboard /usr/lib/weston/weston-keyboard \
+         /usr/lib/x86_64-linux-gnu/weston/weston-keyboard; do
+  if [ -x "$p" ]; then WKBD="$p"; break; fi
 done
-SHEOF
-sudo chmod +x /opt/jarvis-kiosk/idle-watch.sh
+IM_BLOCK=""
+if [ -n "$WKBD" ]; then IM_BLOCK=$(printf '[input-method]\npath=%s' "$WKBD"); fi
+sudo tee /opt/jarvis-kiosk/weston.ini >/dev/null <<EOF
+[core]
+idle-time=0
+require-input=false
 
-echo "==> Kiosk session (openbox + fullscreen Chromium)..."
-KIOSK_HOME=$(eval echo "~${KIOSK_USER}")
-sudo tee "${KIOSK_HOME}/.xinitrc" >/dev/null <<EOF
-#!/bin/sh
-# session bus (needed by the on-screen keyboard)
-if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then
-  eval "\$(dbus-launch --sh-syntax --exit-with-session)"
-fi
-xset s off          # never blank the screen
-xset -dpms
-xset s noblank
-unclutter -idle 5 &  # hide the mouse cursor when idle
-openbox-session &
+[shell]
+panel-position=none
+background-color=0xff05080f
+locking=false
+animation=fade
+
+[autolaunch]
+path=/opt/jarvis-kiosk/session.sh
+
+${IM_BLOCK}
+
+[libinput]
+touchscreen_calibrator=true
+EOF
+
+echo "==> Kiosk session (Chromium native Wayland + idle watcher + Home overlay)..."
+sudo tee /opt/jarvis-kiosk/session.sh >/dev/null <<EOF
+#!/usr/bin/env bash
+# Launched by Weston's [autolaunch] — owns the whole kiosk session.
 export JARVIS_DASH_URL="${DASH_URL}"
-# HiDPI: scale the keyboard and other GTK bits
-export GDK_SCALE=2
-export GDK_DPI_SCALE=1
-# On-screen touch keyboard, hidden until the ⌨ button shows it.
-# force-to-top is required: without it the keyboard renders BEHIND the
-# fullscreen kiosk Chromium and only the tiny icon palette is visible.
-gsettings set org.onboard layout Compact || true
-gsettings set org.onboard use-system-defaults false || true
-gsettings set org.onboard.icon-palette in-use false || true
-gsettings set org.onboard.auto-show enabled false || true
-gsettings set org.onboard.window force-to-top true || true
-gsettings set org.onboard.window docking-enabled false || true
-gsettings set org.onboard.window.landscape x 100 || true
-gsettings set org.onboard.window.landscape y 1100 || true
-gsettings set org.onboard.window.landscape width 2800 || true
-gsettings set org.onboard.window.landscape height 800 || true
-onboard --startup-delay=3 &
-# Floating Home + Keyboard buttons (bottom-left corner)
-/opt/jarvis-kiosk/hub-bar.py &
-# Ambient idle screen: after a few minutes of no touch, drift to the
-# dim clock screen; any tap on it returns to the dashboard.
-/opt/jarvis-kiosk/idle-watch.sh "${IDLE_MINUTES}" "${IDLE_URL}" &
+export JARVIS_IDLE_URL="${IDLE_URL}"
+
+# Ambient idle screen after ${IDLE_MINUTES} min of no input (0 = disabled).
+if [ "${IDLE_MINUTES}" != "0" ]; then
+  swayidle timeout $(( IDLE_MINUTES * 60 )) /opt/jarvis-kiosk/go-idle.sh &
+fi
+
+# Floating ⌂ Home button on non-Jarvis pages (Netflix, YouTube, ...)
+/opt/jarvis-kiosk/home-overlay.py &
+
 # Chromium relaunch loop. The splash shows ONLY on the first launch of the
 # session (real boot); if Chromium is ever closed/crashes it comes back
-# directly on the dashboard — and the ⌂ Home button never relaunches it,
-# it just navigates the running tab.
+# directly on the dashboard — the ⌂ Home button never relaunches it.
 FIRST_URL="${KIOSK_URL}"
 while true; do
   chromium-browser --kiosk --noerrdialogs --disable-infobars \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
+    --ozone-platform=wayland --enable-wayland-ime \\
     --force-renderer-accessibility \\
     --remote-debugging-port=9222 \\
     --force-device-scale-factor=${KIOSK_SCALE} \\
@@ -219,35 +109,175 @@ while true; do
   sleep 1
 done
 EOF
-sudo chown "${KIOSK_USER}:" "${KIOSK_HOME}/.xinitrc"
+sudo chmod +x /opt/jarvis-kiosk/session.sh
 
+echo "==> Idle handoff script..."
+sudo tee /opt/jarvis-kiosk/go-idle.sh >/dev/null <<'SHEOF'
+#!/usr/bin/env bash
+# Navigate the kiosk to the ambient idle screen (via Chromium DevTools).
+# Tapping the idle screen navigates itself back to the dashboard.
+IDLE_URL="${JARVIS_IDLE_URL:-http://localhost:8123/local/jarvis-idle.html}"
+DEVTOOLS="http://127.0.0.1:9222"
+current=$(curl -fsS --max-time 3 "$DEVTOOLS/json/list" 2>/dev/null) || exit 0
+echo "$current" | grep -q "jarvis-idle.html" && exit 0
+echo "$current" | grep -q "jarvis-splash.html" && exit 0
+enc_url=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$IDLE_URL")
+new_id=$(curl -fsS --max-time 3 -X PUT "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+[ -n "$new_id" ] || new_id=$(curl -fsS --max-time 3 "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+[ -n "$new_id" ] || exit 0
+echo "$current" | python3 -c "
+import json, sys
+for t in json.load(sys.stdin):
+    if t.get('type') == 'page' and t.get('id') and t['id'] != '$new_id':
+        print(t['id'])
+" | while read -r tid; do
+  curl -fsS --max-time 3 "$DEVTOOLS/json/close/$tid" >/dev/null 2>&1
+done
+SHEOF
+sudo chmod +x /opt/jarvis-kiosk/go-idle.sh
+
+echo "==> Home button overlay daemon..."
+sudo tee /opt/jarvis-kiosk/home-overlay.py >/dev/null <<'PYEOF'
+#!/usr/bin/env python3
+"""Inject a floating ⌂ Home button into every non-Jarvis page.
+
+Watches Chromium over the DevTools protocol; whenever a tab is on an
+external site (Netflix, YouTube, ...) it injects a fixed-position button
+that navigates straight back to the dashboard. Jarvis pages (Home
+Assistant / LifeOS) get no button — they have their own navigation.
+"""
+import json
+import os
+import time
+import urllib.request
+
+import websocket
+
+DEVTOOLS = "http://127.0.0.1:9222"
+DASH_URL = os.environ.get(
+    "JARVIS_DASH_URL", "http://localhost:8123/jarvis-hub/wall-plus?kiosk"
+)
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+
+INJECT_JS = """
+(() => {
+  if (document.getElementById('jarvis-home-btn')) return;
+  const b = document.createElement('div');
+  b.id = 'jarvis-home-btn';
+  b.textContent = '\\u2302';
+  Object.assign(b.style, {
+    position: 'fixed', left: '10px', bottom: '10px', zIndex: 2147483647,
+    width: '64px', height: '64px', lineHeight: '64px', textAlign: 'center',
+    fontSize: '40px', color: '#38e1ff', background: 'rgba(11,18,32,.82)',
+    border: '1px solid rgba(56,225,255,.35)', borderRadius: '14px',
+    cursor: 'pointer', userSelect: 'none',
+    boxShadow: '0 2px 14px rgba(0,0,0,.55)',
+    backdropFilter: 'blur(6px)',
+  });
+  b.addEventListener('click', () => { location.href = %s; });
+  const add = () => document.body && document.body.appendChild(b);
+  if (document.body) add();
+  else document.addEventListener('DOMContentLoaded', add);
+})();
+""" % json.dumps(DASH_URL)
+
+
+def pages():
+    with urllib.request.urlopen(DEVTOOLS + "/json/list", timeout=3) as r:
+        return [t for t in json.load(r) if t.get("type") == "page"]
+
+
+def is_external(url: str) -> bool:
+    if not url.startswith(("http://", "https://")):
+        return False
+    host = url.split("/")[2].split(":")[0]
+    return host not in LOCAL_HOSTS
+
+
+def inject(ws_url: str) -> None:
+    ws = websocket.create_connection(ws_url, timeout=5)
+    try:
+        ws.send(json.dumps({
+            "id": 1,
+            "method": "Runtime.evaluate",
+            "params": {"expression": INJECT_JS},
+        }))
+        ws.recv()
+    finally:
+        ws.close()
+
+
+def main() -> None:
+    done = {}  # tab id -> last url injected
+    while True:
+        time.sleep(3)
+        try:
+            tabs = pages()
+        except Exception:
+            continue
+        live = set()
+        for tab in tabs:
+            tid, url = tab.get("id"), tab.get("url", "")
+            if not tid:
+                continue
+            live.add(tid)
+            if not is_external(url):
+                done.pop(tid, None)
+                continue
+            if done.get(tid) == url:
+                continue
+            ws_url = tab.get("webSocketDebuggerUrl")
+            if not ws_url:
+                continue
+            try:
+                inject(ws_url)
+                done[tid] = url
+            except Exception:
+                pass
+        for tid in list(done):
+            if tid not in live:
+                done.pop(tid, None)
+
+
+if __name__ == "__main__":
+    main()
+PYEOF
+sudo chmod +x /opt/jarvis-kiosk/home-overlay.py
+
+echo "==> Auto-start Weston on tty1..."
+KIOSK_HOME=$(eval echo "~${KIOSK_USER}")
 PROFILE="${KIOSK_HOME}/.bash_profile"
-if ! grep -q 'startx' "$PROFILE" 2>/dev/null; then
+# retire the old startx auto-start if a previous version installed it
+if [ -f "$PROFILE" ]; then
+  sudo sed -i '/# Auto-start the Jarvis kiosk on tty1/,+3d' "$PROFILE"
+fi
+if ! grep -q 'weston' "$PROFILE" 2>/dev/null; then
   sudo tee -a "$PROFILE" >/dev/null <<'EOF'
-# Auto-start the Jarvis kiosk on tty1
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  exec startx
+# Auto-start the Jarvis kiosk (Weston/Wayland) on tty1
+if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+  exec weston --config=/opt/jarvis-kiosk/weston.ini
 fi
 EOF
   sudo chown "${KIOSK_USER}:" "$PROFILE"
 fi
+# the old X11 session file is no longer used
+sudo rm -f "${KIOSK_HOME}/.xinitrc"
 
 echo ""
 echo "=========================================================="
-echo " Kiosk installed. Reboot and the X1 boots straight into"
-echo " the Jarvis dashboard, fullscreen."
+echo " Wayland kiosk installed. Reboot and the X1 boots straight"
+echo " into the Jarvis dashboard, fullscreen."
 echo ""
 echo " Tips:"
-echo "  - Bottom-left corner: ⌂ jumps straight to the dashboard from"
-echo "    any app (no splash — that's boot-only now); ⌨ shows/hides"
-echo "    the on-screen keyboard."
+echo "  - On Netflix/YouTube/any app a floating ⌂ button (bottom-left)"
+echo "    jumps straight back to the dashboard (no splash — boot-only)."
+echo "  - The on-screen keyboard pops up by itself when you tap a"
+echo "    text field."
 echo "  - After ${IDLE_MINUTES} min of no touch the ambient clock screen"
 echo "    appears; tap anywhere to get the dashboard back."
 echo "    Change it: IDLE_MINUTES=15 bash bootstrap/setup-kiosk.sh (0 = off)"
 echo "  - Log into HA once in that Chromium ('remember me') so it"
 echo "    stays signed in."
-echo "  - Different page? KIOSK_URL=http://localhost:8090 bash bootstrap/setup-kiosk.sh"
-echo "    (default shows the Jarvis boot splash, then the Wall view)"
 echo "  - Too big/small? KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh (then reboot)"
 echo "  - Escape to a terminal any time: Ctrl+Alt+F2."
 echo "=========================================================="
