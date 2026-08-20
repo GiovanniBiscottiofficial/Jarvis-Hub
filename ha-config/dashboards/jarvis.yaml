@@ -229,12 +229,29 @@ views:
             card_mod:
               style: |
                 ha-markdown {
-                  text-shadow: 0 0 24px rgba(0, 212, 255, 0.45);
-                  animation: jarvis-glow 3s ease-in-out infinite;
+                  font-family: 'Orbitron', sans-serif;
+                  letter-spacing: 0.06em;
+                  animation: jarvis-glow 3.5s ease-in-out infinite;
+                }
+                ha-markdown-element > font {
+                  font-size: 4.4rem;
+                  line-height: 1.05;
+                  background: linear-gradient(180deg, #eafcff 20%, #00e5ff 90%);
+                  -webkit-background-clip: text;
+                  background-clip: text;
+                  -webkit-text-fill-color: transparent;
+                }
+                ha-markdown-element h3 {
+                  color: #7fd8e8;
+                  font-weight: 600;
+                  letter-spacing: 0.35em;
+                  text-transform: uppercase;
+                  font-size: 0.95rem;
+                  margin-top: 2px;
                 }
                 @keyframes jarvis-glow {
-                  0%, 100% { text-shadow: 0 0 16px rgba(0, 212, 255, 0.3); }
-                  50% { text-shadow: 0 0 34px rgba(0, 212, 255, 0.7); }
+                  0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.35)); }
+                  50% { filter: drop-shadow(0 0 26px rgba(0, 229, 255, 0.75)); }
                 }
           - type: custom:mushroom-chips-card
             alignment: start
@@ -270,6 +287,13 @@ views:
           - type: iframe
             url: /local/jarvis-avatar.html
             aspect_ratio: 70%
+            card_mod:
+              style: |
+                ha-card {
+                  background: transparent;
+                  border: none;
+                  box-shadow: none;
+                }
           - type: markdown
             title: Briefing
             content: >
@@ -297,6 +321,7 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: slider
+            card_layout: large
             entity: light.living_room
             name: Living Room
             icon: mdi:sofa
@@ -310,6 +335,7 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: slider
+            card_layout: large
             entity: light.bedroom
             name: Bedroom
             icon: mdi:bed
@@ -372,6 +398,7 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: name
+            card_layout: large
             name: Movie Night
             icon: mdi:movie-open
             tap_action:
@@ -380,6 +407,7 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: name
+            card_layout: large
             name: Goodnight
             icon: mdi:weather-night
             tap_action:
@@ -388,6 +416,7 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: name
+            card_layout: large
             name: Leaving
             icon: mdi:exit-run
             tap_action:
@@ -396,12 +425,14 @@ views:
           - type: custom:bubble-card
             card_type: button
             button_type: switch
+            card_layout: large
             entity: input_boolean.guest_mode
             name: Guests
             icon: mdi:account-group
           - type: custom:bubble-card
             card_type: button
             button_type: switch
+            card_layout: large
             entity: vacuum.juno
             name: Juno
             icon: mdi:robot-vacuum
@@ -418,10 +449,10 @@ views:
             icon: mdi:pulse
           - type: custom:mini-graph-card
             entities:
-              - entity: sensor.processor_use
+              - entity: sensor.system_monitor_processor_use
                 name: CPU %
                 color: "#00e5ff"
-              - entity: sensor.memory_use_percent
+              - entity: sensor.system_monitor_memory_usage
                 name: RAM %
                 color: "#c084fc"
             hours_to_show: 2

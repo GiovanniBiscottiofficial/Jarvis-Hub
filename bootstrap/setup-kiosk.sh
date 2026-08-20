@@ -11,7 +11,8 @@
 set -euo pipefail
 
 # Boots into the animated Jarvis splash, which hands over to the Wall view.
-KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall}"
+# Boots to Wall+ with ?kiosk (kiosk-mode.js hides the HA header/sidebar).
+KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus%3Fkiosk}"
 KIOSK_USER="${KIOSK_USER:-$USER}"
 # HiDPI zoom: the X1 Tablet's 3000x2000 panel needs 2x+ to be readable.
 # Tune with e.g.  KIOSK_SCALE=2.5 bash bootstrap/setup-kiosk.sh

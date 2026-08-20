@@ -14,7 +14,10 @@ Jarvis:
   primary-background-color: "#070b14"
   secondary-background-color: "#0c1220"
   lovelace-background: >-
-    radial-gradient(ellipse at 20% 0%, #0e1a2f 0%, #070b14 55%, #05070d 100%)
+    radial-gradient(ellipse 60% 45% at 18% 0%, rgba(0, 120, 190, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 8%, rgba(0, 229, 255, 0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(10, 40, 80, 0.5) 0%, transparent 65%),
+    linear-gradient(180deg, #081020 0%, #05070d 100%)
   markdown-code-background-color: "#0c1220"
 
   # cards — floating glass panels
@@ -42,7 +45,15 @@ Jarvis:
   secondary-text-color: "#93a4bc"
   text-primary-color: "#04121a"
   disabled-text-color: "#4a5872"
-  primary-font-family: "'SF Pro Display', 'Segoe UI', Roboto, sans-serif"
+  primary-font-family: "'Rajdhani', 'SF Pro Display', 'Segoe UI', Roboto, sans-serif"
+  paper-font-common-base_-_font-family: "'Rajdhani', sans-serif"
+  paper-font-body1_-_font-family: "'Rajdhani', sans-serif"
+  paper-font-headline_-_font-family: "'Orbitron', 'Rajdhani', sans-serif"
+  paper-font-title_-_font-family: "'Orbitron', 'Rajdhani', sans-serif"
+  mdc-typography-font-family: "'Rajdhani', sans-serif"
+  ha-font-family-body: "'Rajdhani', 'Segoe UI', Roboto, sans-serif"
+  ha-font-family-heading: "'Orbitron', 'Rajdhani', sans-serif"
+  ha-font-smoothing: antialiased
 
   # header + sidebar
   app-header-background-color: "#070b14"
