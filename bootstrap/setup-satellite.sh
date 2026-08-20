@@ -31,6 +31,9 @@ After=network-online.target sound.target
 
 [Service]
 User=${SAT_USER}
+# Route aplay/arecord through the user's PipeWire session; without this the
+# ALSA default device fails with "Host is down" and Jarvis stays silent.
+Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "${SAT_USER}")
 ExecStart=/opt/wyoming-satellite/venv/bin/python -m wyoming_satellite \\
   --name "${SAT_NAME}" \\
   --uri tcp://0.0.0.0:10700 \\
