@@ -8,7 +8,20 @@ set -euo pipefail
 
 SAT_USER="${SAT_USER:-$USER}"
 SAT_NAME="${SAT_NAME:-X1}"
-WEBCAM_DEV="${WEBCAM_DEV:-/dev/video0}"
+# Auto-detect the USB webcam's capture node. On the X1 Tablet the Intel IPU3
+# grabs /dev/video0-13 (not capture devices); the real UVC camera lands higher.
+detect_webcam() {
+  for dev in /dev/video*; do
+    [ -e "$dev" ] || continue
+    if udevadm info -q property -n "$dev" 2>/dev/null | grep -q "ID_USB_DRIVER=uvcvideo" \
+       && v4l2-ctl -d "$dev" --get-fmt-video >/dev/null 2>&1; then
+      echo "$dev"; return
+    fi
+  done
+  echo /dev/video0
+}
+command -v v4l2-ctl >/dev/null || sudo apt-get install -y v4l-utils
+WEBCAM_DEV="${WEBCAM_DEV:-$(detect_webcam)}"
 
 echo "==> Jarvis satellite setup (user: $SAT_USER, webcam: $WEBCAM_DEV)"
 
@@ -80,6 +93,12 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
+
+# Sensible default levels — a fresh PipeWire profile starts the sink at ~40%,
+# which makes Jarvis nearly inaudible on the X1's small speakers.
+RUNDIR="/run/user/$(id -u "${SAT_USER}")"
+sudo -u "${SAT_USER}" XDG_RUNTIME_DIR="$RUNDIR" wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0 2>/dev/null || true
+sudo -u "${SAT_USER}" XDG_RUNTIME_DIR="$RUNDIR" wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0 2>/dev/null || true
 
 echo "==> Enabling services..."
 sudo systemctl daemon-reload

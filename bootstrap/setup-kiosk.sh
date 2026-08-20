@@ -70,7 +70,7 @@ root.configure(bg=BG)
 style = {
     "bg": BG, "fg": FG, "activebackground": "#122036",
     "activeforeground": FG, "bd": 0, "highlightthickness": 0,
-    "font": ("DejaVu Sans", 22), "width": 3, "height": 1,
+    "font": ("DejaVu Sans", 40), "width": 2, "height": 1,
 }
 tk.Button(root, text="\u2302", command=go_home, **style).pack(side="left")
 tk.Button(root, text="\u2328", command=toggle_keyboard, **style).pack(side="left")
@@ -108,9 +108,19 @@ openbox-session &
 # HiDPI: scale the keyboard and other GTK bits
 export GDK_SCALE=2
 export GDK_DPI_SCALE=1
-# On-screen touch keyboard, hidden until the ⌨ button shows it
+# On-screen touch keyboard, hidden until the ⌨ button shows it.
+# force-to-top is required: without it the keyboard renders BEHIND the
+# fullscreen kiosk Chromium and only the tiny icon palette is visible.
 gsettings set org.onboard layout Compact || true
-gsettings set org.onboard.window docking-enabled true || true
+gsettings set org.onboard use-system-defaults false || true
+gsettings set org.onboard.icon-palette in-use false || true
+gsettings set org.onboard.auto-show enabled false || true
+gsettings set org.onboard.window force-to-top true || true
+gsettings set org.onboard.window docking-enabled false || true
+gsettings set org.onboard.window.landscape x 100 || true
+gsettings set org.onboard.window.landscape y 1100 || true
+gsettings set org.onboard.window.landscape width 2800 || true
+gsettings set org.onboard.window.landscape height 800 || true
 onboard --startup-delay=3 &
 # Floating Home + Keyboard buttons (bottom-left corner)
 /opt/jarvis-kiosk/hub-bar.py &

@@ -41,6 +41,19 @@ else
   echo "==> (battery charge-cap not supported by this kernel/firmware — skipping)"
 fi
 
+# 2b2. Audio: the X1 Tablet Gen 3's speakers/mic are silent (or noise-only)
+# under the default snd_hda_intel driver. Intel's AVS DSP stack drives the
+# ALC295 codec correctly on this machine. Takes effect after a reboot.
+if grep -qi "X1 Tablet Gen 3" /sys/class/dmi/id/product_family 2>/dev/null || \
+   grep -qi "X1 Tablet Gen 3" /sys/class/dmi/id/product_version 2>/dev/null; then
+  echo "==> X1 Tablet Gen 3 detected: enabling Intel AVS audio driver..."
+  sudo tee /etc/modprobe.d/jarvis-avs-audio.conf >/dev/null <<'AVSEOF'
+# Jarvis: use Intel AVS DSP stack (fixes silent speakers/mic on X1 Tablet Gen 3)
+options snd_intel_dspcfg dsp_driver=4
+AVSEOF
+  sudo update-initramfs -u || true
+fi
+
 # 2c. SSD health: periodic TRIM
 echo "==> Enabling weekly SSD trim..."
 sudo systemctl enable --now fstrim.timer 2>/dev/null || true
