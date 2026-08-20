@@ -535,7 +535,7 @@ views:
             heading: Who's home
             icon: mdi:account-check
           - type: tile
-            entity: person.keona
+            entity: person.giovanni_biscotti
           - type: heading
             heading: Briefing
             icon: mdi:weather-sunset-up
