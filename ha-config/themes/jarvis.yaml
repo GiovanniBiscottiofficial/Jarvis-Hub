@@ -14,31 +14,58 @@ Jarvis:
   primary-background-color: "#070b14"
   secondary-background-color: "#0c1220"
   lovelace-background: >-
-    radial-gradient(ellipse 60% 45% at 18% 0%, rgba(0, 120, 190, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 85% 8%, rgba(0, 229, 255, 0.10) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(10, 40, 80, 0.5) 0%, transparent 65%),
-    linear-gradient(180deg, #081020 0%, #05070d 100%)
+    repeating-linear-gradient(0deg, rgba(0, 229, 255, 0.035) 0px, rgba(0, 229, 255, 0.035) 1px, transparent 1px, transparent 56px),
+    repeating-linear-gradient(90deg, rgba(0, 229, 255, 0.035) 0px, rgba(0, 229, 255, 0.035) 1px, transparent 1px, transparent 56px),
+    radial-gradient(ellipse 60% 45% at 18% 0%, rgba(0, 120, 190, 0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 8%, rgba(0, 229, 255, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 50% 110%, rgba(8, 30, 60, 0.55) 0%, transparent 65%),
+    linear-gradient(180deg, #04070f 0%, #02040a 100%)
   markdown-code-background-color: "#0c1220"
 
   # cards — floating glass panels
-  card-background-color: "#101828cc"
-  ha-card-background: "#101828cc"
-  ha-card-border-radius: "24px"
+  card-background-color: "#060d18d9"
+  ha-card-background: "#060d18d9"
+  ha-card-border-radius: "4px"
   ha-card-border-width: "1px"
-  ha-card-border-color: "rgba(0, 229, 255, 0.26)"
-  ha-card-box-shadow: "0 12px 36px rgba(0, 0, 0, 0.55), 0 0 32px rgba(0, 212, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 0 26px rgba(0, 212, 255, 0.05)"
+  ha-card-border-color: "rgba(0, 229, 255, 0.22)"
+  ha-card-box-shadow: "0 10px 30px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 212, 255, 0.10), inset 0 0 30px rgba(0, 212, 255, 0.04)"
+
+  # HUD pass (card-mod theme): thin corner brackets + top scan line on every panel
+  card-mod-theme: Jarvis
+  card-mod-card: |
+    ha-card {
+      position: relative;
+      overflow: visible;
+    }
+    ha-card::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      pointer-events: none;
+      --jb: rgba(0, 229, 255, 0.85);
+      background:
+        linear-gradient(var(--jb), var(--jb)) left 0 top 0 / 16px 2px,
+        linear-gradient(var(--jb), var(--jb)) left 0 top 0 / 2px 16px,
+        linear-gradient(var(--jb), var(--jb)) right 0 top 0 / 16px 2px,
+        linear-gradient(var(--jb), var(--jb)) right 0 top 0 / 2px 16px,
+        linear-gradient(var(--jb), var(--jb)) left 0 bottom 0 / 16px 2px,
+        linear-gradient(var(--jb), var(--jb)) left 0 bottom 0 / 2px 16px,
+        linear-gradient(var(--jb), var(--jb)) right 0 bottom 0 / 16px 2px,
+        linear-gradient(var(--jb), var(--jb)) right 0 bottom 0 / 2px 16px;
+      background-repeat: no-repeat;
+    }
 
   # Bubble Card (HACS) — picked up automatically once the card is installed
-  bubble-main-background-color: "rgba(16, 24, 40, 0.8)"
+  bubble-main-background-color: "rgba(6, 13, 24, 0.85)"
   bubble-secondary-background-color: "rgba(0, 212, 255, 0.12)"
   bubble-accent-color: "#00e5ff"
-  bubble-icon-background-color: "rgba(0, 212, 255, 0.12)"
-  bubble-border-radius: "28px"
+  bubble-icon-background-color: "rgba(0, 212, 255, 0.10)"
+  bubble-border-radius: "6px"
 
   # Mushroom (HACS)
   mush-rgb-state-entity: "0, 229, 255"
-  mush-chip-background: "rgba(16, 24, 40, 0.8)"
-  mush-chip-border-radius: "16px"
+  mush-chip-background: "rgba(6, 13, 24, 0.85)"
+  mush-chip-border-radius: "4px"
 
   # text
   primary-text-color: "#e8eef7"
