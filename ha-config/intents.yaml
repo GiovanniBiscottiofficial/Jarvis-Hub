@@ -17,6 +17,18 @@ LifeOSMoney:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'money') or 'LifeOS is not reachable right now.' }}"
 
+LifeOSBudget:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'budget') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSPaycheck:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'paycheck') or 'LifeOS is not reachable right now.' }}"
+
+LifeOSNetWorth:
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'networth') or 'LifeOS is not reachable right now.' }}"
+
 LifeOSMeals:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'meals') or 'LifeOS is not reachable right now.' }}"

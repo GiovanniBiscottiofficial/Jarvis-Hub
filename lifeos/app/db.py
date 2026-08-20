@@ -2,6 +2,7 @@
 import os
 import sqlite3
 from contextlib import contextmanager
+from datetime import date
 
 DB_PATH = os.environ.get("LIFEOS_DB", "/data/lifeos.db")
 
@@ -99,7 +100,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     balance REAL NOT NULL DEFAULT 0,
-    vaultborne INTEGER NOT NULL DEFAULT 0
+    vaultborne INTEGER NOT NULL DEFAULT 0,
+    role TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS bills (
@@ -108,7 +110,28 @@ CREATE TABLE IF NOT EXISTS bills (
     amount REAL NOT NULL,
     due_day INTEGER NOT NULL,
     account_id INTEGER REFERENCES accounts(id),
-    paid_month TEXT
+    paid_month TEXT,
+    paycheck INTEGER NOT NULL DEFAULT 0,
+    paid_period TEXT,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS debts (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    total REAL NOT NULL DEFAULT 0,
+    remaining REAL NOT NULL DEFAULT 0,
+    installment REAL NOT NULL DEFAULT 0,
+    cadence TEXT NOT NULL DEFAULT 'per paycheck',
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS assets (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL DEFAULT 'retirement',
+    balance REAL NOT NULL DEFAULT 0,
+    per_paycheck REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS deposits (
@@ -158,7 +181,8 @@ CREATE TABLE IF NOT EXISTS savings_goals (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     target REAL NOT NULL DEFAULT 0,
-    saved REAL NOT NULL DEFAULT 0
+    saved REAL NOT NULL DEFAULT 0,
+    monthly REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS nudges (
@@ -176,6 +200,14 @@ DEFAULT_SETTINGS = {
     "calorie_target": "2000",
     "water_target_glasses": "8",
     "active_profile": "1",
+    # Semi-monthly paycheck profile (per paycheck, two checks a month)
+    "gross_annual_salary": "58992.00",
+    "net_per_paycheck": "2064.25",
+    "split_onepay": "1754.61",
+    "split_truliant": "309.64",
+    "deduct_roth": "24.59",
+    "deduct_401k": "24.59",
+    "deduct_hsa": "15.98",
 }
 
 SEED_PROFILES = ["Giovanni"]
@@ -196,7 +228,62 @@ SEED_MEALS = [
     ("Mashed potatoes + meatloaf", 15, 30, 550, "mashed_potatoes", 1),
 ]
 
-SEED_ACCOUNTS = ["True Lion", "OnePay", "FreePlay", "Relay"]
+# name, role, baseline balance (applied only while the balance is still 0)
+SEED_ACCOUNTS = [
+    ("OnePay", "operating", 113.00),
+    ("Truliant", "savings", 147.96),
+    ("Relay", "buckets", 311.68),
+]
+
+# name, amount, due_day, paycheck (1 = 1st-of-month check, 2 = mid-month),
+# note, already paid this cycle
+SEED_BILLS = [
+    ("Flex Pay Rent (1st half)", 360.24, 1, 1, "includes Flex fee", 0),
+    ("Flex Pay Rent (2nd half)", 515.00, 15, 2, "includes $15.00 fee", 0),
+    ("Car Note (check 1)", 307.00, 1, 1, "$195 base + $112 temporary charge", 0),
+    ("Car Note (check 2)", 307.00, 15, 2, "$195 base + $112 temporary charge", 0),
+    ("Gas / Fuel (check 1)", 80.00, 1, 1, "fill-up budget", 0),
+    ("Gas / Fuel (check 2)", 80.00, 15, 2, "fill-up budget", 0),
+    ("Car Insurance Catchup", 213.00, 1, 1, "late catchup payment", 1),
+    ("Car Insurance (monthly)", 105.00, 15, 2, "regular monthly bill", 0),
+    ("Spectrum Internet", 100.00, 15, 2, "$100 with activation, $80/mo after", 0),
+    ("Phone Reconnection", 216.75, 1, 1, "restores service ($480.84 balance)", 1),
+    ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
+    ("Klarna Statement", 61.77, 1, 1, "statement paydown", 1),
+    ("Old Spectrum Paydown", 39.00, 15, 2, "$39 per check", 0),
+    ("Duke Energy (past due)", 65.50, 15, 2, "queued — $65.50/paycheck planned", 0),
+]
+
+# name, total, remaining, installment, cadence, note
+SEED_DEBTS = [
+    ("Klarna", 230.75, 230.75, 61.77, "per statement",
+     "Codeium x2, Steam $39.26, Sheetz $36.82, Speedway $19.75, DTLR $13.60"),
+    ("Phone Balance", 480.84, 264.09, 66.02, "bi-weekly",
+     "payment arrangement after $216.75 reconnection"),
+    ("Old Spectrum", 78.00, 78.00, 39.00, "per paycheck", "old account paydown"),
+    ("Car Insurance Catchup", 213.00, 213.00, 213.00, "one-time",
+     "late catchup on paycheck #1"),
+]
+
+# name, target, saved, monthly contribution
+SEED_GOALS = [
+    ("3-Month Emergency Safety Net", 3540.00, 100.00, 50.00),
+    ("Car Maintenance & Tires", 1200.00, 20.00, 30.00),
+    ("Travel & Vacation Fund", 5000.00, 15.00, 50.00),
+    ("Passport", 165.00, 15.00, 10.00),
+    ("Date Nights Fund", 0, 0, 30.00),
+    ("Baltimore Business Trip", 0, 0, 40.00),
+    ("Birthday Fund (7/20)", 0, 0, 30.00),
+    ("Household Supplies & Personals", 0, 0, 30.00),
+    ("Wardrobe Fund", 0, 0, 30.00),
+]
+
+# name, kind, per-paycheck contribution
+SEED_ASSETS = [
+    ("Roth IRA", "retirement", 24.59),
+    ("401(k)", "retirement", 24.59),
+    ("HSA", "health", 15.98),
+]
 
 
 @contextmanager
@@ -212,7 +299,30 @@ def conn():
 
 
 def _migrate(c: sqlite3.Connection) -> None:
-    """Upgrade a pre-profiles (v0.1) database in place."""
+    """Upgrade an older database in place."""
+    # v0.3 budget columns
+    simple_adds = {
+        "accounts": [("role", "TEXT NOT NULL DEFAULT ''")],
+        "bills": [
+            ("paycheck", "INTEGER NOT NULL DEFAULT 0"),
+            ("paid_period", "TEXT"),
+            ("note", "TEXT NOT NULL DEFAULT ''"),
+        ],
+        "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
+    }
+    for table, adds in simple_adds.items():
+        cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+        if not cols:
+            continue
+        for col, decl in adds:
+            if col not in cols:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+    # the savings split account is Truliant (early seeds called it True Lion)
+    if {r["name"] for r in c.execute("PRAGMA table_info(accounts)")}:
+        c.execute(
+            "UPDATE accounts SET name='Truliant' WHERE name='True Lion'"
+            " AND NOT EXISTS (SELECT 1 FROM accounts WHERE name='Truliant')"
+        )
     for table in ("meal_log", "weighins", "workouts"):
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
         if cols and "profile_id" not in cols:
@@ -252,8 +362,48 @@ def init_db() -> None:
                 " VALUES(?,?,?,?,?,?)",
                 m,
             )
-        for a in SEED_ACCOUNTS:
-            c.execute("INSERT OR IGNORE INTO accounts(name) VALUES(?)", (a,))
+        for name, role, baseline in SEED_ACCOUNTS:
+            c.execute(
+                "INSERT OR IGNORE INTO accounts(name,role) VALUES(?,?)",
+                (name, role),
+            )
+            c.execute("UPDATE accounts SET role=? WHERE name=?", (role, name))
+            c.execute(
+                "UPDATE accounts SET balance=? WHERE name=? AND balance=0",
+                (baseline, name),
+            )
+        _today = date.today()
+        _period = f"{_today:%Y-%m}-P{1 if _today.day < 15 else 2}"
+        for name, amount, due_day, paycheck, note, paid in SEED_BILLS:
+            paid_period = _period if paid and paycheck == 1 else None
+            c.execute(
+                "INSERT INTO bills(name,amount,due_day,paycheck,note,paid_period)"
+                " SELECT ?,?,?,?,?,?"
+                " WHERE NOT EXISTS (SELECT 1 FROM bills WHERE name=?)",
+                (name, amount, due_day, paycheck, note, paid_period, name),
+            )
+        for d in SEED_DEBTS:
+            c.execute(
+                "INSERT OR IGNORE INTO debts(name,total,remaining,installment,"
+                "cadence,note) VALUES(?,?,?,?,?,?)",
+                d,
+            )
+        for name, target, saved, monthly in SEED_GOALS:
+            c.execute(
+                "INSERT OR IGNORE INTO savings_goals(name,target,saved,monthly)"
+                " VALUES(?,?,?,?)",
+                (name, target, saved, monthly),
+            )
+            c.execute(
+                "UPDATE savings_goals SET monthly=? WHERE name=? AND monthly=0",
+                (monthly, name),
+            )
+        for a in SEED_ASSETS:
+            c.execute(
+                "INSERT OR IGNORE INTO assets(name,kind,per_paycheck)"
+                " VALUES(?,?,?)",
+                a,
+            )
         # correct the old seed name on existing databases (before seeding,
         # so the rename never collides with a freshly inserted 'Giovanni')
         c.execute(

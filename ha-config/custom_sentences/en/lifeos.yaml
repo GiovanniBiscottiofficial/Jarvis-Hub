@@ -193,6 +193,29 @@ intents:
           - "how are my savings [goals]"
           - "savings check"
           - "how much have I saved"
+  LifeOSBudget:
+    data:
+      - sentences:
+          - "how's my budget [looking]"
+          - "budget check"
+          - "how much is safe to spend"
+          - "what's my safe to spend"
+          - "am I on budget"
+          - "what's my budget health"
+  LifeOSPaycheck:
+    data:
+      - sentences:
+          - "what does this paycheck cover"
+          - "what bills are on this paycheck"
+          - "paycheck check"
+          - "what's left to pay this paycheck"
+  LifeOSNetWorth:
+    data:
+      - sentences:
+          - "what's my net worth"
+          - "how much debt do I have [left]"
+          - "net worth check"
+          - "how much cash do I have across [all] my accounts"
   JarvisEveningReport:
     data:
       - sentences:

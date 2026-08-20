@@ -17,6 +17,7 @@ document.querySelectorAll(".tab").forEach((btn) =>
     btn.classList.add("active");
     $(btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "vault") loadVault();
+    if (btn.dataset.tab === "budget") loadBudget();
     if (btn.dataset.tab === "body") loadBody();
     if (btn.dataset.tab === "review") loadReview();
   })
@@ -219,6 +220,125 @@ $("meal-btn").onclick = async () => {
   });
   $("meal-name").value = ""; $("meal-protein").value = "";
   loadToday();
+};
+
+// ---------- Budget ----------
+async function loadBudget() {
+  const o = await api("/api/budget/overview");
+  $("budget-period").textContent =
+    `Paycheck #${o.period.paycheck} · ${o.period.month}`;
+  $("sts-amount").textContent = `$${o.safe_to_spend.toFixed(2)}`;
+  $("sts-amount").className =
+    "sts-amount " + (o.safe_to_spend >= 0 ? "good-text" : "warn-text");
+  $("budget-breakdown").innerHTML = `
+    <div class="line"><span>OnePay in</span><span>$${o.paycheck_in.onepay.toFixed(2)}</span></div>
+    <div class="line"><span>Truliant savings split</span><span>$${o.paycheck_in.truliant.toFixed(2)}</span></div>
+    <div class="line"><span>Bills allocated</span><span>−$${o.allocated.toFixed(2)}</span></div>
+    <div class="line"><span>Bucket contributions</span><span>−$${o.bucket_contribution.toFixed(2)}</span></div>`;
+  const auditCls =
+    o.audit === "balanced" ? "good" : o.audit === "buffered" ? "" : "warn";
+  $("audit-badge").innerHTML =
+    `<span class="tag ${auditCls}">audit: ${o.audit}</span>
+     <div class="muted">${o.audit_note}</div>`;
+
+  const bl = $("budget-bills");
+  bl.innerHTML = "";
+  o.bills.forEach((b) => {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `<span>${b.name} <span class="muted">(due ${b.due_day}${b.note ? " · " + b.note : ""})</span></span>
+      <span>$${b.amount.toFixed(2)}</span>`;
+    const btn = document.createElement("button");
+    btn.className = "secondary";
+    if (b.paid) {
+      line.innerHTML += '<span class="tag good">paid</span>';
+      btn.textContent = "Undo";
+      btn.onclick = async () => { await api(`/api/budget/bills/${b.id}/unpaid`, "POST"); loadBudget(); };
+    } else {
+      btn.textContent = "Paid";
+      btn.onclick = async () => { await api(`/api/budget/bills/${b.id}/paid`, "POST"); loadBudget(); };
+    }
+    line.appendChild(btn);
+    bl.appendChild(line);
+  });
+
+  const acc = $("budget-accounts");
+  acc.innerHTML = "";
+  const bsel = $("bal-account");
+  bsel.innerHTML = "";
+  o.accounts.forEach((a) => {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `<span>${a.name}${a.role ? ` <span class="muted">(${a.role})</span>` : ""}</span>
+      <span>$${a.balance.toFixed(2)}</span>`;
+    acc.appendChild(line);
+    const opt = document.createElement("option");
+    opt.value = a.id; opt.textContent = a.name;
+    bsel.appendChild(opt);
+  });
+  acc.innerHTML += `<div class="line"><strong>Ecosystem cash</strong>
+    <strong>$${o.ecosystem_cash.toFixed(2)}</strong></div>`;
+
+  const fl = $("budget-funds");
+  fl.innerHTML = "";
+  o.funds.forEach((g) => {
+    const pct = g.target ? Math.min(100, (g.saved / g.target) * 100) : 0;
+    const div = document.createElement("div");
+    div.className = "bar-row";
+    div.innerHTML = `<span>${g.name}</span>
+      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+      <span>$${g.saved.toFixed(0)}${g.target ? " / $" + g.target.toFixed(0) : ""}
+        <span class="muted">+$${g.monthly.toFixed(0)}/mo</span></span>`;
+    fl.appendChild(div);
+  });
+
+  const dl = $("budget-debts");
+  dl.innerHTML = o.debts.length ? "" : '<div class="muted">Debt free 🎉</div>';
+  o.debts.forEach((d) => {
+    const pct = d.total ? Math.min(100, ((d.total - d.remaining) / d.total) * 100) : 0;
+    const div = document.createElement("div");
+    div.className = "bar-row";
+    div.innerHTML = `<span>${d.name}</span>
+      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+      <span>$${d.remaining.toFixed(0)} left</span>`;
+    const pay = document.createElement("button");
+    pay.className = "secondary";
+    pay.textContent = `Pay $${d.installment.toFixed(0)}`;
+    pay.onclick = async () => {
+      await api(`/api/budget/debts/${d.id}/payment`, "POST", { amount: d.installment });
+      loadBudget();
+    };
+    div.appendChild(pay);
+    dl.appendChild(div);
+  });
+  if (o.debts.length) {
+    dl.innerHTML += `<div class="line"><strong>Total remaining</strong>
+      <strong>$${o.total_debt.toFixed(2)}</strong></div>`;
+  }
+
+  $("budget-networth").innerHTML =
+    o.assets
+      .map((a) => `<div class="line"><span>${a.name}
+        <span class="muted">(+$${a.per_paycheck.toFixed(2)}/check)</span></span>
+        <span>$${a.balance.toFixed(2)}</span></div>`)
+      .join("") +
+    `<div class="line"><strong>Net worth</strong><strong>$${o.net_worth.toFixed(2)}</strong></div>`;
+
+  const f = await api("/api/budget/forecast");
+  $("budget-forecast").innerHTML = f.forecast
+    .map((p) => `<div class="line"><span>${p.period}
+      <span class="muted">(bills $${p.bills.toFixed(0)})</span></span>
+      <span class="${p.surplus >= 0 ? "good-text" : "warn-text"}">${p.surplus >= 0 ? "+" : ""}$${p.surplus.toFixed(0)}
+        <span class="muted">buffer $${p.projected_buffer.toFixed(0)}</span></span></div>`)
+    .join("");
+}
+
+$("bal-btn").onclick = async () => {
+  const balance = parseFloat($("bal-amount").value);
+  if (isNaN(balance)) return;
+  await api(`/api/vault/accounts/${$("bal-account").value}/balance`, "PUT", { balance });
+  $("bal-amount").value = "";
+  loadBudget();
 };
 
 // ---------- Vault Flow ----------

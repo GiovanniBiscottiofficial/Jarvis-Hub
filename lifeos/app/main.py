@@ -5,7 +5,15 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .db import active_profile, conn, get_setting, init_db
-from .routers import bodyops, insights, pantry, profiles, vaultflow, webhooks
+from .routers import (
+    bodyops,
+    budget,
+    insights,
+    pantry,
+    profiles,
+    vaultflow,
+    webhooks,
+)
 from .routers.bodyops import protein_today, streak, water_today
 from .suggestions import suggest_meals
 
@@ -13,6 +21,7 @@ app = FastAPI(title="LifeOS", version="0.2.0")
 init_db()
 
 app.include_router(bodyops.router)
+app.include_router(budget.router)
 app.include_router(vaultflow.router)
 app.include_router(webhooks.router)
 app.include_router(profiles.router)

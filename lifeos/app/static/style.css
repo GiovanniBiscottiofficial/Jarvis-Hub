@@ -129,3 +129,10 @@ button.pill {
 }
 .tag.warn { background: var(--warn); color: #331f00; border: 0; }
 .tag.good { background: var(--good); color: #05240a; border: 0; }
+.safe-to-spend { text-align: center; margin: 4px 0 12px; }
+.sts-amount {
+  font-size: 2.4rem; font-weight: 300; letter-spacing: 0.03em;
+  text-shadow: 0 0 18px rgba(0, 212, 255, 0.35);
+}
+.good-text { color: var(--good); }
+.warn-text { color: var(--warn); }

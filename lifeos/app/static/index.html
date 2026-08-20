@@ -19,6 +19,7 @@
   <nav>
     <button class="tab active" data-tab="today">Today</button>
     <button class="tab" data-tab="body">Body Ops</button>
+    <button class="tab" data-tab="budget">Budget</button>
     <button class="tab" data-tab="vault">Vault Flow</button>
     <button class="tab" data-tab="review">Review</button>
   </nav>
@@ -125,6 +126,54 @@
       </div>
       <h2>Grocery suggestions</h2>
       <div id="grocery" class="muted">–</div>
+    </div>
+  </section>
+
+  <!-- ============ BUDGET ============ -->
+  <section id="budget" class="panel">
+    <div class="card">
+      <h2 id="budget-period">Paycheck</h2>
+      <div class="safe-to-spend">
+        <div class="sts-amount" id="sts-amount">–</div>
+        <div class="muted">safe to spend this paycheck</div>
+      </div>
+      <div id="budget-breakdown"></div>
+      <div id="audit-badge"></div>
+    </div>
+
+    <div class="card">
+      <h2>This paycheck's bills</h2>
+      <div id="budget-bills" class="muted">–</div>
+    </div>
+
+    <div class="card">
+      <h2>Accounts <span class="muted">(OnePay · Truliant · Relay)</span></h2>
+      <div id="budget-accounts"></div>
+      <div class="row">
+        <select id="bal-account"></select>
+        <input id="bal-amount" type="number" step="0.01" placeholder="actual balance $">
+        <button id="bal-btn">Update</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sinking buckets <span class="muted">(Relay)</span></h2>
+      <div id="budget-funds" class="muted">–</div>
+    </div>
+
+    <div class="card">
+      <h2>Debt paydown</h2>
+      <div id="budget-debts" class="muted">–</div>
+    </div>
+
+    <div class="card">
+      <h2>Net worth</h2>
+      <div id="budget-networth"></div>
+    </div>
+
+    <div class="card">
+      <h2>Cash flow forecast <span class="muted">(next 6 paychecks)</span></h2>
+      <div id="budget-forecast" class="muted">–</div>
     </div>
   </section>
 

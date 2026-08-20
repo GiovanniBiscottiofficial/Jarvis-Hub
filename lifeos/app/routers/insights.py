@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from ..db import active_profile, conn, get_setting
 from ..suggestions import suggest_meals
 from .bodyops import protein_today, streak, water_today
+from .budget import budget_speech
 from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
@@ -98,6 +99,7 @@ def morning_briefing():
         ]
         vitamin_streak = streak(c, "vitamins")
         spent_week = week_spending(c)
+        budget = budget_speech(c)
 
     total = sum(a["balance"] for a in accounts)
     bills_total = sum(b["amount"] for b in bills)
@@ -126,6 +128,9 @@ def morning_briefing():
         parts.append(f"No bills due this week; ${total:.0f} available.")
     if spent_week:
         parts.append(f"Discretionary spending is ${spent_week:.0f} this week.")
+    parts.append(
+        f"Safe to spend this paycheck: ${budget['safe_to_spend']:.0f}."
+    )
     if workouts:
         parts.append(f"On the plan: {workouts[0]['kind']}.")
     if meals:
@@ -142,6 +147,8 @@ def morning_briefing():
         "leftover_after_bills": leftover,
         "workouts_today": workouts,
         "meal_picks": meals,
+        "safe_to_spend": budget["safe_to_spend"],
+        "audit_health": budget["audit_health"],
         "speech": " ".join(parts),
     }
 
@@ -321,6 +328,7 @@ def ask():
                 "SELECT fact FROM memories WHERE active=1 ORDER BY ts DESC LIMIT 10"
             ).fetchall()
         ]
+        budget = budget_speech(c)
 
     target = prof["protein_target_g"]
     left = max(0, round(target - protein))
@@ -441,6 +449,11 @@ def ask():
         "memory": memory_speech,
         "dinner": dinner_speech,
         "evening": evening_speech,
+        "budget": budget["budget"],
+        "paycheck": budget["paycheck"],
+        "networth": budget["networth"],
+        "safe_to_spend": budget["safe_to_spend"],
+        "audit_health": budget["audit_health"],
         "nudge": nudge_row["text"] if nudge_row else "",
         "nudge_id": nudge_row["id"] if nudge_row else 0,
     }

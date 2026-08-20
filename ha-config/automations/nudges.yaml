@@ -52,3 +52,24 @@
         message: >-
           A word, sir — this month's spending just crossed your
           {{ states('input_number.monthly_budget') | int }} dollar budget.
+
+# Zero-leakage guard: fires when the budget audit flips to "action needed"
+# (OnePay can no longer cover what's still committed this paycheck).
+- id: lifeos_budget_audit_alert
+  alias: "Budget: audit needs action"
+  trigger:
+    - platform: state
+      entity_id: sensor.lifeos_safe_to_spend
+      attribute: audit
+      to: "action needed"
+  action:
+    - service: notify.mobile_app_phone
+      data:
+        title: "Budget audit"
+        message: >-
+          {{ state_attr('sensor.lifeos_safe_to_spend', 'audit_note') }}
+    - service: script.jarvis_say
+      data:
+        message: >-
+          Sir, the budget audit flagged a shortfall.
+          {{ state_attr('sensor.lifeos_safe_to_spend', 'audit_note') }}

@@ -470,6 +470,26 @@ views:
                 navigation_path: /lifeos-app/app
           - type: custom:bubble-card
             card_type: button
+            button_type: state
+            card_layout: large
+            entity: sensor.lifeos_safe_to_spend
+            name: Safe to Spend
+            icon: mdi:cash-check
+            sub_button:
+              - entity: sensor.lifeos_safe_to_spend
+                name: Audit
+                attribute: audit
+                show_attribute: true
+                show_state: false
+            tap_action:
+              action: navigate
+              navigation_path: /lifeos-app/app
+            button_action:
+              tap_action:
+                action: navigate
+                navigation_path: /lifeos-app/app
+          - type: custom:bubble-card
+            card_type: button
             button_type: name
             card_layout: large
             name: Apps & Media
