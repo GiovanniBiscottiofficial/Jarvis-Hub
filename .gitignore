@@ -20,6 +20,7 @@ ha-config/www/*
 !ha-config/www/jarvis-splash.html
 !ha-config/www/jarvis-avatar.html
 !ha-config/www/community
+!ha-config/www/fonts
 ha-config/automations/*
 !ha-config/automations/*.yaml
 ha-config/scripts/*
