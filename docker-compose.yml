@@ -172,6 +172,7 @@ services:
     build: ./gestures
     profiles: [gestures]
     restart: unless-stopped
+    cpus: 1.0   # hand tracking is CPU-hungry; cap it so it can't overheat the X1
     network_mode: host
     environment:
       - DISPLAY=:0
