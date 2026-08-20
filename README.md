@@ -91,6 +91,7 @@ The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up
 | `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
 | `bootstrap/setup-backups.sh` | Nightly 3 AM backup of the LifeOS DB + HA config (`backup.sh` runs one on demand; point `BACKUP_DIR` at a USB drive) |
 | `bootstrap/setup-satellite.sh` | Turns the X1's own mic into a "hey Jarvis" satellite and its webcam into an RTSP camera for Frigate/HA |
+| `bootstrap/setup-gestures.sh` | Hand-gesture control: swipe at the webcam to scroll Shorts, skip videos, go back (MediaPipe + xdotool) |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -132,6 +133,7 @@ Tick them off as you go.
 - [ ] **Cameras (when you get them)**: put each camera's RTSP URL in `frigate/config.yml`, run `docker compose --profile cameras up -d`, add the **Frigate** integration via HACS — live views land on the dashboard's Cameras tab (viewable from work via Tailscale)
 - [ ] **Plex media server**: drop movies/shows/music into `~/jarvis-media`, claim token into `.env` (step 6 above), `docker compose --profile media up -d`, then HA → Add Integration → **Plex**. "Hey Jarvis, play [movie]" works through Assist once the player entities exist; Plex-triggered movie lighting is ready to uncomment in `ha-config/automations/movie_mode.yaml`. QuickSync transcoding is wired, but with 8 GB RAM prefer direct play. Prefer no account/free? **Jellyfin**: `docker compose --profile jellyfin up -d`, set up at `http://<laptop-ip>:8096`, then HA → Add Integration → **Jellyfin** — same media folder, same transcoding
 - [ ] **Spotify mood music**: add the Spotify integration (free dev app), then uncomment the R&B-evenings / lo-fi-focus automation in `ha-config/automations/entertainment.yaml`
+- [ ] **Hand gestures**: `bash bootstrap/setup-gestures.sh` (after the satellite script) — swipe at the webcam to scroll Shorts (up/down), skip a video (forward), or go back (back). See "The X1 as a sensor node" below
 - [ ] **NFC tags**: write a nightstand + door-frame tag with the Companion app, paste the tag IDs into `ha-config/automations/nfc_tags.yaml`
 - [ ] **Wall+ UI upgrade** (needs HACS): HACS → Frontend → download **Bubble Card**, **Mushroom**, and **mini-graph-card** (plus **card-mod** for the pulsing-glow clock and shimmer edges — optional, everything else works without it), then reload the browser — the new **Wall+** tab lights up: animated slider light buttons with pop-up room panels, status chips (room atmosphere, work hours, battery, CPU), live CPU/RAM/temp/battery graphs, the avatar, and the briefing. Until the three cards are installed, Wall+ shows red "custom element doesn't exist" boxes — the classic Wall tab keeps working either way. To make Wall+ the kiosk screen: `KIOSK_URL="http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus" bash bootstrap/setup-kiosk.sh` and reboot
 
@@ -327,6 +329,13 @@ bash bootstrap/setup-satellite.sh
   view: HA → Add Integration → **Generic Camera** with that URL. Person detection:
   uncomment the `x1_webcam` block in `frigate/config.yml` and run
   `docker compose --profile cameras up -d`.
+- **Webcam → hand-gesture control**: `bash bootstrap/setup-gestures.sh` and the
+  kiosk obeys swipes at the camera — **up** = next Short (screen slides up),
+  **down** = previous, **forward** (hand to your right) = skip/next video,
+  **back** (hand to your left) = last screen. Needs decent lighting and a
+  deliberate swipe 2–6 ft from the camera; tune sensitivity in
+  `/etc/systemd/system/jarvis-gestures.service`. Watch it think:
+  `journalctl -u jarvis-gestures -f`.
 
 ## Access from anywhere
 
