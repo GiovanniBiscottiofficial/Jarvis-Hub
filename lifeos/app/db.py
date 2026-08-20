@@ -323,6 +323,12 @@ def _migrate(c: sqlite3.Connection) -> None:
             "UPDATE accounts SET name='Truliant' WHERE name='True Lion'"
             " AND NOT EXISTS (SELECT 1 FROM accounts WHERE name='Truliant')"
         )
+        # FreePlay isn't part of the 3-account money flow; drop it if unused
+        c.execute(
+            "DELETE FROM accounts WHERE name='FreePlay' AND balance=0"
+            " AND NOT EXISTS (SELECT 1 FROM deposits WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM bills WHERE account_id=accounts.id)"
+        )
     for table in ("meal_log", "weighins", "workouts"):
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
         if cols and "profile_id" not in cols:
