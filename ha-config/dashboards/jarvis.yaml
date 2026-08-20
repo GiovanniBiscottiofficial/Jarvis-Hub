@@ -322,13 +322,12 @@ views:
                   navigation_path: "#bedroom"
           # Pop-up room panels — opened by the "More" sub-buttons above.
           # Swap/add entities here as real devices get paired.
-          - type: vertical-stack
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#living-room"
+            name: Living Room
+            icon: mdi:sofa
             cards:
-              - type: custom:bubble-card
-                card_type: pop-up
-                hash: "#living-room"
-                name: Living Room
-                icon: mdi:sofa
               - type: tile
                 entity: light.living_room
                 name: Lights
@@ -348,13 +347,12 @@ views:
                     commands:
                       - start_pause
                       - return_home
-          - type: vertical-stack
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#bedroom"
+            name: Bedroom
+            icon: mdi:bed
             cards:
-              - type: custom:bubble-card
-                card_type: pop-up
-                hash: "#bedroom"
-                name: Bedroom
-                icon: mdi:bed
               - type: tile
                 entity: light.bedroom
                 name: Lights
