@@ -1,7 +1,10 @@
 """LifeOS — Vault Flow + Body Ops for the Jarvis Hub."""
 from datetime import date
+import hmac
+import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import active_profile, conn, get_setting, init_db
@@ -18,6 +21,55 @@ from .routers.bodyops import protein_today, streak, water_today
 from .suggestions import suggest_meals
 
 app = FastAPI(title="LifeOS", version="0.2.0")
+
+
+PUBLIC_PATHS = {"/api/health", "/api/auth"}
+
+
+def _token_matches(supplied: str | None, expected: str) -> bool:
+    if not supplied or not expected:
+        return False
+    supplied_bytes = supplied.encode()
+    expected_bytes = expected.encode()
+    return len(supplied_bytes) == len(expected_bytes) and hmac.compare_digest(
+        supplied_bytes, expected_bytes
+    )
+
+
+
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    if request.url.path.startswith("/api/") and request.url.path not in PUBLIC_PATHS:
+        expected = os.environ.get("LIFEOS_API_TOKEN", "").strip()
+        authorization = request.headers.get("authorization", "")
+        supplied = (
+            authorization[7:].strip()
+            if authorization.lower().startswith("bearer ")
+            else request.cookies.get("lifeos_session", "")
+        )
+        if not expected or not _token_matches(supplied, expected):
+            return JSONResponse({"detail": "authentication required"}, status_code=401)
+    return await call_next(request)
+
+
+@app.get("/api/health")
+def healthcheck():
+    return {"ok": True}
+
+
+@app.post("/api/auth")
+async def auth(request: Request):
+    expected = os.environ.get("LIFEOS_API_TOKEN", "").strip()
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"detail": "invalid JSON"}, status_code=400)
+    if not expected or not _token_matches(body.get("token"), expected):
+        return JSONResponse({"detail": "invalid token"}, status_code=401)
+    response = JSONResponse({"ok": True})
+    response.set_cookie("lifeos_session", expected, httponly=True, samesite="strict", secure=False, max_age=86400)
+    return response
+
 init_db()
 
 app.include_router(bodyops.router)
@@ -70,11 +122,6 @@ def today():
             "vault_total": sum(a["balance"] for a in accounts),
             "nudges": nudges,
         }
-
-
-@app.get("/api/health")
-def healthcheck():
-    return {"ok": True}
 
 
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")

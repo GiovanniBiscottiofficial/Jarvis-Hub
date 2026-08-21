@@ -54,7 +54,8 @@ wake_on_lan:
 tts:
   - platform: google_translate
 
-# Voice logging into LifeOS (called from intents.yaml)
+# Voice logging into LifeOS (called from intents.yaml).
+# Add Authorization: Bearer <LIFEOS_API_TOKEN> to these requests if LifeOS auth is enabled.
 rest_command:
   lifeos_take_vitamins:
     url: http://localhost:8090/api/body/vitamins/take

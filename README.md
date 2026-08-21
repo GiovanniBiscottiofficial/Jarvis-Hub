@@ -63,7 +63,17 @@ which dormant features wake up) is **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVI
 
    Finish setup at `http://<laptop-ip>:32400/web`, then HA → Add Integration → **Plex**.
    The token is only needed the very first start — after that Plex stays claimed.
-7. Weather in the morning briefing — home coordinates into `.env`:
+7. Set the LifeOS secrets in `.env` (use long random values; do not commit `.env`):
+
+   ```bash
+   openssl rand -hex 32
+   # Set LIFEOS_API_TOKEN to one random value and LIFEOS_HEALTH_WEBHOOK_SECRET to another.
+   # Configure Health Auto Export to send Authorization: Bearer LIFEOS_API_TOKEN.
+   # The signed webhook expects X-LifeOS-Timestamp, X-LifeOS-Event-Id, and
+   # X-LifeOS-Signature = HMAC-SHA256(timestamp.event_id.body, webhook secret).
+   ```
+
+8. Weather in the morning briefing — home coordinates into `.env`:
 
    ```bash
    cd ~/Jarvis-Hub
@@ -96,7 +106,7 @@ The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up
 | `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
 | `bootstrap/setup-backups.sh` | Nightly 3 AM backup of the LifeOS DB + HA config (`backup.sh` runs one on demand; point `BACKUP_DIR` at a USB drive) |
 | `bootstrap/setup-satellite.sh` | Turns the X1's own mic into a "hey Jarvis" satellite and its webcam into an RTSP camera for Frigate/HA |
-| `bootstrap/setup-gestures.sh` | Hand-gesture control: swipe at the webcam to scroll Shorts, skip videos, go back (MediaPipe + xdotool) |
+| `bootstrap/setup-gestures.sh` | Hand-gesture control: swipe at the webcam to scroll Shorts, skip videos, go back (MediaPipe + Wayland `wtype`) |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -120,7 +130,7 @@ Tick them off as you go.
 - [ ] **Phase 3 — Voice**: `docker compose --profile voice up -d`, then HA → Add Integration → **Wyoming** three times (ports 10300 Whisper, 10200 Piper, 10400 openWakeWord); build the Assist pipeline with wake word "hey Jarvis"; `bash bootstrap/setup-satellite.sh` to make the X1's own mic listen room-wide
 - [ ] **Phase 8 — The LLM brain**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant", and paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) (already loaded with Giovanni's schedule, people, tastes) into its Instructions. (Or the Anthropic/OpenAI integration for a smarter cloud agent.)
 - [ ] **Remote access**: `bash bootstrap/setup-remote-access.sh` once at home — Tailscale tunnel for controlling everything from work/cellular
-- [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Vault Flow / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), speak in your bills ("add a bill called rent…") and usual meals, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync
+- [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Vault Flow / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), speak in your bills ("add a bill called rent…") and usual meals, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync; configure its authentication headers to match the signed webhook contract described above
 - [ ] **Backups**: `bash bootstrap/setup-backups.sh` — nightly 3 AM backup of the LifeOS DB + HA config
 
 **Devices — pair as you go:**

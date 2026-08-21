@@ -3,7 +3,7 @@
 # screen (next/previous Short, skip video, go back). MediaPipe hand tracking
 # runs in its own container (it needs Python <=3.12) watching the go2rtc
 # webcam stream, so it shares the camera with HA/Frigate.
-# Run AFTER setup-satellite.sh (webcam RTSP) and setup-kiosk.sh (X display):
+# Run AFTER setup-satellite.sh (webcam RTSP) and setup-kiosk.sh (Wayland kiosk):
 #   bash bootstrap/setup-gestures.sh
 set -euo pipefail
 
@@ -12,6 +12,11 @@ cd "$REPO_DIR"
 
 if ! systemctl is-active --quiet go2rtc; then
   echo "!! go2rtc isn't running — run 'bash bootstrap/setup-satellite.sh' first." >&2
+  exit 1
+fi
+
+if [ -z "${KIOSK_UID:-}" ]; then
+  echo "Set KIOSK_UID to the UID of the Wayland kiosk user before starting gestures." >&2
   exit 1
 fi
 

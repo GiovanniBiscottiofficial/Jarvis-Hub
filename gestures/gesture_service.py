@@ -24,7 +24,8 @@ import cv2
 import mediapipe as mp
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "rtsp://127.0.0.1:8556/x1_webcam")
-DISPLAY = os.environ.get("DISPLAY", ":0")
+WAYLAND_DISPLAY = os.environ.get("WAYLAND_DISPLAY", "wayland-0")
+XDG_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR", "")
 # Fraction of frame the hand must travel to count as a swipe
 X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.30"))
 Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.28"))
@@ -32,15 +33,17 @@ WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.6"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.4"))
 
 ACTIONS = {
-    "up": ["xdotool", "click", "--repeat", "4", "5"],       # scroll: next Short
-    "down": ["xdotool", "click", "--repeat", "4", "4"],     # scroll: previous
-    "forward": ["xdotool", "key", "--clearmodifiers", "Down"],      # skip/next
-    "back": ["xdotool", "key", "--clearmodifiers", "alt+Left"],     # go back
+    "up": ["wtype", "-M", "CTRL", "-k", "PAGEDOWN", "-m", "CTRL"],
+    "down": ["wtype", "-M", "CTRL", "-k", "PAGEUP", "-m", "CTRL"],
+    "forward": ["wtype", "-k", "DOWN"],
+    "back": ["wtype", "-M", "ALT", "-k", "LEFT", "-m", "ALT"],
 }
 
 
 def fire(gesture: str) -> None:
-    env = dict(os.environ, DISPLAY=DISPLAY)
+    if not XDG_RUNTIME_DIR:
+        raise RuntimeError("XDG_RUNTIME_DIR is required for Wayland input")
+    env = dict(os.environ, WAYLAND_DISPLAY=WAYLAND_DISPLAY, XDG_RUNTIME_DIR=XDG_RUNTIME_DIR)
     subprocess.Popen(ACTIONS[gesture], env=env)
     print(f"gesture: {gesture}", flush=True)
 

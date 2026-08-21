@@ -6,7 +6,20 @@ async function api(path, method = "GET", body) {
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  return res.json();
+  if (res.status === 401) {
+    const token = window.prompt("Enter your LifeOS API token");
+    if (token) {
+      const auth = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (auth.ok) return api(path, method, body);
+    }
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || `LifeOS request failed (${res.status})`);
+  return data;
 }
 
 // ---------- tabs ----------

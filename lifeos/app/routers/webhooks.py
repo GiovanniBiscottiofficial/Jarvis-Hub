@@ -1,23 +1,59 @@
 """Inbound webhooks: Health Auto Export (Apple Watch / HealthKit / smart scale)."""
 from datetime import date
+import hashlib
+import hmac
+import json
+import os
+import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from ..db import active_profile, conn
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
 
 KG_TO_LB = 2.20462
+PROCESSED_EVENTS: dict[str, float] = {}
+
+
+def prune_events(now: float) -> None:
+    for event_id, timestamp in list(PROCESSED_EVENTS.items()):
+        if now - timestamp > 86400:
+            del PROCESSED_EVENTS[event_id]
+
+
+def _signature_valid(body: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature, expected)
 
 
 @router.post("/health")
 async def health_auto_export(request: Request):
-    """Accepts Health Auto Export JSON pushes.
-    Payload shape: {"data": {"metrics": [{"name": ..., "units": ...,
-    "data": [{"date": ..., "qty": ...}, ...]}, ...]}}
-    Handles step_count and body_mass (weight); other metrics ignored for now.
-    """
-    payload = await request.json()
+    """Accepts signed Health Auto Export JSON pushes."""
+    secret = os.environ.get("LIFEOS_HEALTH_WEBHOOK_SECRET", "").strip()
+    if not secret:
+        raise HTTPException(503, "health webhook secret is not configured")
+    signature = request.headers.get("x-lifeos-signature", "")
+    timestamp = request.headers.get("x-lifeos-timestamp", "")
+    event_id = request.headers.get("x-lifeos-event-id", "")
+    try:
+        ts = int(timestamp)
+    except ValueError:
+        raise HTTPException(401, "invalid webhook timestamp")
+    if not event_id or abs(time.time() - ts) > 300:
+        raise HTTPException(401, "stale or missing webhook metadata")
+    body = await request.body()
+    expected = hmac.new(secret.encode(), f"{timestamp}.{event_id}.".encode() + body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(401, "invalid webhook signature")
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "invalid JSON payload")
+    prune_events(time.time())
+    if event_id in PROCESSED_EVENTS:
+        return {"ok": True, "duplicate": True, "imported": {"steps": 0, "weighins": 0}}
+    PROCESSED_EVENTS[event_id] = time.time()
     metrics = (payload.get("data") or {}).get("metrics") or []
     imported = {"steps": 0, "weighins": 0}
     with conn() as c:
@@ -46,4 +82,4 @@ async def health_auto_export(request: Request):
                         (day + " 08:00:00", weight, pid),
                     )
                     imported["weighins"] += 1
-    return {"ok": True, "imported": imported}
+    return {"ok": True, "imported": imported, "event_id": event_id}

@@ -36,6 +36,8 @@ services:
       # Grocy pantry sync (Grocy → Settings → Manage API keys)
       - GROCY_URL=${GROCY_URL:-}
       - GROCY_API_KEY=${GROCY_API_KEY:-}
+      - LIFEOS_API_TOKEN=${LIFEOS_API_TOKEN:-}
+      - LIFEOS_HEALTH_WEBHOOK_SECRET=${LIFEOS_HEALTH_WEBHOOK_SECRET:-}
     ports:
       - "8090:8090"
     volumes:
@@ -165,23 +167,22 @@ services:
 
   # ---------- Hand-gesture kiosk control (profile: gestures) ----------
   # Watches the go2rtc webcam stream (setup-satellite.sh) for swipes and
-  # drives the kiosk's X display. Containerized because MediaPipe needs
-  # Python <=3.12.
+  # sends Wayland input through the host compositor. Containerized because
+  # MediaPipe needs Python <=3.12.
   gestures:
     container_name: gestures
     build: ./gestures
     profiles: [gestures]
     restart: unless-stopped
-    cpus: 1.0   # hand tracking is CPU-hungry; cap it so it can't overheat the X1
+    cpus: 1.0
     network_mode: host
     environment:
-      - DISPLAY=:0
-      - XAUTHORITY=/xauth
       - GESTURE_SOURCE=rtsp://127.0.0.1:8556/x1_webcam
+      - WAYLAND_DISPLAY=wayland-0
+      - XDG_RUNTIME_DIR=/run/user/${KIOSK_UID:-1000}
       # Tuning: GESTURE_COOLDOWN_S, GESTURE_X_TRAVEL, GESTURE_Y_TRAVEL
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ${HOME}/.Xauthority:/xauth:ro
+      - ${XDG_RUNTIME_DIR:-/run/user/${KIOSK_UID:-1000}}:/run/user/${KIOSK_UID:-1000}
 
 volumes:
   plex-config:
