@@ -68,9 +68,10 @@ which dormant features wake up) is **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVI
    ```bash
    openssl rand -hex 32
    # Set LIFEOS_API_TOKEN to one random value and LIFEOS_HEALTH_WEBHOOK_SECRET to another.
-   # Configure Health Auto Export to send Authorization: Bearer LIFEOS_API_TOKEN.
-   # The signed webhook expects X-LifeOS-Timestamp, X-LifeOS-Event-Id, and
-   # X-LifeOS-Signature = HMAC-SHA256(timestamp.event_id.body, webhook secret).
+   # For Health Auto Export, add these REST API headers:
+   # Authorization: Bearer <LIFEOS_API_TOKEN>
+   # X-LifeOS-Webhook-Secret: <LIFEOS_HEALTH_WEBHOOK_SECRET>
+   # Its built-in session-id header is used as the duplicate-event key.
    ```
 
 8. Weather in the morning briefing — home coordinates into `.env`:

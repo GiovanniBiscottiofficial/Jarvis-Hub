@@ -22,30 +22,38 @@ def prune_events(now: float) -> None:
             del PROCESSED_EVENTS[event_id]
 
 
-def _signature_valid(body: bytes, signature: str, secret: str) -> bool:
-    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(signature, expected)
-
-
 @router.post("/health")
 async def health_auto_export(request: Request):
-    """Accepts signed Health Auto Export JSON pushes."""
+    """Accept Health Auto Export pushes with a static secret and dedupe key."""
     secret = os.environ.get("LIFEOS_HEALTH_WEBHOOK_SECRET", "").strip()
     if not secret:
         raise HTTPException(503, "health webhook secret is not configured")
+
+    supplied_secret = request.headers.get("x-lifeos-webhook-secret", "")
+    if not hmac.compare_digest(supplied_secret, secret):
+        raise HTTPException(401, "invalid webhook secret")
+
+    body = await request.body()
     signature = request.headers.get("x-lifeos-signature", "")
     timestamp = request.headers.get("x-lifeos-timestamp", "")
-    event_id = request.headers.get("x-lifeos-event-id", "")
-    try:
-        ts = int(timestamp)
-    except ValueError:
-        raise HTTPException(401, "invalid webhook timestamp")
-    if not event_id or abs(time.time() - ts) > 300:
-        raise HTTPException(401, "stale or missing webhook metadata")
-    body = await request.body()
-    expected = hmac.new(secret.encode(), f"{timestamp}.{event_id}.".encode() + body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        raise HTTPException(401, "invalid webhook signature")
+    event_id = request.headers.get("x-lifeos-event-id") or request.headers.get("session-id", "")
+    if not event_id:
+        raise HTTPException(401, "missing webhook event id")
+    if signature or timestamp:
+        try:
+            ts = int(timestamp)
+        except ValueError:
+            raise HTTPException(401, "invalid webhook timestamp")
+        if abs(time.time() - ts) > 300:
+            raise HTTPException(401, "stale webhook timestamp")
+        expected = hmac.new(
+            secret.encode(),
+            f"{timestamp}.{event_id}.".encode() + body,
+            hashlib.sha256,
+        ).hexdigest()
+        if not signature or not hmac.compare_digest(signature, expected):
+            raise HTTPException(401, "invalid webhook signature")
+
     try:
         payload = json.loads(body)
     except json.JSONDecodeError:
