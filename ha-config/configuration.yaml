@@ -60,97 +60,139 @@ rest_command:
   lifeos_take_vitamins:
     url: http://localhost:8090/api/body/vitamins/take
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
   lifeos_log_protein:
     url: http://localhost:8090/api/body/meals/log
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"name": "Voice-logged meal", "protein_g": {{ grams }}}'
   lifeos_weighin:
     url: http://localhost:8090/api/body/weighin
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"weight_lb": {{ pounds }}}'
   lifeos_set_steps:
     url: http://localhost:8090/api/body/steps
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"count": {{ steps }}}'
   lifeos_treat:
     url: http://localhost:8090/api/body/overrides
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"meal": "Voice-logged treat", "kind": "today"}'
   lifeos_deposit:
     url: http://localhost:8090/api/vault/deposits/by-name
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"amount": {{ amount }}, "account": {{ account | tojson }}}'
   lifeos_bill_paid:
     url: http://localhost:8090/api/vault/bills/paid/by-name
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"name": {{ bill | tojson }}}'
   lifeos_resolve_nudge:
     url: http://localhost:8090/api/vault/nudges/{{ nudge_id }}/resolve
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
   lifeos_add_bill:
     url: http://localhost:8090/api/vault/bills
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     # due_day comes in spoken ("the 15th") — strip everything but digits
     payload: '{"name": {{ bill | tojson }}, "amount": {{ amount }}, "due_day": {{ due_day | regex_replace("[^0-9]", "") | int(1) }}}'
   lifeos_add_account:
     url: http://localhost:8090/api/vault/accounts
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"name": {{ account | tojson }}}'
   lifeos_spend:
     url: http://localhost:8090/api/vault/spending
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"amount": {{ amount }}, "merchant": {{ merchant | tojson }}}'
   lifeos_grocery_add:
     url: http://localhost:8090/api/pantry/grocery
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"item": {{ item | tojson }}}'
   lifeos_grocery_remove:
     url: http://localhost:8090/api/pantry/grocery/remove
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"item": {{ item | tojson }}}'
   lifeos_grocery_clear:
     url: http://localhost:8090/api/pantry/grocery/clear
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
   lifeos_favorite_log:
     url: http://localhost:8090/api/body/favorites/{{ slot }}/log
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
   lifeos_favorite_set:
     url: http://localhost:8090/api/body/favorites/{{ slot }}
     method: PUT
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"meal": {{ meal | tojson }}}'
   lifeos_water:
     url: http://localhost:8090/api/body/water
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"glasses": {{ glasses | int(1) }}}'
   lifeos_remember:
     url: http://localhost:8090/api/memory
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"fact": {{ fact | tojson }}}'
   lifeos_forget:
     url: http://localhost:8090/api/memory/forget
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
   lifeos_workout:
     url: http://localhost:8090/api/body/workouts/log
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{}'
   lifeos_goal_contribute:
     url: http://localhost:8090/api/vault/goals/contribute
     method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"name": {{ goal | tojson }}, "amount": {{ amount }}}'
 
@@ -195,12 +237,16 @@ input_number:
 # LifeOS speech feeds — Jarvis reads these aloud (see automations/briefing.yaml)
 rest:
   - resource: http://localhost:8090/api/briefing
+    headers:
+      Authorization: !secret lifeos_api_authorization
     scan_interval: 900
     sensor:
       - name: LifeOS morning briefing
         value_template: "{{ value_json.date }}"
         json_attributes: [speech, leftover_after_bills, vitamins_taken]
   - resource: http://localhost:8090/api/review/weekly
+    headers:
+      Authorization: !secret lifeos_api_authorization
     scan_interval: 3600
     sensor:
       - name: LifeOS weekly review
@@ -208,6 +254,8 @@ rest:
         json_attributes: [speech, avg_daily_protein_g, treats_this_week]
   # Ready-to-speak answers for the voice intents in intents.yaml
   - resource: http://localhost:8090/api/ask
+    headers:
+      Authorization: !secret lifeos_api_authorization
     scan_interval: 120
     sensor:
       - name: LifeOS answers
@@ -215,6 +263,8 @@ rest:
         json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health]
   # Month-to-date spending from the LifeOS ledger (voice-logged spends)
   - resource: http://localhost:8090/api/vault/spending
+    headers:
+      Authorization: !secret lifeos_api_authorization
     scan_interval: 900
     sensor:
       - name: LifeOS monthly spending
@@ -223,6 +273,8 @@ rest:
         json_attributes: [week_total]
   # Semi-monthly budget command center (paycheck allocation + audit)
   - resource: http://localhost:8090/api/budget/overview
+    headers:
+      Authorization: !secret lifeos_api_authorization
     scan_interval: 300
     sensor:
       - name: LifeOS safe to spend

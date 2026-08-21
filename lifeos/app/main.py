@@ -23,7 +23,8 @@ from .suggestions import suggest_meals
 app = FastAPI(title="LifeOS", version="0.2.0")
 
 
-PUBLIC_PATHS = {"/api/health", "/api/auth"}
+PUBLIC_PATHS = {"/api/auth", "/healthz"}
+LOCAL_CLIENTS = {"127.0.0.1", "::1"}
 
 
 def _token_matches(supplied: str | None, expected: str) -> bool:
@@ -40,6 +41,9 @@ def _token_matches(supplied: str | None, expected: str) -> bool:
 @app.middleware("http")
 async def require_api_token(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.url.path not in PUBLIC_PATHS:
+        client_host = request.client.host if request.client else ""
+        if client_host in LOCAL_CLIENTS:
+            return await call_next(request)
         expected = os.environ.get("LIFEOS_API_TOKEN", "").strip()
         authorization = request.headers.get("authorization", "")
         supplied = (
@@ -52,8 +56,13 @@ async def require_api_token(request: Request, call_next):
     return await call_next(request)
 
 
-@app.get("/api/health")
+@app.get("/healthz")
 def healthcheck():
+    return {"ok": True}
+
+
+@app.get("/api/health")
+def api_healthcheck():
     return {"ok": True}
 
 

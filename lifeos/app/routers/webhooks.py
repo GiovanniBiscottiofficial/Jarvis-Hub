@@ -51,12 +51,19 @@ async def health_auto_export(request: Request):
     except json.JSONDecodeError:
         raise HTTPException(400, "invalid JSON payload")
     prune_events(time.time())
-    if event_id in PROCESSED_EVENTS:
-        return {"ok": True, "duplicate": True, "imported": {"steps": 0, "weighins": 0}}
-    PROCESSED_EVENTS[event_id] = time.time()
     metrics = (payload.get("data") or {}).get("metrics") or []
     imported = {"steps": 0, "weighins": 0}
     with conn() as c:
+        existing = c.execute(
+            "SELECT 1 FROM webhook_events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        if existing or event_id in PROCESSED_EVENTS:
+            return {"ok": True, "duplicate": True, "imported": {"steps": 0, "weighins": 0}}
+        c.execute(
+            "INSERT INTO webhook_events(event_id,received_at) VALUES(?,?)",
+            (event_id, time.time()),
+        )
+        PROCESSED_EVENTS[event_id] = time.time()
         pid = active_profile(c)["id"]
         for m in metrics:
             name = (m.get("name") or "").lower()

@@ -156,6 +156,11 @@ CREATE TABLE IF NOT EXISTS grocery_list (
     done INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS webhook_events (
+    event_id TEXT PRIMARY KEY,
+    received_at REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
