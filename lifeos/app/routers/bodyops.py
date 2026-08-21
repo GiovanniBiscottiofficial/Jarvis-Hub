@@ -1,9 +1,13 @@
 """Body Ops: meals, protein, weigh-ins, steps, vitamins, workouts, streaks."""
+import base64
+import json
 import os
 import uuid
+import mimetypes
 from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, UploadFile
+import httpx
 from pydantic import BaseModel
 
 from ..db import active_profile, conn, get_setting
@@ -17,6 +21,12 @@ class MealLogIn(BaseModel):
     protein_g: float = 0
     calories: float = 0
     override_kind: str | None = None
+
+
+class PhotoMealLogIn(BaseModel):
+    name: str | None = None
+    protein_g: float | None = None
+    calories: float | None = None
 
 
 class OverrideIn(BaseModel):
@@ -56,10 +66,53 @@ FAVORITE_SLOTS = ("breakfast", "lunch", "dinner", "snack")
 
 
 PHOTO_DIR = os.environ.get("LIFEOS_PHOTOS", "/data/photos")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434").rstrip("/")
+VISION_MODEL = os.environ.get("LIFEOS_VISION_MODEL", "gemma3:4b")
+MAX_PHOTO_BYTES = int(os.environ.get("LIFEOS_MAX_PHOTO_BYTES", str(8 * 1024 * 1024)))
 
 
 def _today() -> str:
     return date.today().isoformat()
+
+
+async def _analyze_meal_photo(data: bytes, content_type: str) -> dict:
+    encoded = base64.b64encode(data).decode("ascii")
+    prompt = (
+        "Analyze this meal photo for a nutrition estimate. Return only valid JSON "
+        "with keys meal_name (string), foods (array of strings), protein_g "
+        "(number), calories (number), confidence (one of high, medium, low), "
+        "and notes (string). Estimate conservatively, use 0 only when the meal "
+        "is not recognizable, and say what is uncertain in notes."
+    )
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            response = await client.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": VISION_MODEL,
+                    "stream": False,
+                    "format": "json",
+                    "messages": [{"role": "user", "content": prompt, "images": [encoded]}],
+                    "options": {"temperature": 0},
+                },
+            )
+    except httpx.HTTPError as exc:
+        raise RuntimeError("vision service unavailable") from exc
+    response.raise_for_status()
+    payload = response.json()
+    content = payload.get("message", {}).get("content", "")
+    if not content:
+        raise ValueError("vision model returned no analysis")
+    result = json.loads(content)
+    if not isinstance(result, dict):
+        raise ValueError("vision model returned a non-object")
+    result["meal_name"] = str(result.get("meal_name") or "Photo meal")[:120]
+    result["foods"] = [str(x)[:120] for x in result.get("foods", []) if x][:20]
+    result["protein_g"] = max(0.0, min(float(result.get("protein_g", 0)), 1000.0))
+    result["calories"] = max(0.0, min(float(result.get("calories", 0)), 10000.0))
+    result["confidence"] = result.get("confidence", "low") if result.get("confidence") in {"high", "medium", "low"} else "low"
+    result["notes"] = str(result.get("notes") or "")[:500]
+    return result
 
 
 def protein_today(c) -> float:
@@ -362,21 +415,103 @@ def log_favorite(slot: str):
 
 @router.post("/meals/photo")
 async def photo_meal(photo: UploadFile):
-    """Save a plate photo for portion estimation. Vision-LLM analysis plugs in
-    here later (Ollama llava / cloud vision); manual macros for now."""
+    """Save a meal photo and estimate macros with the local Ollama vision model."""
+    content_type = (photo.content_type or "").lower()
+    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+    if content_type not in allowed_types:
+        raise HTTPException(415, "upload a JPEG, PNG, WebP, or HEIC image")
+    data = await photo.read(MAX_PHOTO_BYTES + 1)
+    if len(data) > MAX_PHOTO_BYTES:
+        raise HTTPException(413, f"photo must be {MAX_PHOTO_BYTES // (1024 * 1024)} MB or smaller")
     os.makedirs(PHOTO_DIR, exist_ok=True)
-    ext = os.path.splitext(photo.filename or "photo.jpg")[1] or ".jpg"
+    ext = mimetypes.guess_extension(content_type) or ".jpg"
     path = os.path.join(PHOTO_DIR, f"{_today()}-{uuid.uuid4().hex[:8]}{ext}")
-    data = await photo.read()
     with open(path, "wb") as f:
         f.write(data)
+    photo_id = None
+    with conn() as c:
+        pid = active_profile(c)["id"]
+        row = c.execute(
+            "INSERT INTO meal_photos(filename,status,profile_id) VALUES(?,?,?) RETURNING id",
+            (os.path.basename(path), "analyzing", pid),
+        ).fetchone()
+        photo_id = row["id"]
+    try:
+        estimate = await _analyze_meal_photo(data, content_type)
+    except Exception as exc:
+        with conn() as c:
+            c.execute(
+                "UPDATE meal_photos SET status='needs_review', error=? WHERE id=?",
+                (str(exc)[:500], photo_id),
+            )
+        return {
+            "ok": True,
+            "photo_id": photo_id,
+            "saved": os.path.basename(path),
+            "estimate": None,
+            "message": "Photo saved, but vision analysis is unavailable. Log macros manually.",
+        }
+    with conn() as c:
+        c.execute(
+            "UPDATE meal_photos SET status='needs_review', meal_name=?, foods_json=?, "
+            "protein_g=?, calories=?, confidence=?, notes=? WHERE id=?",
+            (
+                estimate["meal_name"], json.dumps(estimate["foods"]),
+                estimate["protein_g"], estimate["calories"], estimate["confidence"],
+                estimate["notes"], photo_id,
+            ),
+        )
     return {
         "ok": True,
+        "photo_id": photo_id,
         "saved": os.path.basename(path),
-        "estimate": None,
-        "message": "Photo saved. Auto-estimation needs a vision model "
-        "(Ollama llava) — log macros manually for now.",
+        "estimate": estimate,
+        "message": "Review the estimate before logging it.",
     }
+
+
+@router.get("/meals/photos")
+def meal_photos():
+    with conn() as c:
+        rows = c.execute(
+            "SELECT * FROM meal_photos WHERE profile_id=? ORDER BY id DESC LIMIT 20",
+            (active_profile(c)["id"],),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+class MealPhotoLogIn(BaseModel):
+    photo_id: int
+    name: str | None = None
+    protein_g: float | None = None
+    calories: float | None = None
+
+
+@router.post("/meals/photos/{photo_id}/log")
+def log_meal_photo(photo_id: int, body: MealPhotoLogIn):
+    with conn() as c:
+        row = c.execute(
+            "SELECT * FROM meal_photos WHERE id=? AND profile_id=?",
+            (photo_id, active_profile(c)["id"]),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(404, "photo analysis not found")
+        if row["status"] == "logged":
+            raise HTTPException(409, "photo meal is already logged")
+        name = (body.name or row["meal_name"] or "Photo meal").strip()
+        if not name:
+            raise HTTPException(400, "meal name is required")
+        protein = max(0.0, float(body.protein_g if body.protein_g is not None else row["protein_g"] or 0))
+        calories = max(0.0, float(body.calories if body.calories is not None else row["calories"] or 0))
+        c.execute(
+            "INSERT INTO meal_log(name,protein_g,calories,profile_id) VALUES(?,?,?,?)",
+            (name[:120], protein, calories, row["profile_id"]),
+        )
+        c.execute(
+            "UPDATE meal_photos SET status='logged', meal_name=?, protein_g=?, calories=? WHERE id=?",
+            (name[:120], protein, calories, photo_id),
+        )
+        return {"ok": True, "photo_id": photo_id, "meal": name[:120], "protein_today": protein_today(c)}
 
 
 @router.get("/summary")

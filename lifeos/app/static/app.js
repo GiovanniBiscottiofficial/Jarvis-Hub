@@ -1,5 +1,11 @@
 const $ = (id) => document.getElementById(id);
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>\"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+  }[char]));
+}
+
 async function api(path, method = "GET", body) {
   const res = await fetch(path, {
     method,
@@ -208,15 +214,66 @@ $("workout-btn").onclick = async () => {
   loadWorkouts();
 };
 
+async function renderPhotoReview(photo) {
+  const review = $("photo-review");
+  if (!photo || photo.status === "logged") {
+    review.hidden = true;
+    return;
+  }
+  let foods = [];
+  try { foods = JSON.parse(photo.foods_json || "[]"); } catch (_) {}
+  review.hidden = false;
+  review.innerHTML = `
+    <strong>${escapeHtml(photo.meal_name || "Photo meal")}</strong>
+    <div class="muted">${escapeHtml(foods.join(", ") || "Foods not identified")} · ${escapeHtml(photo.confidence || "low")} confidence</div>
+    <div class="row">
+      <input id="photo-name" value="${escapeHtml(photo.meal_name || "Photo meal")}" placeholder="meal name">
+      <input id="photo-protein" type="number" min="0" step="1" value="${photo.protein_g ?? 0}" placeholder="protein g">
+      <input id="photo-calories" type="number" min="0" step="1" value="${photo.calories ?? 0}" placeholder="calories">
+      <button id="photo-log-btn">Log meal</button>
+    </div>
+    <div class="muted">${escapeHtml(photo.notes || photo.error || "Check the estimate before logging.")}</div>`;
+  $("photo-log-btn").onclick = async () => {
+    const r = await api(`/api/body/meals/photos/${photo.id}/log`, "POST", {
+      name: $("photo-name").value.trim(),
+      protein_g: Number($("photo-protein").value) || 0,
+      calories: Number($("photo-calories").value) || 0,
+    });
+    $("photo-msg").textContent = `${r.meal} logged — ${Math.round(r.protein_today)}g protein today.`;
+    review.hidden = true;
+    loadToday();
+  };
+}
+
 $("photo-btn").onclick = async () => {
   const file = $("photo-input").files[0];
-  if (!file) return;
-  const form = new FormData();
-  form.append("photo", file);
-  const res = await fetch("/api/body/meals/photo", { method: "POST", body: form });
-  const r = await res.json();
-  $("photo-msg").textContent = r.message;
-  $("photo-input").value = "";
+  if (!file) {
+    $("photo-msg").textContent = "Choose a meal photo first.";
+    return;
+  }
+  const button = $("photo-btn");
+  button.disabled = true;
+  button.textContent = "Analyzing…";
+  $("photo-msg").textContent = "Saving photo and asking Jarvis for an estimate…";
+  try {
+    const form = new FormData();
+    form.append("photo", file);
+    const res = await fetch("/api/body/meals/photo", { method: "POST", body: form });
+    const r = await res.json();
+    if (!res.ok) throw new Error(r.detail || `Photo analysis failed (${res.status})`);
+    $("photo-msg").textContent = r.message;
+    await renderPhotoReview(r.estimate ? {
+      id: r.photo_id, status: "needs_review", meal_name: r.estimate.meal_name,
+      foods_json: JSON.stringify(r.estimate.foods), protein_g: r.estimate.protein_g,
+      calories: r.estimate.calories, confidence: r.estimate.confidence, notes: r.estimate.notes,
+    } : { id: r.photo_id, status: "needs_review", error: r.message });
+  } catch (err) {
+    $("photo-msg").textContent = err.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Analyze";
+    $("photo-input").value = "";
+  }
 };
 
 $("pantry-sync-btn").onclick = async () => {

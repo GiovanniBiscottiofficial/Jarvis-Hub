@@ -74,7 +74,18 @@ which dormant features wake up) is **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVI
    # Its built-in session-id header is used as the duplicate-event key.
    ```
 
-8. Weather in the morning briefing — home coordinates into `.env`:
+9. Optional meal-photo vision analysis (local-only):
+
+   ```bash
+   docker compose --profile llm up -d
+   docker exec -it ollama ollama pull gemma3:4b
+   docker compose up -d --build lifeos
+   ```
+
+   LifeOS sends plate photos to the local Ollama vision model and shows an editable
+   estimate. Nothing is added to the meal log until you review and confirm the macros.
+
+10. Weather in the morning briefing — home coordinates into `.env`:
 
    ```bash
    cd ~/Jarvis-Hub

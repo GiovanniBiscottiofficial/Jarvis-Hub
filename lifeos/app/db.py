@@ -32,6 +32,21 @@ CREATE TABLE IF NOT EXISTS meal_log (
     profile_id INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS meal_photos (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    filename TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'analyzing',
+    meal_name TEXT NOT NULL DEFAULT '',
+    foods_json TEXT NOT NULL DEFAULT '[]',
+    protein_g REAL,
+    calories REAL,
+    confidence TEXT NOT NULL DEFAULT 'low',
+    notes TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '',
+    profile_id INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS overrides (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
