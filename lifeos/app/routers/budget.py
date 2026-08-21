@@ -64,7 +64,10 @@ def _period_bills(c, period: dict) -> list[dict]:
         ).fetchall()
     ]
     for b in bills:
-        b["paid"] = b["paid_period"] == period["key"]
+        b["paid"] = (
+            b["paid_period"] == period["key"]
+            or b["paid_month"] == period["month"]
+        )
     return bills
 
 
@@ -285,21 +288,27 @@ def forecast(periods: int = 6):
 
 @router.post("/bills/{bill_id}/paid")
 def mark_bill_paid(bill_id: int):
-    """Mark a bill paid for the current semi-monthly period. Ledger sync:
-    the payment comes out of the operating account."""
+    """Mark a bill paid for the current month and sync its account balance."""
     period = current_period()
     with conn() as c:
         row = c.execute("SELECT * FROM bills WHERE id=?", (bill_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "bill not found")
-        if row["paid_period"] == period["key"]:
-            return {"ok": True, "period": period["key"]}
+        if row["paid_period"] == period["key"] or row["paid_month"] == period["month"]:
+            return {"ok": True, "period": row["paid_period"] or period["key"], "already_paid": True}
         c.execute(
             "UPDATE bills SET paid_period=?, paid_month=? WHERE id=?",
             (period["key"], period["month"], bill_id),
         )
-        _adjust_balance(c, "operating", -row["amount"])
-        return {"ok": True, "period": period["key"]}
+        account_id = row["account_id"]
+        if account_id is None:
+            _adjust_balance(c, "operating", -row["amount"])
+        else:
+            c.execute(
+                "UPDATE accounts SET balance=ROUND(balance-?,2) WHERE id=?",
+                (row["amount"], account_id),
+            )
+        return {"ok": True, "period": period["key"], "already_paid": False}
 
 
 @router.post("/bills/{bill_id}/unpaid")
@@ -309,10 +318,23 @@ def mark_bill_unpaid(bill_id: int):
         row = c.execute("SELECT * FROM bills WHERE id=?", (bill_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "bill not found")
-        if row["paid_period"] == period["key"]:
-            _adjust_balance(c, "operating", row["amount"])
-        c.execute("UPDATE bills SET paid_period=NULL WHERE id=?", (bill_id,))
-        return {"ok": True}
+        is_current_payment = (
+            row["paid_period"] == period["key"]
+            or row["paid_month"] == period["month"]
+        )
+        if is_current_payment:
+            if row["account_id"] is None:
+                _adjust_balance(c, "operating", row["amount"])
+            else:
+                c.execute(
+                    "UPDATE accounts SET balance=ROUND(balance+?,2) WHERE id=?",
+                    (row["amount"], row["account_id"]),
+                )
+            c.execute(
+                "UPDATE bills SET paid_period=NULL, paid_month=NULL WHERE id=?",
+                (bill_id,),
+            )
+        return {"ok": True, "already_unpaid": not is_current_payment}
 
 
 @router.get("/debts")
@@ -346,7 +368,11 @@ def pay_debt(debt_id: int, body: DebtPaymentIn):
         row = c.execute("SELECT * FROM debts WHERE id=?", (debt_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "debt not found")
-        remaining = max(0, round(row["remaining"] - body.amount, 2))
+        if body.amount <= 0:
+            raise HTTPException(400, "payment amount must be positive")
+        if body.amount > row["remaining"]:
+            raise HTTPException(400, "payment amount exceeds remaining debt")
+        remaining = round(row["remaining"] - body.amount, 2)
         c.execute("UPDATE debts SET remaining=? WHERE id=?", (remaining, debt_id))
         _adjust_balance(c, "operating", -body.amount)
         return {"ok": True, "remaining": remaining, "paid_off": remaining == 0}
