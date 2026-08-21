@@ -80,10 +80,33 @@ def _fund_monthly_total(c) -> float:
 
 def _adjust_balance(c, role: str, delta: float) -> None:
     """Ledger sync: move real cash on the matching account (by role)."""
+    row = c.execute(
+        "SELECT id, balance FROM accounts WHERE role=? ORDER BY id LIMIT 1",
+        (role,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(409, f"no {role} account configured")
+    new_balance = round(row["balance"] + delta, 2)
+    if new_balance < 0:
+        raise HTTPException(409, f"insufficient funds in {role} account")
     c.execute(
-        "UPDATE accounts SET balance=ROUND(balance+?,2) WHERE id="
-        " (SELECT id FROM accounts WHERE role=? ORDER BY id LIMIT 1)",
-        (delta, role),
+        "UPDATE accounts SET balance=? WHERE id=?",
+        (new_balance, row["id"]),
+    )
+
+
+def _adjust_account_balance(c, account_id: int, delta: float) -> None:
+    row = c.execute(
+        "SELECT balance FROM accounts WHERE id=?", (account_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(409, "bill account no longer exists")
+    new_balance = round(row["balance"] + delta, 2)
+    if new_balance < 0:
+        raise HTTPException(409, "insufficient funds in bill account")
+    c.execute(
+        "UPDATE accounts SET balance=? WHERE id=?",
+        (new_balance, account_id),
     )
 
 
@@ -304,10 +327,7 @@ def mark_bill_paid(bill_id: int):
         if account_id is None:
             _adjust_balance(c, "operating", -row["amount"])
         else:
-            c.execute(
-                "UPDATE accounts SET balance=ROUND(balance-?,2) WHERE id=?",
-                (row["amount"], account_id),
-            )
+            _adjust_account_balance(c, account_id, -row["amount"])
         return {"ok": True, "period": period["key"], "already_paid": False}
 
 
@@ -326,10 +346,7 @@ def mark_bill_unpaid(bill_id: int):
             if row["account_id"] is None:
                 _adjust_balance(c, "operating", row["amount"])
             else:
-                c.execute(
-                    "UPDATE accounts SET balance=ROUND(balance+?,2) WHERE id=?",
-                    (row["amount"], row["account_id"]),
-                )
+                _adjust_account_balance(c, row["account_id"], row["amount"])
             c.execute(
                 "UPDATE bills SET paid_period=NULL, paid_month=NULL WHERE id=?",
                 (bill_id,),
