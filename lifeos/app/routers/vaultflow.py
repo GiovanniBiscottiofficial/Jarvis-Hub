@@ -82,16 +82,22 @@ def list_accounts():
 
 @router.post("/accounts")
 def add_account(body: AccountIn):
+    if not body.name.strip():
+        raise HTTPException(400, "account name is required")
+    if body.balance < 0:
+        raise HTTPException(400, "account balance cannot be negative")
     with conn() as c:
         c.execute(
             "INSERT INTO accounts(name,balance,vaultborne) VALUES(?,?,?)",
-            (body.name, body.balance, int(body.vaultborne)),
+            (body.name.strip(), body.balance, int(body.vaultborne)),
         )
         return {"ok": True}
 
 
 @router.put("/accounts/{account_id}/balance")
 def set_balance(account_id: int, body: BalanceIn):
+    if body.balance < 0:
+        raise HTTPException(400, "account balance cannot be negative")
     with conn() as c:
         cur = c.execute(
             "UPDATE accounts SET balance=? WHERE id=?", (body.balance, account_id)
@@ -109,10 +115,23 @@ def list_bills():
 
 @router.post("/bills")
 def add_bill(body: BillIn):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "bill name is required")
+    if body.amount <= 0:
+        raise HTTPException(400, "bill amount must be positive")
+    if not 1 <= body.due_day <= 31:
+        raise HTTPException(400, "due day must be between 1 and 31")
     with conn() as c:
+        if body.account_id is not None:
+            account = c.execute(
+                "SELECT id FROM accounts WHERE id=?", (body.account_id,)
+            ).fetchone()
+            if account is None:
+                raise HTTPException(404, "account not found")
         c.execute(
             "INSERT INTO bills(name,amount,due_day,account_id) VALUES(?,?,?,?)",
-            (body.name, body.amount, body.due_day, body.account_id),
+            (name, body.amount, body.due_day, body.account_id),
         )
         return {"ok": True}
 
@@ -130,13 +149,20 @@ def mark_paid(bill_id: int):
 
 @router.post("/deposits")
 def add_deposit(body: DepositIn):
+    if body.amount <= 0:
+        raise HTTPException(400, "deposit amount must be positive")
     with conn() as c:
+        account = c.execute(
+            "SELECT id FROM accounts WHERE id=?", (body.account_id,)
+        ).fetchone()
+        if account is None:
+            raise HTTPException(404, "account not found")
         c.execute(
             "INSERT INTO deposits(amount,account_id,source) VALUES(?,?,?)",
-            (body.amount, body.account_id, body.source),
+            (body.amount, body.account_id, body.source.strip()),
         )
         c.execute(
-            "UPDATE accounts SET balance=balance+? WHERE id=?",
+            "UPDATE accounts SET balance=ROUND(balance+?,2) WHERE id=?",
             (body.amount, body.account_id),
         )
         return {"ok": True}
