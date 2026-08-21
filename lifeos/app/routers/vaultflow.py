@@ -171,16 +171,21 @@ def add_deposit(body: DepositIn):
 @router.post("/deposits/by-name")
 def add_deposit_by_name(body: DepositByNameIn):
     """Voice-friendly deposit: matches the account by (partial) name."""
+    if body.amount <= 0:
+        raise HTTPException(400, "deposit amount must be positive")
+    account_name = body.account.strip()
+    if not account_name:
+        raise HTTPException(400, "account name is required")
     with conn() as c:
-        row = _find_by_name(c, "accounts", body.account)
+        row = _find_by_name(c, "accounts", account_name)
         if row is None:
-            raise HTTPException(404, f"no account matching '{body.account}'")
+            raise HTTPException(404, f"no account matching '{account_name}'")
         c.execute(
             "INSERT INTO deposits(amount,account_id,source) VALUES(?,?,?)",
-            (body.amount, row["id"], body.source),
+            (body.amount, row["id"], body.source.strip()),
         )
         c.execute(
-            "UPDATE accounts SET balance=balance+? WHERE id=?",
+            "UPDATE accounts SET balance=ROUND(balance+?,2) WHERE id=?",
             (body.amount, row["id"]),
         )
         return {"ok": True, "account": row["name"]}
@@ -201,10 +206,12 @@ def mark_paid_by_name(body: BillPaidByNameIn):
 
 @router.post("/spending")
 def log_spending(body: SpendIn):
+    if body.amount <= 0:
+        raise HTTPException(400, "spending amount must be positive")
     with conn() as c:
         c.execute(
             "INSERT INTO spending(amount,merchant) VALUES(?,?)",
-            (body.amount, body.merchant.strip()),
+            (round(body.amount, 2), body.merchant.strip()),
         )
         return {"ok": True, "week_total": week_spending(c)}
 
@@ -257,37 +264,45 @@ def list_goals():
 @router.post("/goals")
 def add_goal(body: GoalIn):
     """'Create a savings goal called vacation for 1000 dollars.'"""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "goal name is required")
+    if body.target < 0:
+        raise HTTPException(400, "goal target cannot be negative")
     with conn() as c:
         c.execute(
             "INSERT INTO savings_goals(name,target) VALUES(?,?)"
             " ON CONFLICT(name) DO UPDATE SET target=excluded.target",
-            (body.name.strip(), body.target),
+            (name, body.target),
         )
-        return {"ok": True, "goal": body.name.strip()}
+        return {"ok": True, "goal": name}
 
 
 @router.post("/goals/contribute")
 def contribute_goal(body: GoalContributeIn):
     """'Add 50 to my vacation fund' — fuzzy-matches the goal by name and
     creates it on the fly if it doesn't exist yet."""
+    if body.amount <= 0:
+        raise HTTPException(400, "goal contribution must be positive")
+    goal_name = body.name.strip()
+    if not goal_name:
+        raise HTTPException(400, "goal name is required")
     with conn() as c:
-        row = _find_by_name(c, "savings_goals", body.name)
+        row = _find_by_name(c, "savings_goals", goal_name)
         if row is None:
             c.execute(
                 "INSERT INTO savings_goals(name,saved) VALUES(?,?)",
-                (body.name.strip(), body.amount),
+                (goal_name, body.amount),
             )
-            name = body.name.strip()
+            name = goal_name
             saved = body.amount
         else:
             c.execute(
-                "UPDATE savings_goals SET saved=saved+? WHERE id=?",
+                "UPDATE savings_goals SET saved=ROUND(saved+?,2) WHERE id=?",
                 (body.amount, row["id"]),
             )
             name = row["name"]
-            saved = c.execute(
-                "SELECT saved FROM savings_goals WHERE id=?", (row["id"],)
-            ).fetchone()["saved"]
+            saved = round(row["saved"] + body.amount, 2)
         return {"ok": True, "goal": name, "saved": saved}
 
 
