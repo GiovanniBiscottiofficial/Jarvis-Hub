@@ -16,7 +16,7 @@ echo "==> Installing X11/Openbox kiosk packages..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils chromium-browser \
-  unclutter dbus-x11 curl python3-tk xdotool
+  unclutter dbus-x11 curl python3-tk xdotool xinput
 
 echo "==> Installing the floating Home and keyboard controls..."
 sudo mkdir -p /opt/jarvis-kiosk
@@ -324,6 +324,24 @@ for _ in \$(seq 1 30); do
   sleep 0.2
 done
 
+# Map the X1 digitizer to the internal panel. Without an explicit XInput
+# transform, touch coordinates can retain a stale Wayland/output geometry and
+# taps land beside their visual targets or only register after repeated holds.
+touch_output=\$(xrandr --current | awk '/^eDP[^ ]* connected/ {print \$1; exit}')
+if [ -z "\$touch_output" ]; then
+  touch_output=\$(xrandr --current | awk '/ connected/ {print \$1; exit}')
+fi
+if [ -n "\$touch_output" ]; then
+  xinput list --name-only | while IFS= read -r input_name; do
+    normalized=\$(printf '%s' "\$input_name" | tr '[:upper:]' '[:lower:]')
+    case "\$normalized" in
+      *touchscreen*|*"touch screen"*|*"finger touch"*)
+        xinput map-to-output "\$input_name" "\$touch_output" >/dev/null 2>&1 || true
+        ;;
+    esac
+  done
+fi
+
 export GDK_SCALE=2
 export GDK_DPI_SCALE=1
 /opt/jarvis-kiosk/jarvis-keyboard.py >/dev/null 2>&1 &
@@ -348,6 +366,7 @@ while true; do
     --why="Kiosk display and media playback are active" \
     chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
     --autoplay-policy=no-user-gesture-required \\
+    --touch-events=enabled \\
     --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --ozone-platform=x11 --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\

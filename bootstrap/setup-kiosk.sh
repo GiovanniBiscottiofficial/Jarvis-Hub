@@ -30,7 +30,7 @@ echo "==> Installing minimal X session + Chromium..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils unclutter chromium-browser \
-  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl playerctl
+  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl playerctl xinput
 
 echo "==> Auto-login on tty1..."
 sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -194,6 +194,20 @@ for _ in \$(seq 1 30); do
   wmctrl -m >/dev/null 2>&1 && break
   sleep 0.2
 done
+touch_output=\$(xrandr --current | awk '/^eDP[^ ]* connected/ {print \$1; exit}')
+if [ -z "\$touch_output" ]; then
+  touch_output=\$(xrandr --current | awk '/ connected/ {print \$1; exit}')
+fi
+if [ -n "\$touch_output" ]; then
+  xinput list --name-only | while IFS= read -r input_name; do
+    normalized=\$(printf '%s' "\$input_name" | tr '[:upper:]' '[:lower:]')
+    case "\$normalized" in
+      *touchscreen*|*"touch screen"*|*"finger touch"*)
+        xinput map-to-output "\$input_name" "\$touch_output" >/dev/null 2>&1 || true
+        ;;
+    esac
+  done
+fi
 export JARVIS_DASH_URL="${DASH_URL}"
 # HiDPI: scale the keyboard and other GTK bits
 export GDK_SCALE=2
@@ -241,6 +255,7 @@ while true; do
     --why="Kiosk display and media playback are active" \
     chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
     --autoplay-policy=no-user-gesture-required \\
+    --touch-events=enabled \\
     --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
