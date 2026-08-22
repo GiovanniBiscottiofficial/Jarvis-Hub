@@ -61,7 +61,7 @@
       entity_id: input_boolean.vacation_mode
       state: "off"
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Workout"
         message: "Evening session, sir? Even 15 minutes keeps the habit alive."
@@ -87,7 +87,7 @@
           Payday, sir.
           {{ state_attr('sensor.lifeos_answers', 'bills')
              or 'A fine day to check Vault Flow before the money gets ideas.' }}
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Payday"
         message: "Deposit day. Vault Flow is ready when you are."

@@ -17,7 +17,7 @@
       data:
         rgb_color: [255, 0, 0]
         brightness: 255
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "🔥 FIRE ALERT"
         message: "Smoke detected at home!"
@@ -50,7 +50,7 @@
       data:
         rgb_color: [255, 0, 0]
         brightness: 255
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "☠️ CARBON MONOXIDE"
         message: "CO detected at home — get to fresh air!"
@@ -75,7 +75,7 @@
       entity_id: binary_sensor.water_leak
       to: "on"
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "💧 Water leak"
         message: "Leak sensor triggered — check it before it spreads."

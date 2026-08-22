@@ -9,7 +9,7 @@
     - condition: time
       weekday: [sun]
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Shopping list"
         message: "Open Home Assistant to see this week's list before you shop."

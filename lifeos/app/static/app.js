@@ -13,12 +13,17 @@ function escapeHtml(value) {
 }
 
 async function api(path, method = "GET", body) {
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  const saved = localStorage.getItem("lifeos_token");
+  if (saved) headers["Authorization"] = "Bearer " + saved;
   const res = await fetch(path, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) {
+    if (saved) localStorage.removeItem("lifeos_token");
     const token = window.prompt("Enter your LifeOS API token");
     if (token) {
       const auth = await fetch("/api/auth", {
@@ -26,7 +31,10 @@ async function api(path, method = "GET", body) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      if (auth.ok) return api(path, method, body);
+      if (auth.ok) {
+        localStorage.setItem("lifeos_token", token);
+        return api(path, method, body);
+      }
     }
   }
   const data = await res.json();
@@ -308,7 +316,12 @@ $("photo-btn").onclick = async () => {
   try {
     const form = new FormData();
     form.append("photo", file);
-    const res = await fetch("/api/body/meals/photo", { method: "POST", body: form });
+    const token = localStorage.getItem("lifeos_token");
+    const res = await fetch("/api/body/meals/photo", {
+      method: "POST",
+      headers: token ? { Authorization: "Bearer " + token } : undefined,
+      body: form,
+    });
     const r = await res.json();
     if (!res.ok) throw new Error(r.detail || `Photo analysis failed (${res.status})`);
     $("photo-msg").textContent = r.message;

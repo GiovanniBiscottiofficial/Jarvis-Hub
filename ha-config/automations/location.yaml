@@ -18,7 +18,7 @@
 #         entity_id: climate.thermostat
 #       data:
 #         temperature: 72
-#     - service: notify.mobile_app_phone
+#     - service: notify.jarvis_phone
 #       data:
 #         message: "Almost home — I've warmed the house for your arrival, sir."
 
@@ -35,7 +35,7 @@
 #       entity_id: sensor.waze_travel_time
 #       above: 45
 #   action:
-#     - service: notify.mobile_app_phone
+#     - service: notify.jarvis_phone
 #       data:
 #         title: "Traffic"
 #         message: >-

@@ -46,7 +46,7 @@
       above: 500
   mode: single
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Maintenance"
         message: "The HVAC filter has ~500 hours of runtime — time to swap it."

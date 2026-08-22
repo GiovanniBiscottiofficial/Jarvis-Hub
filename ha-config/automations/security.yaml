@@ -35,7 +35,7 @@
 #     - service: script.jarvis_say
 #       data:
 #         message: "Someone is at the door. I don't recognize them."
-#     - service: notify.mobile_app_phone
+#     - service: notify.jarvis_phone
 #       data:
 #         title: "Visitor"
 #         message: "Unknown person at the front door."
@@ -64,7 +64,7 @@
         entity_id: camera.front_door
       data:
         filename: /config/www/snapshots/last_entry.jpg
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "⚠️ Entry while away"
         message: "The front door just opened and you're not home."

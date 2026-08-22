@@ -21,7 +21,7 @@ full_jarvis_awakening:
           {{ state_attr('sensor.lifeos_answers', 'nudge')
              or 'Everything is running smoothly.' }}
     # Status report to the phone
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Jarvis Online"
         message: >-

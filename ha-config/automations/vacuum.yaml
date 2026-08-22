@@ -7,7 +7,7 @@
       entity_id: vacuum.juno
       to: "error"
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Vacuum stuck"
         message: "The Juno needs help. Send it home?"

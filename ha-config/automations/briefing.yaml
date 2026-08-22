@@ -36,7 +36,7 @@
         message: >-
           {{ state_attr('sensor.lifeos_weekly_review', 'speech')
              or 'Weekly review is not available right now.' }}
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Weekly review"
         message: >-

@@ -22,7 +22,7 @@
     - service: script.jarvis_say
       data:
         message: "{{ state_attr('sensor.lifeos_answers', 'nudge') }}"
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Jarvis nudge"
         message: "{{ state_attr('sensor.lifeos_answers', 'nudge') }}"
@@ -40,7 +40,7 @@
         {{ states('sensor.lifeos_monthly_spending') | float(0)
            > states('input_number.monthly_budget') | float(2000) }}
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Budget"
         message: >-
@@ -63,7 +63,7 @@
       attribute: audit
       to: "action needed"
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Budget audit"
         message: >-

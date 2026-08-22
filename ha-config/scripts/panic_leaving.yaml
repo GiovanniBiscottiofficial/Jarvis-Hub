@@ -18,7 +18,7 @@ leaving:
     # - service: button.press
     #   target:
     #     entity_id: button.desktop_lock
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "House secured"
         message: "Lights off, TV off, vacuum heading home."

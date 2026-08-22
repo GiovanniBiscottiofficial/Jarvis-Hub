@@ -23,7 +23,7 @@
     - service: script.jarvis_say
       data:
         message: "Vitamins before you head out, sir."
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Vitamins"
         message: "Morning vitamins — small thing, big consistency."
@@ -59,7 +59,7 @@
     - condition: state
       entity_id: input_boolean.medication_taken
       state: "off"
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Vitamins"
         message: "30 minutes later — vitamins still pending."
@@ -98,7 +98,7 @@
         {{ (state_attr('sensor.lifeos_answers', 'water_count') | int(0))
            < (state_attr('sensor.lifeos_answers', 'water_target') | int(8)) }}
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Hydration"
         message: >-

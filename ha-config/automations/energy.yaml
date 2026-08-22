@@ -13,7 +13,7 @@
       entity_id: sensor.pc_plug_power
       above: 60
   action:
-    - service: notify.mobile_app_phone
+    - service: notify.jarvis_phone
       data:
         title: "Energy"
         message: "The PC is still drawing power and nobody's home."
