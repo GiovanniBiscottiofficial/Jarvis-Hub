@@ -48,15 +48,15 @@ lovelace:
       show_in_sidebar: true
       filename: dashboards/lifeos.yaml
 
-# Phone notifications route through this group so automations keep working
-# before the Companion app is paired: today they land in the HA UI
-# (persistent notifications); once the app connects, add its notify action
-# here (e.g. mobile_app_<your_phone>) and every alert reaches the phone.
+# Phone notifications route through this group: alerts land in the HA UI
+# (persistent notifications) and on the paired Companion-app phone.
+# Add more phones here as they connect (mobile_app_<device_name>).
 notify:
   - platform: group
     name: jarvis_phone
     services:
       - action: persistent_notification
+      - action: mobile_app_se_device
 
 # Local shopping list ("Jarvis, add milk to the shopping list")
 shopping_list:
