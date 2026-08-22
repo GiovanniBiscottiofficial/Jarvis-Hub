@@ -16,7 +16,7 @@ echo "==> Installing X11/Openbox kiosk packages..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils chromium-browser \
-  unclutter dbus-x11 curl python3-tk xdotool xterm wmctrl
+  unclutter dbus-x11 curl python3-tk xdotool
 
 echo "==> Installing the floating Home and keyboard controls..."
 sudo mkdir -p /opt/jarvis-kiosk
@@ -72,15 +72,6 @@ def go_settings():
     navigate(SETTINGS_URL)
 
 
-def open_terminal():
-    subprocess.Popen([
-        "sh", "-c",
-        "xterm -title 'Jarvis Terminal' -fa 'DejaVu Sans Mono' -fs 18 "
-        "-bg '#020911' -fg '#7fe9ff' -cr '#7fe9ff' & "
-        "sleep 0.5; wmctrl -r 'Jarvis Terminal' -b add,fullscreen",
-    ])
-
-
 def toggle_keyboard():
     try:
         with open("/tmp/jarvis-keyboard.pid", encoding="utf-8") as pid_file:
@@ -106,7 +97,6 @@ keys_style = {
 }
 tk.Button(root, text="KEYS", command=toggle_keyboard, **keys_style).pack(side="left")
 tk.Button(root, text="SET", command=go_settings, **keys_style).pack(side="left")
-tk.Button(root, text="TERM", command=open_terminal, **keys_style).pack(side="left")
 root.update_idletasks()
 root.geometry(f"+8+{root.winfo_screenheight() - root.winfo_reqheight() - 8}")
 
