@@ -81,7 +81,12 @@ style = {
     "font": ("DejaVu Sans", 30), "width": 2, "height": 1,
 }
 tk.Button(root, text="\u2302", command=go_home, **style).pack(side="left")
-tk.Button(root, text="\u2328", command=toggle_keyboard, **style).pack(side="left")
+keys_style = {
+    **style,
+    "font": ("DejaVu Sans", 16, "bold"),
+    "width": 5,
+}
+tk.Button(root, text="KEYS", command=toggle_keyboard, **keys_style).pack(side="left")
 root.update_idletasks()
 root.geometry(f"+8+{root.winfo_screenheight() - root.winfo_reqheight() - 8}")
 
@@ -221,9 +226,16 @@ body.pack(fill="both", expand=True)
 
 rows = [
     [(char, char) for char in "1234567890"] + [("⌫", "BackSpace")],
+    [(char, char) for char in "!@#$%^&*()+="] ,
     [(char, char) for char in "qwertyuiop"] + [("↵", "Return")],
     [(char, char) for char in "asdfghjkl"] + [("-", "-"), ("_", "_")],
     [(char, char) for char in "zxcvbnm"] + [("@", "@"), (".", "."), ("/", "/")],
+    [
+        ("~", "~"), ("`", "`"), ("<", "<"), (">", ">"),
+        ("[", "["), ("]", "]"), ("{", "{"), ("}", "}"),
+        ("\\", "\\"), ("|", "|"), (":", ":"), (";", ";"),
+        ("'", "'"), ('\"', '\"'), ("?", "?"),
+    ],
 ]
 
 for row_index, keys in enumerate(rows):
