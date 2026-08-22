@@ -16,7 +16,85 @@ echo "==> Installing X11/Openbox kiosk packages..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils chromium-browser \
-  unclutter dbus-x11 onboard curl
+  unclutter dbus-x11 onboard curl python3-tk
+
+echo "==> Installing the floating Home and keyboard controls..."
+sudo mkdir -p /opt/jarvis-kiosk
+sudo tee /opt/jarvis-kiosk/hub-bar.py >/dev/null <<'PYEOF'
+#!/usr/bin/env python3
+"""Always-on-top controls for returning to Jarvis and opening the keyboard."""
+import json
+import os
+import subprocess
+import tkinter as tk
+import urllib.request
+from urllib.parse import quote
+
+DEVTOOLS = "http://127.0.0.1:9222"
+DASH_URL = os.environ.get(
+    "JARVIS_DASH_URL",
+    "http://localhost:8123/jarvis-hub/wall-plus?kiosk",
+)
+
+
+def request(path, method="GET"):
+    req = urllib.request.Request(DEVTOOLS + path, method=method)
+    with urllib.request.urlopen(req, timeout=3) as response:
+        body = response.read()
+    return json.loads(body) if body.strip() else None
+
+
+def go_home():
+    try:
+        pages = [page for page in request("/json/list") if page.get("type") == "page"]
+        try:
+            new_page = request("/json/new?" + quote(DASH_URL, safe=""), "PUT")
+        except Exception:
+            new_page = request("/json/new?" + quote(DASH_URL, safe=""))
+        new_id = (new_page or {}).get("id")
+        for page in pages:
+            if page.get("id") and page["id"] != new_id:
+                try:
+                    request("/json/close/" + page["id"])
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+def toggle_keyboard():
+    subprocess.Popen([
+        "dbus-send", "--type=method_call", "--dest=org.onboard.Onboard",
+        "/org/onboard/Onboard/Keyboard",
+        "org.onboard.Onboard.Keyboard.ToggleVisible",
+    ])
+
+
+root = tk.Tk()
+root.overrideredirect(True)
+root.attributes("-topmost", True)
+root.configure(bg="#0b1220")
+style = {
+    "bg": "#0b1220", "fg": "#38e1ff", "activebackground": "#122036",
+    "activeforeground": "#38e1ff", "bd": 0, "highlightthickness": 0,
+    "font": ("DejaVu Sans", 30), "width": 2, "height": 1,
+}
+tk.Button(root, text="\u2302", command=go_home, **style).pack(side="left")
+tk.Button(root, text="\u2328", command=toggle_keyboard, **style).pack(side="left")
+root.update_idletasks()
+root.geometry(f"+8+{root.winfo_screenheight() - root.winfo_reqheight() - 8}")
+
+
+def stay_visible():
+    root.lift()
+    root.attributes("-topmost", True)
+    root.after(3000, stay_visible)
+
+
+stay_visible()
+root.mainloop()
+PYEOF
+sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
 
 [ ! -f "$PROFILE" ] || sudo cp -a "$PROFILE" "${PROFILE}.before-x11-${stamp}"
 [ ! -f "$XINIT" ] || sudo cp -a "$XINIT" "${XINIT}.before-x11-${stamp}"
@@ -56,6 +134,8 @@ done
 export GDK_SCALE=2
 export GDK_DPI_SCALE=1
 onboard --startup-delay=3 >/dev/null 2>&1 &
+export JARVIS_DASH_URL="${DASH_URL}"
+/opt/jarvis-kiosk/hub-bar.py >/dev/null 2>&1 &
 
 FIRST_URL="${KIOSK_URL}"
 while true; do
