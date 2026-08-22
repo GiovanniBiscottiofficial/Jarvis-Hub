@@ -19,6 +19,7 @@ import os
 import json
 import time
 from collections import deque
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import cv2
@@ -34,55 +35,120 @@ WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
 
-def active_page_socket() -> str:
+def active_page() -> dict:
     with urlopen(f"{DEVTOOLS_URL}/json/list", timeout=3) as response:
         targets = json.load(response)
     pages = [target for target in targets if target.get("type") == "page"]
     if not pages:
         raise RuntimeError("Chromium has no controllable page")
-    return pages[0]["webSocketDebuggerUrl"]
+    return pages[0]
 
 
-def cdp(method: str, params: dict | None = None) -> None:
+def cdp(method: str, params: dict | None = None, socket_url: str | None = None) -> dict:
     socket = websocket.create_connection(
-        active_page_socket(), timeout=3, origin=DEVTOOLS_URL
+        socket_url or active_page()["webSocketDebuggerUrl"],
+        timeout=3,
+        origin=DEVTOOLS_URL,
     )
     try:
         socket.send(json.dumps({"id": 1, "method": method, "params": params or {}}))
         response = json.loads(socket.recv())
         if "error" in response:
             raise RuntimeError(response["error"].get("message", "DevTools command failed"))
+        return response.get("result", {})
     finally:
         socket.close()
 
 
+def dispatch_key(socket_url: str, key: str, code: str, virtual_key: int) -> None:
+    for event_type in ("keyDown", "keyUp"):
+        cdp(
+            "Input.dispatchKeyEvent",
+            {
+                "type": event_type,
+                "key": key,
+                "code": code,
+                "windowsVirtualKeyCode": virtual_key,
+                "nativeVirtualKeyCode": virtual_key,
+            },
+            socket_url,
+        )
+
+
+NEXT_CONTROL = r"""
+(() => {
+  const selectors = [
+    'button[data-testid="control-button-skip-forward"]',
+    '.ytp-next-button',
+    'button[aria-label*="Next"]',
+    'button[aria-label*="next"]',
+    'button[title*="Next"]',
+    'button[title*="next"]',
+    '[role="button"][aria-label*="Next"]',
+    '[role="button"][aria-label*="Skip"]'
+  ];
+  for (const selector of selectors) {
+    const control = [...document.querySelectorAll(selector)].find((element) => {
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== 'hidden' && style.display !== 'none' && box.width > 0;
+    });
+    if (control) { control.click(); return selector; }
+  }
+  return '';
+})()
+"""
+
+
 def fire(gesture: str) -> None:
+    page = active_page()
+    socket_url = page["webSocketDebuggerUrl"]
+    parsed = urlparse(page.get("url", ""))
+    host = parsed.hostname or "local"
+    app = (
+        "youtube"
+        if "youtube.com" in host
+        else "spotify"
+        if "spotify.com" in host
+        else "plex"
+        if "plex.tv" in host or parsed.port == 32400
+        else "browser"
+    )
     if gesture in {"up", "down"}:
-        direction = 1 if gesture == "up" else -1
+        if app == "youtube" and parsed.path.startswith("/shorts"):
+            key = "ArrowDown" if gesture == "up" else "ArrowUp"
+            virtual_key = 40 if gesture == "up" else 38
+            dispatch_key(socket_url, key, key, virtual_key)
+        else:
+            direction = 1 if gesture == "up" else -1
+            cdp(
+                "Runtime.evaluate",
+                {
+                    "expression": (
+                        "window.scrollBy({top:window.innerHeight*"
+                        f"{direction}*0.92,behavior:'smooth'}})"
+                    )
+                },
+                socket_url,
+            )
+    elif gesture == "forward":
+        result = cdp(
+            "Runtime.evaluate",
+            {"expression": NEXT_CONTROL, "returnByValue": True},
+            socket_url,
+        )
+        clicked = result.get("result", {}).get("value", "")
+        if not clicked:
+            dispatch_key(socket_url, "MediaTrackNext", "MediaTrackNext", 176)
+            if app == "youtube":
+                dispatch_key(socket_url, "ArrowDown", "ArrowDown", 40)
+    else:
         cdp(
             "Runtime.evaluate",
-            {
-                "expression": (
-                    "window.scrollBy({top:window.innerHeight*"
-                    f"{direction}*0.92,behavior:'smooth'}})"
-                )
-            },
+            {"expression": "window.history.back()"},
+            socket_url,
         )
-    elif gesture == "forward":
-        for event_type in ("keyDown", "keyUp"):
-            cdp(
-                "Input.dispatchKeyEvent",
-                {
-                    "type": event_type,
-                    "key": "ArrowDown",
-                    "code": "ArrowDown",
-                    "windowsVirtualKeyCode": 40,
-                    "nativeVirtualKeyCode": 40,
-                },
-            )
-    else:
-        cdp("Runtime.evaluate", {"expression": "window.history.back()"})
-    print(f"gesture: {gesture} -> Chromium", flush=True)
+    print(f"gesture: {gesture} -> {app}", flush=True)
 
 
 def open_capture() -> cv2.VideoCapture:

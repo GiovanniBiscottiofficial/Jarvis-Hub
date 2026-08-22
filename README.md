@@ -466,7 +466,9 @@ bash bootstrap/setup-satellite.sh
   **back** (hand to your left) = last screen. Needs decent lighting and a
   deliberate swipe 2–6 ft from the camera. Tune `GESTURE_X_TRAVEL`,
   `GESTURE_Y_TRAVEL`, or `GESTURE_COOLDOWN_S` in `docker-compose.yml` and
-  watch detections with `docker logs -f gestures`.
+  watch detections with `docker logs -f gestures`. The dispatcher recognizes
+  YouTube/Shorts, Spotify, Plex, and generic HTML5 players; it uses each app's
+  visible Next/Skip control first, then falls back to browser media keys.
 
 The current Wyoming host satellite remains supported but is upstream-deprecated.
 Its replacement, Linux Voice Assistant, uses Home Assistant's ESPHome protocol and
