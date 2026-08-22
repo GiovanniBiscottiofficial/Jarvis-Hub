@@ -29,7 +29,7 @@ intent_script: !include intents.yaml
 
 # Jarvis Command Center dashboard (sidebar entry "Jarvis")
 lovelace:
-  mode: storage
+  mode: yaml
   dashboards:
     jarvis-hub:
       mode: yaml
