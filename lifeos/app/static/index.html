@@ -14,28 +14,131 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>LifeOS</h1>
-  <nav>
-    <button class="tab active" data-tab="today">Today</button>
-    <button class="tab" data-tab="body">Body Ops</button>
-    <button class="tab" data-tab="budget">Budget</button>
-    <button class="tab" data-tab="vault">Vault Flow</button>
-    <button class="tab" data-tab="review">Review</button>
-  </nav>
-  <select id="profile-select" title="Active profile"></select>
+<header class="app-header">
+  <div class="brand-lockup"><h1>LifeOS</h1><span>PRIVATE NODE</span></div>
+  <div class="nav-rail">
+    <nav aria-label="Primary navigation">
+      <button class="tab" data-tab="command">Command</button>
+      <button class="tab active" data-tab="today">Today</button>
+      <button class="tab" data-tab="body">Body Ops</button>
+      <button class="tab" data-tab="budget">Budget</button>
+      <button class="tab" data-tab="vault">Vault Flow</button>
+      <button class="tab" data-tab="review">Review</button>
+    </nav>
+    <span class="nav-more" aria-hidden="true">›</span>
+  </div>
+  <div class="shell-status" aria-label="Local system status"><span class="live-pip"></span><span>LOCAL</span><span id="shell-sync">SYNC READY</span></div>
+  <select id="profile-select" title="Active profile" aria-label="Active profile"></select>
 </header>
 
 <main>
+  <!-- ============ COMMAND CENTER ============ -->
+  <section id="command" class="panel command-center">
+    <div class="command-topline">
+      <div class="command-title">
+        <div class="eyebrow"><span class="live-pip" aria-hidden="true"></span> JARVIS / HOUSE INTELLIGENCE</div>
+        <h2 id="command-greeting">Situational awareness online</h2>
+        <p class="command-subtitle">Local command surface · simulations only</p>
+      </div>
+      <div class="command-actions">
+        <button id="command-refresh" class="secondary command-tool"><span aria-hidden="true">↻</span> Refresh telemetry</button>
+        <button id="command-fullscreen" class="secondary command-tool"><span aria-hidden="true">⛶</span> Full screen</button>
+      </div>
+    </div>
+
+    <div class="command-grid">
+      <article class="command-core tactical-panel" aria-labelledby="command-system-state">
+        <div class="core-label">SYSTEM VERDICT</div>
+        <div class="arc-reactor" aria-hidden="true">
+          <span class="reactor-orbit"></span>
+          <span class="reactor-core"></span>
+        </div>
+        <div id="command-system-state" class="system-state" aria-live="polite">ASSESSING</div>
+        <div id="command-system-detail" class="system-detail">Awaiting context telemetry.</div>
+        <div class="core-foot"><span>CORE 01</span><span id="command-updated">SYNC —</span></div>
+      </article>
+
+      <article class="tactical-panel command-status">
+        <header class="panel-heading"><span>01</span><h2>World state</h2><i>LIVE</i></header>
+        <div class="telemetry-row"><span>House mode</span><strong id="command-mode">—</strong></div>
+        <div class="telemetry-row"><span>Occupancy</span><strong id="command-occupancy">—</strong></div>
+        <div class="telemetry-row"><span>Alarm</span><strong id="command-alarm">—</strong></div>
+        <div class="telemetry-row"><span>Perimeter</span><strong id="command-perimeter">—</strong></div>
+        <div class="telemetry-row"><span>Hazards</span><strong id="command-hazards">—</strong></div>
+        <div class="telemetry-row"><span>Telemetry</span><strong id="command-link">—</strong></div>
+      </article>
+
+      <article class="tactical-panel command-proposals">
+        <div class="panel-heading section-heading">
+          <span>02</span><h2>Action proposals</h2>
+          <i id="command-proposal-count">0 PENDING</i>
+        </div>
+        <p class="panel-note">Review proposed automations before any real-world execution.</p>
+        <div id="command-proposal-list" class="command-list muted" aria-live="polite">No proposals.</div>
+      </article>
+
+      <article class="tactical-panel command-lifeos">
+        <header class="panel-heading"><span>03</span><h2>LifeOS pulse</h2><i id="lifeos-profile">PROFILE —</i></header>
+        <div class="lifeos-rail">
+          <div class="score-dial"><strong id="lifeos-score">—</strong><span>DAILY SCORE</span></div>
+          <div class="pulse-metric"><span>Protein</span><strong id="lifeos-protein">—</strong><i><b id="lifeos-protein-fill"></b></i></div>
+          <div class="pulse-metric"><span>Steps</span><strong id="lifeos-steps">—</strong><i><b id="lifeos-steps-fill"></b></i></div>
+          <div class="pulse-metric"><span>Hydration</span><strong id="lifeos-water">—</strong><i><b id="lifeos-water-fill"></b></i></div>
+          <div class="pulse-metric"><span>Vitamins</span><strong id="lifeos-vitamins">—</strong></div>
+          <div class="pulse-metric vault-pulse"><span>Runway after bills</span><strong id="lifeos-runway">—</strong></div>
+        </div>
+        <div id="lifeos-priorities" class="priority-rail muted">Awaiting daily priorities.</div>
+      </article>
+
+      <article class="tactical-panel command-hardware">
+        <header class="panel-heading"><span>04</span><h2>X1 node health</h2><i id="command-hardware-verdict">AWAITING LINK</i></header>
+        <div id="command-hardware-list" class="hardware-grid" aria-live="polite">
+          <div class="empty-state">Hardware telemetry pending</div>
+        </div>
+      </article>
+
+      <article class="tactical-panel command-capabilities">
+        <header class="panel-heading"><span>05</span><h2>Capability readiness</h2><i>DEPENDENCY MAP</i></header>
+        <div id="command-capability-list" class="capability-grid muted">Loading capability manifest.</div>
+      </article>
+
+      <article class="tactical-panel behavior-lab">
+        <header class="panel-heading"><span>06</span><h2>Behavior Lab</h2><i>STATE-SAFE</i></header>
+        <p class="panel-note">Predict policy and actions without changing house state.</p>
+        <div class="simulation-controls" role="group" aria-label="Behavior simulations">
+          <button class="secondary simulation-trigger" data-behavior="arrival">Simulate arrival</button>
+          <button class="secondary simulation-trigger" data-behavior="departure">Simulate departure</button>
+          <button id="nightly-review" class="secondary simulation-trigger" data-behavior="nightly">Simulate nightly</button>
+        </div>
+        <div id="simulation-result" class="simulation-result empty-state" aria-live="polite">Select a behavior to inspect predicted actions.</div>
+      </article>
+
+      <article class="tactical-panel command-events">
+        <header class="panel-heading"><span>07</span><h2>Live event stream</h2><i id="command-event-count">0 EVENTS</i></header>
+        <div id="command-event-list" class="event-stream muted" aria-live="polite">No telemetry received.</div>
+      </article>
+
+      <article class="tactical-panel command-policy">
+        <header class="panel-heading"><span>08</span><h2>Authority matrix</h2><i>POLICY LOCK</i></header>
+        <div class="matrix-legend"><span>ACTION</span><span>AUTHORITY / RISK</span></div>
+        <div id="command-policy-list" class="command-list muted">Loading policies.</div>
+        <details class="audit-disclosure"><summary>Recent simulation audit</summary><div id="command-audit-list" class="audit-list muted">No recorded simulations.</div></details>
+      </article>
+    </div>
+    <footer class="command-footer"><span>LifeOS // Home intelligence node</span><span>All action controls run in dry-run simulation mode</span></footer>
+  </section>
+
   <!-- ============ TODAY ============ -->
   <section id="today" class="panel active">
-    <div class="card">
+    <div class="section-intro"><div><span class="section-index">DAILY / 01</span><h2>Today’s operating picture</h2><p>Body, priorities, and financial runway in one view.</p></div><span class="section-date" id="today-date">NOW</span></div>
+    <div class="lifeos-page-grid today-grid">
+    <div class="card briefing-card">
       <h2>Morning briefing</h2>
       <div id="briefing" class="muted">–</div>
       <button id="briefing-btn" class="pill">Brief me</button>
     </div>
 
-    <div class="card" id="progress-card">
+    <div class="card progress-card" id="progress-card">
       <h2>Progress</h2>
       <div class="bar-row"><span>Protein</span>
         <div class="bar"><div id="protein-bar" class="fill"></div></div>
@@ -53,24 +156,32 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card priorities-card">
+      <h2>Today’s priorities</h2>
+      <div id="today-priorities" class="muted">Assessing the day.</div>
+    </div>
+
+    <div class="card meals-card">
       <h2>Meal suggestions <span class="muted">(5–15 min, from pantry)</span></h2>
       <div id="suggestions"></div>
     </div>
 
-    <div class="card">
+    <div class="card nudges-card">
       <h2>Nudges</h2>
       <div id="nudges" class="muted">None right now.</div>
     </div>
 
-    <div class="card">
+    <div class="card vault-card">
       <h2>Vault snapshot</h2>
       <div id="vault-snapshot">–</div>
+    </div>
     </div>
   </section>
 
   <!-- ============ BODY OPS ============ -->
   <section id="body" class="panel">
+    <div class="section-intro"><div><span class="section-index">HUMAN / 02</span><h2>Body operations</h2><p>Measure, fuel, move, recover.</p></div></div>
+    <div class="lifeos-page-grid body-grid">
     <div class="card">
       <h2>Weigh-in</h2>
       <div class="row">
@@ -127,6 +238,7 @@
       </div>
       <h2>Grocery suggestions</h2>
       <div id="grocery" class="muted">–</div>
+    </div>
     </div>
   </section>
 
@@ -191,6 +303,8 @@
 
   <!-- ============ VAULT FLOW ============ -->
   <section id="vault" class="panel">
+    <div class="section-intro"><div><span class="section-index">CAPITAL / 03</span><h2>Vault flow</h2><p>Cash position, obligations, and protected goals.</p></div></div>
+    <div class="lifeos-page-grid vault-grid">
     <div class="card">
       <h2>Accounts</h2>
       <div id="accounts"></div>
@@ -232,10 +346,13 @@
       <h2>This week's plan</h2>
       <div id="plan"></div>
     </div>
+    </div>
   </section>
 
   <!-- ============ REVIEW ============ -->
   <section id="review" class="panel">
+    <div class="section-intro"><div><span class="section-index">SYNTHESIS / 04</span><h2>Weekly intelligence</h2><p>Signals, momentum, and the decisions that matter next.</p></div></div>
+    <div class="lifeos-page-grid review-grid">
     <div class="card">
       <h2>Weekly review</h2>
       <div id="review-speech" class="muted">–</div>
@@ -249,6 +366,7 @@
         <input id="profile-protein" type="number" placeholder="protein g">
         <button id="profile-btn">Add</button>
       </div>
+    </div>
     </div>
   </section>
 </main>

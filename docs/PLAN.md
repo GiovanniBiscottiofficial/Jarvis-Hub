@@ -1,11 +1,12 @@
-# Smart Home Hub Build Plan — ThinkPad X1 Carbon Gen 3
+# Jarvis Hub Build Plan — ThinkPad X1 Tablet Gen 3
 
 Goal: replace Alexa/Google Home with a private, local-first hub running Home Assistant, controlling your **Monster Illuminessence lights** and **iHome AutoVac Juno (iHRV9)**, with an offline voice assistant.
 
-> **BUILD STATUS: software complete.** Every phase below that can be expressed
-> as code is written, validated, and deployed to the X1 — HA + LifeOS + local
-> voice + LLM + kiosk HUD + proactive layer + backups + remote access. The only
-> remaining work is physical: pairing devices. Follow
+> **BUILD STATUS: software foundation implemented.** The repository contains HA,
+> LifeOS, local voice, optional LLM, kiosk UI, context engine, safety policies,
+> simulations, backups, and remote-access setup. Deployment to the physical X1,
+> Linux hardware verification, credential setup, entity mapping, and device pairing
+> remain commissioning work. Follow
 > **[CONNECT-DEVICES.md](CONNECT-DEVICES.md)** — it maps every device to the
 > exact steps and the dormant features that wake up when it's connected.
 
@@ -417,11 +418,110 @@ A custom app in the same stack (its own container, port 8090, mobile-friendly we
 
 ---
 
+## Phase 19 — Jarvis context, policy, and Command Center
+
+This is the cognitive spine that turns the collection of services into one system.
+
+### Implemented now
+
+- Durable event, fact, proposal, and action-audit storage in the LifeOS database.
+- Home Assistant state changes projected into occupancy, perimeter, alarm, hazard,
+  house-mode, and X1 hardware context.
+- A fused command payload combining house state with Body Ops, Vault Flow, daily
+  priorities, capability readiness, policies, and pending proposals.
+- Explicit policies for every action: scope, risk, reversibility, confirmation rule,
+  and remote-execution permission.
+- Three deterministic behaviors: arrival orchestration, last-person departure anomaly
+  detection, and nightly security review.
+- A side-effect-free Behavior Lab for all three scenarios. Simulation never writes
+  house facts, creates proposals, or calls Home Assistant.
+- Proposal dismissal and action audit history.
+- A full-screen X1-first Command Center with responsive phone operation.
+
+### Authority model
+
+1. Sensors and LifeOS data describe reality.
+2. Deterministic behavior code produces a proposed action and reason.
+3. The policy registry decides whether automatic, remote-confirmed, or local visual
+   confirmation is required.
+4. The UI and voice layer explain the proposal; they do not bypass policy.
+5. Execution and dismissal are written to the audit log.
+
+An LLM can summarize, converse, and recommend. It must never be the component that
+decides whether a physical action is authorized.
+
+## Phase 20 — Capability expansion roadmap
+
+Build these in evidence-driven order rather than adding disconnected gadgets.
+
+### Reliability and observability
+
+- Add authenticated API access for LifeOS and rotate Home Assistant tokens.
+- Add service health, database-size, backup-age, event-lag, microphone-level, camera
+  frame-age, and disk-wear telemetry.
+- Add proposal rate limits, retention policies, exportable audit history, and restore
+  drills—not just backup creation.
+- Add offline/degraded modes so every screen says what still works when HA, the LLM,
+  internet, or a sensor is unavailable.
+
+### Context quality
+
+- Fuse phone GPS, router presence, Bluetooth proximity, motion/mmWave, door events,
+  calendar, weather, and device activity with confidence and freshness metadata.
+- Add room-level occupancy and contradiction detection instead of trusting a single
+  presence source.
+- Record causal links and correlation IDs so Jarvis can answer “why did you do that?”
+  from the event and action trail.
+
+### LifeOS intelligence
+
+- Turn daily health, meals, workouts, bills, spending, groceries, and routines into a
+  ranked daily plan with dismiss/snooze/complete states.
+- Add calendar/time-block integration and an inbox for voice-captured tasks.
+- Add local semantic memory with explicit review, editing, expiry, and privacy controls.
+- Add explainable weekly trend detection; recommendations must cite the underlying
+  measurements and never present medical or financial guesses as facts.
+
+### Voice and multimodal operation
+
+- Migrate the deprecated Wyoming host satellite when Linux Voice Assistant becomes
+  stable enough for this hardware.
+- Add barge-in, echo cancellation, microphone health, speaker routing, visual listening
+  state, and a physical privacy/mute indicator.
+- Use rear/front cameras for opt-in gesture and occupancy signals. Face identity and
+  recordings remain disabled until explicit retention and consent rules exist.
+
+### Security and safety
+
+- Add per-user roles, local-presence confirmation, tamper alerts, secrets isolation,
+  authenticated webhooks, and encrypted off-device backups.
+- Keep unlock, disarm, garage movement, purchases, and computer-control actions behind
+  narrow, testable policies. Presence alone is never proof of identity.
+- Run every new behavior against recorded/synthetic scenarios before enabling live mode.
+
+### UX completion criteria
+
+- Every state has loading, empty, stale, degraded, offline, and recovery treatments.
+- Every proposal shows what triggered it, what will happen, risk, confirmation needs,
+  and how to cancel it.
+- Tablet interactions work from arm's length; phone interactions work one-handed;
+  keyboard and screen-reader operation remain complete.
+- The Command Center must answer four questions in under five seconds: What is happening?
+  What needs me? Why? What is Jarvis allowed to do?
+
+---
+
 ## Suggested build order
 
-Weekend 1: Phases 0–2 (hub running, lights + vacuum connected).
-Weekend 2: Phases 3–5 (voice, first automations, presence).
-Then one phase at a time as you feel like it — 6 through 12 are all independent.
+1. Deploy and verify the core stack, backups, and remote access.
+2. Commission X1 audio, cameras, Bluetooth, touch, power, and thermal telemetry.
+3. Pair presence and perimeter sensors before enabling security proposals.
+4. Connect lights, vacuum, TV, and speakers; replace every placeholder entity ID.
+5. Exercise arrival, departure, and nightly scenarios in the Behavior Lab.
+6. Enable live low-risk actions first, observe the audit trail, then graduate confirmed
+   high-risk actions one at a time.
+7. Add optional media, pantry, camera AI, and LLM services only after the core remains
+   stable through reboots and network loss.
 
 ---
 

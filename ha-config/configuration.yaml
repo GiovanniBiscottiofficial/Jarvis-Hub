@@ -3,6 +3,10 @@
 
 default_config:
 
+# Use the X1's built-in Intel Bluetooth adapter for local BLE discovery,
+# presence, temperature tags, locks, and other supported integrations.
+bluetooth:
+
 # Jarvis look — dark glass theme (see themes/jarvis.yaml)
 frontend:
   themes: !include_dir_merge_named themes/
@@ -195,6 +199,15 @@ rest_command:
       Authorization: !secret lifeos_api_authorization
     content_type: application/json
     payload: '{"name": {{ goal | tojson }}, "amount": {{ amount }}}'
+  lifeos_context_event:
+    url: http://localhost:8090/api/events
+    method: POST
+    content_type: application/json
+    payload: >-
+      {"source":"home_assistant","event_type":{{ event_type | tojson }},
+      "entity_id":{{ entity_id | tojson }},"state":{{ state | tojson }},
+      "previous_state":{{ previous_state | tojson }},
+      "attributes":{{ attributes | tojson }}}
 
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:

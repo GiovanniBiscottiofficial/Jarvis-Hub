@@ -30,6 +30,18 @@ ffmpeg:
 #         days: 3
 #     objects:
 #       track: [person]
+#   # Optional second built-in camera. Set REAR_CAMERA_DEV when running
+#   # setup-satellite.sh, then enable this stream if Linux exposes the sensor.
+#   x1_rear:
+#     ffmpeg:
+#       inputs:
+#         - path: rtsp://127.0.0.1:8556/x1_rear
+#           roles: [detect]
+#     detect:
+#       width: 1280
+#       height: 720
+#     objects:
+#       track: [person]
 #   front_door:
 #     ffmpeg:
 #       inputs:

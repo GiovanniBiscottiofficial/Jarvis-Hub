@@ -2,6 +2,7 @@
 from datetime import date
 import hmac
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +12,7 @@ from .db import active_profile, conn, get_setting, init_db
 from .routers import (
     bodyops,
     budget,
+    context,
     insights,
     pantry,
     profiles,
@@ -84,6 +86,7 @@ app.include_router(webhooks.router)
 app.include_router(profiles.router)
 app.include_router(pantry.router)
 app.include_router(insights.router)
+app.include_router(context.router)
 
 
 @app.get("/api/today")
@@ -128,5 +131,8 @@ def today():
             "nudges": nudges,
         }
 
-
-app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
+app.mount(
+    "/",
+    StaticFiles(directory=Path(__file__).resolve().parent / "static", html=True),
+    name="static",
+)

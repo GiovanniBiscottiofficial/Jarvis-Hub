@@ -20,12 +20,14 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 
 ## Build status — where we are
 
-**Software: complete.** Everything that can be built as code is built, deployed
-to the X1, and verified live. The only remaining work is connecting physical
-devices — the full device-by-device playbook (what to pair, exact steps, and
-which dormant features wake up) is **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVICES.md)**.
+**Software foundation: implemented and continuously tested.** The repository now
+contains the orchestration, LifeOS, voice, kiosk, safety policy, simulations, and
+automation layers. Real-world readiness still depends on deploying this branch to
+the X1, confirming its Linux device nodes, pairing household devices, and replacing
+placeholder Home Assistant entity IDs. Use
+**[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVICES.md)** as the commissioning runbook.
 
-**Built and in this repo (everything below is validated and pushed):**
+**Built and in this repo:**
 - Core stack: Home Assistant + LifeOS + optional profiles (voice, LLM, Grocy, cameras, Plex, Jellyfin)
 - LifeOS: briefings, protein/water/steps, meals & favorites, pantry/grocery, workouts,
   weigh-ins, spending, bills, accounts, savings goals, weekly review, PWA install
@@ -123,8 +125,73 @@ The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
 | `ha-config/dashboards/jarvis.yaml` | "Jarvis" command-center dashboard (Home / Vacuum / Media / Kitchen / System tabs) |
-| `lifeos/` | LifeOS app: Vault Flow (finance) + Body Ops (health/fuel) — its own container on port 8090 |
+| `lifeos/` | Jarvis's operating layer: Command Center + context engine + Vault Flow + Body Ops, on port 8090 |
 | `docs/PLAN.md` | The full build plan |
+
+## Jarvis context engine and Command Center
+
+LifeOS is Jarvis's operating layer, not a separate tracker. It maintains a durable,
+explainable world model and fuses it with personal state: daily health progress,
+near-term financial runway, priorities, X1 hardware readiness, proposals, and the
+Home Assistant event stream. Open LifeOS and select **Command** for the complete
+operating picture.
+
+Home Assistant forwards meaningful `state_changed` events through
+`ha-config/automations/context_engine.yaml`. LifeOS evaluates three behaviors:
+
+- arrival orchestration when a known person comes home;
+- departure anomaly detection when the last person leaves with an open entry;
+- a nightly perimeter and alarm review at 10:45 PM.
+
+Behaviors create proposals; they do not silently operate locks, doors, or alarms.
+The Behavior Lab exercises arrival, departure, and nightly scenarios without
+writing house state or controlling devices. The Command Center's action controls
+remain dry-run simulations. Direct live calls to
+`POST /api/actions/{action_id}` require the policy's confirmation flag and a
+Home Assistant long-lived token. To enable that API intentionally, add these to
+`.env` and rebuild LifeOS:
+
+```bash
+HOME_ASSISTANT_URL=http://homeassistant:8123
+HOME_ASSISTANT_TOKEN=replace-with-a-long-lived-access-token
+```
+
+Leave the token unset to keep all action execution in dry-run mode. Critical
+actions such as closing the garage are local-confirmation-only even with a token.
+
+Context APIs:
+
+- `GET /api/command-center` — fused house, LifeOS, policy, capability, and proposal view;
+- `GET /api/context` — current derived world state;
+- `GET|POST /api/events` — event history and ingestion;
+- `GET|POST /api/proposals` — pending actions and manual behavior evaluation;
+- `POST /api/proposals/{id}/dismiss` — close a proposal with an audit record;
+- `POST /api/simulations/{arrival|departure|nightly}` — side-effect-free behavior lab;
+- `GET /api/actions`, `GET /api/actions/audit`, and `POST /api/actions/{action_id}` —
+  policies, audit history, and guarded execution.
+
+Every action declares its scope, risk, reversibility, confirmation policy, and
+whether remote execution is allowed. This is the central rule: the LLM may explain
+and propose, but only the deterministic policy layer may authorize an action.
+
+### System architecture
+
+```mermaid
+flowchart LR
+    X1["X1 cameras / audio / Bluetooth / touch / power"] --> HA["Home Assistant"]
+    HA -->|state events| CE["LifeOS context engine"]
+    BO["Body Ops"] --> CE
+    VF["Vault Flow"] --> CE
+    CE --> CC["Command Center + Behavior Lab"]
+    CE --> PP["Policy and proposal gate"]
+    LLM["Jarvis conversation agent"] -->|intent / explanation| PP
+    PP -->|confirmed, authorized actions only| HA
+    PP --> AU["Append-only action audit"]
+```
+
+The split is deliberate: Home Assistant owns devices, LifeOS owns durable personal
+and contextual intelligence, Jarvis owns conversation and synthesis, and the policy
+gate owns authority.
 
 The automation/script files contain placeholder entity IDs (`light.living_room`,
 `vacuum.juno`, `media_player.fire_tv`, `notify.mobile_app_phone`) — rename them to match
@@ -299,6 +366,26 @@ The X1 isn't just the server — its own screen becomes the house's control pane
 bash bootstrap/setup-kiosk.sh   # then reboot
 ```
 
+If the X1 opens Chromium as a small window or gets stuck on a plain white 4xx
+page while Home Assistant is still running, switch to a terminal with
+`Ctrl+Alt+F2` and run:
+
+```bash
+cd ~/Jarvis-Hub
+git pull
+bash bootstrap/repair-kiosk.sh
+```
+
+The repair checks Home Assistant, restores the stable X11/Openbox kiosk session,
+forces Chromium to the X1's full display geometry, and restarts tty1. It preserves
+the remembered Home Assistant login and user data and does not use a reload
+watchdog.
+
+If Home Assistant loads but Wayland leaves Chromium as a small centered box or
+causes a white reload loop, run `bash bootstrap/revert-kiosk-to-x11.sh`. This
+removes the Weston tty1 launch and restores the stable X11/Openbox fullscreen
+session with explicit 3000×2000 bounds.
+
 It boots into a live animated **Jarvis boot splash** (spinning arc-reactor core,
 "INITIALIZING SYSTEMS…", moving circuit grid — `ha-config/www/jarvis-splash.html`,
 also viewable any time at `http://<hub-ip>:8123/local/jarvis-splash.html`), which
@@ -339,7 +426,8 @@ Prefer another page? `KIOSK_URL=http://localhost:8123/jarvis-hub/home`
 
 ## The X1 as a sensor node
 
-The laptop's own mic and webcam become house hardware:
+The laptop becomes a complete local sensor/interface node: cameras, microphone,
+speakers, Bluetooth, touchscreen, battery, AC state, and thermal telemetry:
 
 ```bash
 bash bootstrap/setup-satellite.sh
@@ -349,15 +437,29 @@ bash bootstrap/setup-satellite.sh
   once more (host `localhost`, port **10700**), assign your Jarvis pipeline to the new
   satellite, and the laptop listens for "hey Jarvis" room-wide — answers come out its
   speakers.
-- **⚠️ X1 Tablet Gen 3 needs a USB mic**: this model's built-in mic array isn't wired
-  to the audio codec Linux can see — recordings from it are pure electrical noise, on
-  any driver. Plug in **any cheap USB microphone** (~$10–15; a small USB conference
-  mic is ideal for room-wide pickup) and the satellite auto-selects it on boot.
-  Speakers still work built-in — only the mic needs the dongle.
+- **Validate the microphone before relying on it**: Linux support for the X1's internal
+  array varies by kernel, firmware, and audio profile. Run a real recording test after
+  installation. If it is noisy or unavailable, plug in a USB conference microphone;
+  the satellite setup prefers a usable capture source automatically. The built-in
+  speakers remain the normal response endpoint.
 - **Webcam → camera**: a local stream at `rtsp://<laptop-ip>:8556/x1_webcam`. Quick
   view: HA → Add Integration → **Generic Camera** with that URL. Person detection:
   uncomment the `x1_webcam` block in `frigate/config.yml` and run
   `docker compose --profile cameras up -d`.
+- **Rear and IR cameras when exposed by Linux**: run `v4l2-ctl --list-devices`.
+  If usable capture nodes appear, rerun with `REAR_CAMERA_DEV=/dev/videoN` and/or
+  `IR_CAMERA_DEV=/dev/videoM`; go2rtc publishes `x1_rear` and `x1_ir` streams.
+- **Bluetooth 4.1 → local BLE scanner and presence input**: the installer enables
+  BlueZ and grants the Home Assistant container the adapter-management permissions
+  needed for reliable discovery and recovery. Pair supported tags, locks, sensors,
+  headphones, or speakers from Home Assistant's Bluetooth integration.
+- **Speakers → Jarvis response and announcement endpoint**: the voice satellite uses
+  the built-in speakers, and `script.jarvis_say` targets the first available Assist
+  satellite before falling back to another media player.
+- **Hardware telemetry → context engine**: a host service reports camera, mic,
+  speakers, Bluetooth, touch, battery, mains power, and temperature only when their
+  state changes, plus a five-minute health heartbeat so stale links can be detected.
+  They appear in the Command Center and event timeline.
 - **Webcam → hand-gesture control**: `bash bootstrap/setup-gestures.sh` and the
   kiosk obeys swipes at the camera — **up** = next Short (screen slides up),
   **down** = previous, **forward** (hand to your right) = skip/next video,
@@ -365,6 +467,12 @@ bash bootstrap/setup-satellite.sh
   deliberate swipe 2–6 ft from the camera; tune sensitivity in
   `/etc/systemd/system/jarvis-gestures.service`. Watch it think:
   `journalctl -u jarvis-gestures -f`.
+
+The current Wyoming host satellite remains supported but is upstream-deprecated.
+Its replacement, Linux Voice Assistant, uses Home Assistant's ESPHome protocol and
+adds newer media-player/conversation capabilities. The event/context layer is
+protocol-independent, so that migration can happen separately after the X1 audio
+device names have been confirmed on the real machine.
 
 ## Access from anywhere
 

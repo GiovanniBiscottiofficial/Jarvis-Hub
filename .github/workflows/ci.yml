@@ -1,0 +1,43 @@
+name: Validate Jarvis Hub
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            lifeos/requirements.txt
+            lifeos/requirements-dev.txt
+
+      - name: Install validation dependencies
+        run: python -m pip install -r lifeos/requirements-dev.txt
+
+      - name: Python lint and behavior simulations
+        run: |
+          ruff check lifeos/app lifeos/tests gestures bootstrap/hardware-monitor.py
+          pytest
+
+      - name: Validate bootstrap scripts
+        run: bash -n bootstrap/*.sh
+
+      - name: Validate YAML
+        run: yamllint -c .yamllint.yml docker-compose.yml ha-config frigate
+
+      - name: Validate Compose
+        run: docker compose config --quiet
+
+      - name: Validate browser JavaScript
+        run: node --check lifeos/app/static/app.js

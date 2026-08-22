@@ -1,0 +1,46 @@
+# Feed meaningful state changes into the LifeOS world model. The domain filter
+# avoids mirroring noisy diagnostic sensors and LifeOS's own REST sensors.
+- alias: "Jarvis: mirror state changes to the context engine"
+  id: jarvis_context_state_changes
+  mode: queued
+  max: 50
+  trigger:
+    - platform: event
+      event_type: state_changed
+  condition:
+    - condition: template
+      value_template: >-
+        {% set entity = trigger.event.data.entity_id | default('') %}
+        {{ entity.split('.')[0] in
+           ['person', 'binary_sensor', 'cover', 'lock', 'alarm_control_panel',
+            'input_boolean', 'media_player', 'light', 'climate', 'vacuum'] }}
+  action:
+    - service: rest_command.lifeos_context_event
+      data:
+        event_type: state_changed
+        entity_id: "{{ trigger.event.data.entity_id }}"
+        state: >-
+          {{ trigger.event.data.new_state.state
+             if trigger.event.data.new_state else none }}
+        previous_state: >-
+          {{ trigger.event.data.old_state.state
+             if trigger.event.data.old_state else none }}
+        attributes: >-
+          {{ trigger.event.data.new_state.attributes
+             if trigger.event.data.new_state else {} }}
+
+- alias: "Jarvis: nightly security review"
+  id: jarvis_nightly_security_review
+  mode: single
+  trigger:
+    - platform: time
+      at: "22:45:00"
+  action:
+    - service: rest_command.lifeos_context_event
+      data:
+        event_type: schedule.nightly_security_review
+        entity_id: null
+        state: null
+        previous_state: null
+        attributes:
+          scheduled: true

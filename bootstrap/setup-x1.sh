@@ -111,6 +111,27 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
+# If configuration.yaml protects HA→LifeOS requests, ensure HA's secret and
+# the LifeOS container receive the same token before Home Assistant starts.
+if grep -q '!secret lifeos_api_authorization' ha-config/configuration.yaml; then
+  LIFEOS_TOKEN=$(sed -n 's/^LIFEOS_API_TOKEN=//p' .env | tail -1)
+  if [ -z "$LIFEOS_TOKEN" ]; then
+    LIFEOS_TOKEN=$(openssl rand -hex 32 2>/dev/null || cat /proc/sys/kernel/random/uuid)
+    if grep -q '^LIFEOS_API_TOKEN=' .env; then
+      sed -i "s|^LIFEOS_API_TOKEN=.*$|LIFEOS_API_TOKEN=${LIFEOS_TOKEN}|" .env
+    else
+      printf '\nLIFEOS_API_TOKEN=%s\n' "$LIFEOS_TOKEN" >>.env
+    fi
+  fi
+  if grep -q '^lifeos_api_authorization:' ha-config/secrets.yaml 2>/dev/null; then
+    sed -i "s|^lifeos_api_authorization:.*$|lifeos_api_authorization: \"Bearer ${LIFEOS_TOKEN}\"|" \
+      ha-config/secrets.yaml
+  else
+    printf 'lifeos_api_authorization: "Bearer %s"\n' "$LIFEOS_TOKEN" >>ha-config/secrets.yaml
+  fi
+  chmod 600 ha-config/secrets.yaml
+fi
+
 # 5. Start the core stack
 echo "==> Starting Home Assistant..."
 sudo docker compose up -d

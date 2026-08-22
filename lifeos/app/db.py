@@ -212,6 +212,59 @@ CREATE TABLE IF NOT EXISTS nudges (
     text TEXT NOT NULL,
     resolved INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS context_events (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    source TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    entity_id TEXT,
+    state TEXT,
+    previous_state TEXT,
+    attributes_json TEXT NOT NULL DEFAULT '{}',
+    correlation_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_events_ts
+    ON context_events(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_context_events_entity
+    ON context_events(entity_id, ts DESC);
+
+CREATE TABLE IF NOT EXISTS context_facts (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 1.0,
+    source TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS action_proposals (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    behavior TEXT NOT NULL,
+    action_id TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    risk TEXT NOT NULL,
+    requires_confirmation INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    context_json TEXT NOT NULL DEFAULT '{}',
+    expires_at TEXT,
+    executed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_action_proposals_status
+    ON action_proposals(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS action_audit (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    action_id TEXT NOT NULL,
+    proposal_id INTEGER REFERENCES action_proposals(id),
+    requested_by TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    details_json TEXT NOT NULL DEFAULT '{}'
+);
 """
 
 DEFAULT_SETTINGS = {

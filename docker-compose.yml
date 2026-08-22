@@ -15,6 +15,9 @@ services:
     image: ghcr.io/home-assistant/home-assistant:stable
     restart: unless-stopped
     privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     network_mode: host
     environment:
       - TZ=${TZ:-America/New_York}
@@ -22,6 +25,7 @@ services:
       - ./ha-config:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
+      - /run/udev:/run/udev:ro
 
   # ---------- LifeOS: Vault Flow + Body Ops ----------
   lifeos:
@@ -41,6 +45,9 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - LIFEOS_VISION_MODEL=${LIFEOS_VISION_MODEL:-gemma3:4b}
       - LIFEOS_MAX_PHOTO_BYTES=${LIFEOS_MAX_PHOTO_BYTES:-8388608}
+      # Optional: enables policy-controlled actions after proposals are reviewed.
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://homeassistant:8123}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
     ports:
       - "8090:8090"
     volumes:
