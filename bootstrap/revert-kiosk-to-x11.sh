@@ -16,7 +16,7 @@ echo "==> Installing X11/Openbox kiosk packages..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils chromium-browser \
-  unclutter dbus-x11 curl python3-tk xdotool
+  unclutter dbus-x11 curl python3-tk xdotool xterm wmctrl
 
 echo "==> Installing the floating Home and keyboard controls..."
 sudo mkdir -p /opt/jarvis-kiosk
@@ -36,6 +36,7 @@ DASH_URL = os.environ.get(
     "JARVIS_DASH_URL",
     "http://localhost:8123/jarvis-hub/wall-plus?kiosk",
 )
+SETTINGS_URL = "http://localhost:8123/config"
 
 
 def request(path, method="GET"):
@@ -45,13 +46,13 @@ def request(path, method="GET"):
     return json.loads(body) if body.strip() else None
 
 
-def go_home():
+def navigate(url):
     try:
         pages = [page for page in request("/json/list") if page.get("type") == "page"]
         try:
-            new_page = request("/json/new?" + quote(DASH_URL, safe=""), "PUT")
+            new_page = request("/json/new?" + quote(url, safe=""), "PUT")
         except Exception:
-            new_page = request("/json/new?" + quote(DASH_URL, safe=""))
+            new_page = request("/json/new?" + quote(url, safe=""))
         new_id = (new_page or {}).get("id")
         for page in pages:
             if page.get("id") and page["id"] != new_id:
@@ -61,6 +62,23 @@ def go_home():
                     pass
     except Exception:
         pass
+
+
+def go_home():
+    navigate(DASH_URL)
+
+
+def go_settings():
+    navigate(SETTINGS_URL)
+
+
+def open_terminal():
+    subprocess.Popen([
+        "sh", "-c",
+        "xterm -title 'Jarvis Terminal' -fa 'DejaVu Sans Mono' -fs 18 "
+        "-bg '#020911' -fg '#7fe9ff' -cr '#7fe9ff' & "
+        "sleep 0.5; wmctrl -r 'Jarvis Terminal' -b add,fullscreen",
+    ])
 
 
 def toggle_keyboard():
@@ -87,6 +105,8 @@ keys_style = {
     "width": 5,
 }
 tk.Button(root, text="KEYS", command=toggle_keyboard, **keys_style).pack(side="left")
+tk.Button(root, text="SET", command=go_settings, **keys_style).pack(side="left")
+tk.Button(root, text="TERM", command=open_terminal, **keys_style).pack(side="left")
 root.update_idletasks()
 root.geometry(f"+8+{root.winfo_screenheight() - root.winfo_reqheight() - 8}")
 
