@@ -451,22 +451,26 @@ def init_db() -> None:
                 "UPDATE accounts SET balance=? WHERE name=? AND balance=0",
                 (baseline, name),
             )
+        # Bills and debts seed only into an empty table: they are live
+        # ledger data, so a row the user deleted must stay deleted across
+        # restarts instead of being resurrected by the seed list.
         _today = date.today()
         _period = f"{_today:%Y-%m}-P{1 if _today.day < 15 else 2}"
-        for name, amount, due_day, paycheck, note, paid in SEED_BILLS:
-            paid_period = _period if paid and paycheck == 1 else None
-            c.execute(
-                "INSERT INTO bills(name,amount,due_day,paycheck,note,paid_period)"
-                " SELECT ?,?,?,?,?,?"
-                " WHERE NOT EXISTS (SELECT 1 FROM bills WHERE name=?)",
-                (name, amount, due_day, paycheck, note, paid_period, name),
-            )
-        for d in SEED_DEBTS:
-            c.execute(
-                "INSERT OR IGNORE INTO debts(name,total,remaining,installment,"
-                "cadence,note) VALUES(?,?,?,?,?,?)",
-                d,
-            )
+        if c.execute("SELECT COUNT(*) AS n FROM bills").fetchone()["n"] == 0:
+            for name, amount, due_day, paycheck, note, paid in SEED_BILLS:
+                paid_period = _period if paid and paycheck == 1 else None
+                c.execute(
+                    "INSERT INTO bills(name,amount,due_day,paycheck,note,"
+                    "paid_period) VALUES(?,?,?,?,?,?)",
+                    (name, amount, due_day, paycheck, note, paid_period),
+                )
+        if c.execute("SELECT COUNT(*) AS n FROM debts").fetchone()["n"] == 0:
+            for d in SEED_DEBTS:
+                c.execute(
+                    "INSERT INTO debts(name,total,remaining,installment,"
+                    "cadence,note) VALUES(?,?,?,?,?,?)",
+                    d,
+                )
         for name, target, saved, monthly in SEED_GOALS:
             c.execute(
                 "INSERT OR IGNORE INTO savings_goals(name,target,saved,monthly)"
