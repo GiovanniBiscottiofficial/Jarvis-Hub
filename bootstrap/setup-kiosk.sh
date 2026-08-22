@@ -240,6 +240,7 @@ while true; do
   systemd-inhibit --what=idle:sleep --mode=block --who="Jarvis kiosk" \
     --why="Kiosk display and media playback are active" \
     chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
+    --autoplay-policy=no-user-gesture-required \\
     --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\

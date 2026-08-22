@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Jarvis Spatial Directory</title>
+  <style>
+    @font-face { font-family: Orbitron; src: url('/local/fonts/orbitron.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    :root {
+      color-scheme: dark;
+      --ink: #030910;
+      --panel: #07121c;
+      --panel-hi: #0a1a27;
+      --line: #173342;
+      --cyan: #43d9ee;
+      --cyan-muted: #286a78;
+      --steel: #87a4b2;
+      --text: #e3f5fa;
+      --green: #65dc9d;
+      --amber: #e4ad53;
+      --red: #e26767;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--ink); color: var(--text); }
+    body {
+      font-family: Rajdhani, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(67,217,238,.025) 1px, transparent 1px),
+        linear-gradient(rgba(67,217,238,.018) 1px, transparent 1px),
+        radial-gradient(circle at 86% -10%, #0c2737 0, transparent 34%),
+        var(--ink);
+      background-size: 48px 48px, 48px 48px, auto, auto;
+    }
+    button { font: inherit; }
+    .shell { min-height: 100vh; padding: 24px 24px 30px; }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      align-items: end;
+      gap: 20px;
+      padding: 0 2px 17px;
+      border-bottom: 1px solid var(--cyan-muted);
+      position: relative;
+    }
+    header::after {
+      content: ""; position: absolute; left: 0; bottom: -2px;
+      width: 84px; height: 3px; background: var(--cyan);
+    }
+    .eyebrow { color: var(--steel); font: 600 12px/1 Orbitron, monospace; letter-spacing: .24em; }
+    h1 { margin: 7px 0 0; font: 600 clamp(22px,3vw,34px)/1 Orbitron, monospace; letter-spacing: .12em; }
+    .sync { display: flex; align-items: center; gap: 13px; color: var(--steel); font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .sync strong { color: var(--text); font: 600 20px/1 Orbitron, monospace; }
+    .pulse { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 9px rgba(101,220,157,.45); }
+    .pulse.wait { background: var(--amber); }
+    .pulse.error { background: var(--red); }
+    #rooms {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
+      gap: 12px;
+      padding-top: 16px;
+    }
+    .room {
+      --status: var(--green);
+      min-height: 190px;
+      display: grid;
+      grid-template-columns: 6px 1fr;
+      background: linear-gradient(125deg, rgba(10,26,39,.98), rgba(5,15,24,.98));
+      border: 1px solid var(--line);
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+      animation: enter .35s ease both;
+    }
+    .room[data-state="active"] { --status: var(--cyan); }
+    .room[data-state="warning"] { --status: var(--amber); }
+    .status-rail { background: linear-gradient(180deg, var(--status), color-mix(in srgb, var(--status) 18%, transparent)); }
+    .room-body { min-width: 0; padding: 18px 18px 16px; display: flex; flex-direction: column; }
+    .room-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+    .index { color: var(--cyan); font: 600 11px/1 Orbitron, monospace; letter-spacing: .18em; }
+    h2 { margin: 9px 0 0; font: 700 clamp(21px,2.5vw,29px)/1 Rajdhani, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+    .state-label { color: var(--status); font: 600 10px/1 Orbitron, monospace; letter-spacing: .15em; text-transform: uppercase; padding-top: 2px; }
+    .telemetry { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0; }
+    .metric { min-width: 62px; }
+    .metric b { display: block; color: var(--text); font: 600 20px/1 Orbitron, monospace; }
+    .metric span { display: block; margin-top: 6px; color: var(--steel); font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 7px; margin-top: auto; }
+    .actions button {
+      min-height: 47px;
+      border: 1px solid #234958;
+      background: #091a25;
+      color: #b9d8df;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      transition: background .16s, border-color .16s, color .16s;
+    }
+    .actions button:hover, .actions button:focus-visible { outline: none; border-color: var(--cyan); color: white; background: #0c2734; }
+    .actions button:active { transform: translateY(1px); }
+    .actions button:disabled { opacity: .32; cursor: default; }
+    .actions .primary { color: var(--cyan); }
+    .message {
+      min-height: 300px; grid-column: 1/-1;
+      display: grid; place-items: center; text-align: center;
+      border: 1px solid var(--line); border-left: 4px solid var(--cyan);
+      background: rgba(7,18,28,.92); color: var(--steel); padding: 32px;
+    }
+    .message b { display: block; color: var(--text); font: 600 18px/1.4 Orbitron, monospace; letter-spacing: .12em; margin-bottom: 12px; }
+    .message.error { border-left-color: var(--red); }
+    @keyframes enter { from { opacity: 0; transform: translateY(7px); } }
+    @media (max-width: 580px) {
+      .shell { padding: 17px 14px 24px; }
+      header { align-items: start; }
+      .sync { font-size: 11px; }
+      .sync strong { font-size: 16px; }
+      .room { min-height: 204px; }
+      .actions button { min-height: 52px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .room { animation: none; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div><div class="eyebrow">JARVIS // RESIDENCE</div><h1>SPATIAL DIRECTORY</h1></div>
+      <div class="sync"><span id="pulse" class="pulse wait"></span><span><strong id="count">--</strong> AREAS · <span id="syncText">LINKING</span></span></div>
+    </header>
+    <section id="rooms" aria-live="polite"><div class="message"><div><b>READING SPATIAL REGISTRY</b>Establishing a secure link with Home Assistant.</div></div></section>
+  </main>
+  <script>
+    'use strict';
+    const roomsEl = document.getElementById('rooms');
+    const countEl = document.getElementById('count');
+    const syncText = document.getElementById('syncText');
+    const pulse = document.getElementById('pulse');
+    let hass, areas = [], devices = [], entities = [], renderedSignature = '';
+
+    function locateHass() {
+      let context = window;
+      for (let i = 0; i < 5; i += 1) {
+        try {
+          const root = context.document.querySelector('home-assistant');
+          if (root && root.hass) return root.hass;
+          if (context === context.parent) break;
+          context = context.parent;
+        } catch (_) { break; }
+      }
+      return null;
+    }
+
+    function message(title, detail, error = false) {
+      roomsEl.replaceChildren();
+      const box = document.createElement('div');
+      box.className = 'message' + (error ? ' error' : '');
+      const inner = document.createElement('div');
+      const heading = document.createElement('b');
+      heading.textContent = title;
+      inner.append(heading, document.createTextNode(detail));
+      box.append(inner); roomsEl.append(box);
+    }
+
+    function assignedArea(entity, deviceById) {
+      if (entity.area_id) return entity.area_id;
+      const device = entity.device_id && deviceById.get(entity.device_id);
+      return device ? device.area_id : null;
+    }
+
+    function snapshot() {
+      const deviceById = new Map(devices.map(device => [device.id, device]));
+      return areas.map(area => {
+        const registered = entities.filter(entity => assignedArea(entity, deviceById) === area.area_id);
+        const live = registered.map(entity => hass.states[entity.entity_id]).filter(Boolean);
+        const unavailable = live.filter(state => ['unavailable', 'unknown'].includes(state.state)).length;
+        const active = live.filter(state => !['off', 'unavailable', 'unknown', 'idle', 'standby'].includes(state.state)).length;
+        const lights = registered.filter(entity => entity.entity_id.startsWith('light.'));
+        const state = unavailable ? 'warning' : active ? 'active' : 'nominal';
+        return { area, registered, unavailable, active, lights, state };
+      }).sort((a, b) => a.area.name.localeCompare(b.area.name));
+    }
+
+    function metric(value, label) {
+      const node = document.createElement('div'); node.className = 'metric';
+      const number = document.createElement('b'); number.textContent = String(value);
+      const caption = document.createElement('span'); caption.textContent = label;
+      node.append(number, caption); return node;
+    }
+
+    function action(label, className, handler, disabled = false) {
+      const button = document.createElement('button');
+      button.type = 'button'; button.textContent = label; button.className = className || '';
+      button.disabled = disabled; button.addEventListener('click', handler); return button;
+    }
+
+    function render() {
+      hass = locateHass() || hass;
+      if (!hass || !areas.length) return;
+      const data = snapshot();
+      const signature = JSON.stringify(data.map(room => [room.area.area_id, room.registered.length, room.active, room.unavailable, room.lights.length, room.state]));
+      if (signature === renderedSignature) return;
+      renderedSignature = signature;
+      roomsEl.replaceChildren(); countEl.textContent = String(data.length).padStart(2, '0');
+      syncText.textContent = 'SYNCED'; pulse.className = 'pulse';
+      if (!data.length) {
+        message('NO AREAS REGISTERED', 'Create Areas in Home Assistant Settings, then return here.');
+        return;
+      }
+      data.forEach((room, index) => {
+        const article = document.createElement('article'); article.className = 'room'; article.dataset.state = room.state;
+        article.style.animationDelay = Math.min(index * 45, 360) + 'ms';
+        const rail = document.createElement('div'); rail.className = 'status-rail';
+        const body = document.createElement('div'); body.className = 'room-body';
+        const top = document.createElement('div'); top.className = 'room-top';
+        const identity = document.createElement('div');
+        const roomIndex = document.createElement('div'); roomIndex.className = 'index'; roomIndex.textContent = 'AREA ' + String(index + 1).padStart(2, '0');
+        const name = document.createElement('h2'); name.textContent = room.area.name;
+        identity.append(roomIndex, name);
+        const state = document.createElement('div'); state.className = 'state-label'; state.textContent = room.state;
+        top.append(identity, state);
+        const telemetry = document.createElement('div'); telemetry.className = 'telemetry';
+        telemetry.append(metric(room.registered.length, 'Entities'), metric(room.active, 'Active'), metric(room.unavailable, 'Offline'), metric(room.lights.length, 'Lights'));
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const ids = room.lights.map(light => light.entity_id);
+        actions.append(
+          action('Lights on', 'primary', () => hass.callService('light', 'turn_on', { entity_id: ids }), !ids.length),
+          action('Lights off', '', () => hass.callService('light', 'turn_off', { entity_id: ids }), !ids.length),
+          action('Room details', '', () => { window.parent.location.assign('/config/areas/area/' + encodeURIComponent(room.area.area_id)); })
+        );
+        body.append(top, telemetry, actions); article.append(rail, body); roomsEl.append(article);
+      });
+    }
+
+    async function connect() {
+      for (let tries = 0; tries < 40; tries += 1) {
+        hass = locateHass();
+        if (hass && hass.callWS) break;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      if (!hass || !hass.callWS) throw new Error('Home Assistant session is not available.');
+      [areas, devices, entities] = await Promise.all([
+        hass.callWS({ type: 'config/area_registry/list' }),
+        hass.callWS({ type: 'config/device_registry/list' }),
+        hass.callWS({ type: 'config/entity_registry/list' })
+      ]);
+      if (!areas.length) {
+        countEl.textContent = '00'; syncText.textContent = 'SYNCED'; pulse.className = 'pulse';
+        message('NO AREAS REGISTERED', 'Create Areas in Home Assistant Settings, then return here.');
+      } else render();
+      setInterval(render, 2000);
+    }
+
+    connect().catch(error => {
+      syncText.textContent = 'FAULT'; pulse.className = 'pulse error';
+      message('REGISTRY LINK FAILED', error && error.message ? error.message : 'Unable to read Home Assistant Areas.', true);
+    });
+  </script>
+</body>
+</html>

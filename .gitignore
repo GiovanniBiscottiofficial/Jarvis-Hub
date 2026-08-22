@@ -20,6 +20,7 @@ ha-config/www/*
 !ha-config/www/jarvis-splash.html
 !ha-config/www/jarvis-avatar.html
 !ha-config/www/jarvis-idle.html
+!ha-config/www/jarvis-rooms.html
 !ha-config/www/lifeos.html
 !ha-config/www/open.html
 !ha-config/www/community

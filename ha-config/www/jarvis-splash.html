@@ -181,6 +181,67 @@
   <div class="bar-wrap"><div class="bar" id="bar"></div></div>
 
 <script>
+  // Subtle, fully local startup sound. Chromium's kiosk policy permits this
+  // without a tap; every operation is guarded so audio can never block boot.
+  let audio;
+  function startBootAudio() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return null;
+      const ctx = new AudioContext();
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, ctx.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.8);
+      master.gain.setValueAtTime(0.035, ctx.currentTime + 8.1);
+      master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 9.3);
+      master.connect(ctx.destination);
+
+      const bed = ctx.createOscillator();
+      const bedGain = ctx.createGain();
+      bed.type = "sine"; bed.frequency.value = 54;
+      bedGain.gain.value = 0.32;
+      bed.connect(bedGain).connect(master);
+      bed.start(); bed.stop(ctx.currentTime + 8.2);
+      ctx.resume().catch(() => {});
+      return { ctx, master };
+    } catch (_) { return null; }
+  }
+
+  function ping(step) {
+    if (!audio) return;
+    try {
+      const now = audio.ctx.currentTime;
+      const tone = audio.ctx.createOscillator();
+      const gain = audio.ctx.createGain();
+      tone.type = "sine";
+      tone.frequency.setValueAtTime(460 + step * 54, now);
+      tone.frequency.exponentialRampToValueAtTime(620 + step * 48, now + 0.12);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.52, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      tone.connect(gain).connect(audio.master);
+      tone.start(now); tone.stop(now + 0.22);
+    } catch (_) {}
+  }
+
+  function resolveChord() {
+    if (!audio) return;
+    try {
+      [196, 246.94, 293.66].forEach((frequency, index) => {
+        const now = audio.ctx.currentTime + index * 0.035;
+        const tone = audio.ctx.createOscillator();
+        const gain = audio.ctx.createGain();
+        tone.type = "sine"; tone.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.38, now + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+        tone.connect(gain).connect(audio.master);
+        tone.start(now); tone.stop(now + 0.8);
+      });
+    } catch (_) {}
+  }
+
+  audio = startBootAudio();
   const steps = [
     "Initializing systems",
     "Loading smart home core",
@@ -197,10 +258,12 @@
   const tick = setInterval(() => {
     i += 1;
     if (i < steps.length) {
+      ping(i);
       statusEl.textContent = steps[i];
       bar.style.width = Math.round((i / (steps.length - 1)) * 100) + "%";
     } else {
       clearInterval(tick);
+      resolveChord();
       document.body.classList.add("done");
       setTimeout(() => location.replace(next), 900);
     }

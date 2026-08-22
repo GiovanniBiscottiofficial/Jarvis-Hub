@@ -326,45 +326,15 @@ views:
 
       - type: grid
         cards:
-          - type: heading
-            heading: Rooms
-            icon: mdi:sofa
-          - type: markdown
-            title: Home Assistant Areas
-            content: >-
-              {% set configured_areas = areas() | sort %}
-              {% if configured_areas | count == 0 %}
-                No rooms are configured yet. Tap **SET**, then open
-                **Areas, labels & zones** to create one.
-              {% else %}
-                {% for area_id in configured_areas %}
-                  {% set room_entities = area_entities(area_id) %}
-                  {% set unavailable = expand(room_entities)
-                    | selectattr('state', 'in', ['unavailable', 'unknown'])
-                    | list | count %}
-                  ### {{ area_name(area_id) }}
-                  `{{ room_entities | count }} entities` ·
-                  `{{ unavailable }} unavailable`
-
-                  {% if not loop.last %}---{% endif %}
-                {% endfor %}
-              {% endif %}
+          - type: iframe
+            url: /local/jarvis-rooms.html
+            aspect_ratio: 125%
             card_mod:
               style: |
                 ha-card {
-                  border-left: 3px solid #36d7f5;
-                  background: linear-gradient(145deg,
-                    rgba(8, 25, 39, 0.96), rgba(3, 12, 21, 0.98));
-                }
-                ha-markdown-element h3 {
-                  color: #b8f4ff;
-                  font-family: 'Rajdhani', sans-serif;
-                  letter-spacing: 0.06em;
-                  margin-bottom: 4px;
-                }
-                ha-markdown-element code {
-                  color: #70dff5;
-                  background: rgba(24, 86, 108, 0.25);
+                  background: #030910;
+                  border: 1px solid rgba(67, 217, 238, 0.22);
+                  box-shadow: none;
                 }
           - type: heading
             heading: Scenes
