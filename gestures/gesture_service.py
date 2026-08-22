@@ -28,10 +28,11 @@ import websocket
 SOURCE = os.environ.get("GESTURE_SOURCE", "rtsp://127.0.0.1:8556/x1_webcam")
 DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
 # Fraction of frame the hand must travel to count as a swipe
-X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.30"))
-Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.28"))
-WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.6"))
-COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.4"))
+X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.20"))
+Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.18"))
+WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
+COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
+STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
 
 def active_page_socket() -> str:
     with urlopen(f"{DEVTOOLS_URL}/json/list", timeout=3) as response:
@@ -92,16 +93,24 @@ def open_capture() -> cv2.VideoCapture:
 
 
 def main() -> None:
+    print(
+        f"gesture service: source={SOURCE} devtools={DEVTOOLS_URL} "
+        f"travel={X_TRAVEL:.2f}/{Y_TRAVEL:.2f} window={WINDOW_S:.1f}s",
+        flush=True,
+    )
     hands = mp.solutions.hands.Hands(
         max_num_hands=1,
         model_complexity=0,
-        min_detection_confidence=0.6,
-        min_tracking_confidence=0.5,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.45,
     )
     trail: deque[tuple[float, float, float]] = deque()  # (t, x, y)
     last_fire = 0.0
     cap = open_capture()
     skip = 0
+    frames = 0
+    hand_frames = 0
+    last_status = time.monotonic()
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -112,15 +121,26 @@ def main() -> None:
             trail.clear()
             continue
         skip = (skip + 1) % 2
+        frames += 1
         if skip:  # every other frame is plenty and halves CPU
             continue
         frame = cv2.flip(frame, 1)  # mirror: selfie-consistent directions
-        small = cv2.resize(frame, (480, 270))
+        small = cv2.resize(frame, (640, 360))
         result = hands.process(cv2.cvtColor(small, cv2.COLOR_BGR2RGB))
         now = time.monotonic()
+        if now - last_status >= STATUS_INTERVAL_S:
+            print(
+                f"vision: frames={frames} hand_frames={hand_frames} "
+                f"camera={'ok' if frames else 'waiting'}",
+                flush=True,
+            )
+            frames = 0
+            hand_frames = 0
+            last_status = now
         if not result.multi_hand_landmarks:
             trail.clear()
             continue
+        hand_frames += 1
         landmarks = result.multi_hand_landmarks[0].landmark
         palm = [landmarks[index] for index in (0, 5, 9, 13, 17)]
         palm_x = sum(point.x for point in palm) / len(palm)
@@ -128,7 +148,7 @@ def main() -> None:
         trail.append((now, palm_x, palm_y))
         while trail and now - trail[0][0] > WINDOW_S:
             trail.popleft()
-        if now - last_fire < COOLDOWN_S or len(trail) < 4:
+        if now - last_fire < COOLDOWN_S or len(trail) < 5:
             continue
         dx = trail[-1][1] - trail[0][1]
         dy = trail[-1][2] - trail[0][2]

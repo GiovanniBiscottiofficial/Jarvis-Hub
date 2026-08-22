@@ -15,8 +15,16 @@ if ! systemctl is-active --quiet go2rtc; then
   exit 1
 fi
 
+if ! curl -fsS --max-time 3 http://127.0.0.1:9222/json/version >/dev/null; then
+  echo "!! Chromium DevTools is not reachable on port 9222." >&2
+  echo "   Re-run bootstrap/revert-kiosk-to-x11.sh, then try again." >&2
+  exit 1
+fi
+
 echo "==> Building + starting the gesture container (first build ~2 min)..."
 docker compose --profile gestures up -d --build
+sleep 4
+docker logs --tail 12 gestures || true
 
 echo ""
 echo "=========================================================="
@@ -31,7 +39,7 @@ echo " Watch it react:   docker logs -f gestures"
 echo " Gesture actions use Chromium DevTools on loopback port 9222;"
 echo " no Wayland/X11 socket or privileged input access is required."
 echo " Too touchy? Set GESTURE_X_TRAVEL/Y_TRAVEL (fraction of the"
-echo " frame a swipe must cross, default 0.30/0.28) or"
+echo " frame a swipe must cross, default 0.20/0.18) or"
 echo " GESTURE_COOLDOWN_S in docker-compose.yml, then rerun:"
 echo "   docker compose --profile gestures up -d"
 echo " Turn it off:  docker stop gestures"

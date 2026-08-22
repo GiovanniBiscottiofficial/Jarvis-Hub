@@ -189,7 +189,8 @@ services:
     environment:
       - GESTURE_SOURCE=rtsp://127.0.0.1:8556/x1_webcam
       - GESTURE_DEVTOOLS_URL=http://127.0.0.1:9222
-      # Tuning: GESTURE_COOLDOWN_S, GESTURE_X_TRAVEL, GESTURE_Y_TRAVEL
+      # Tuning: GESTURE_COOLDOWN_S, GESTURE_X_TRAVEL, GESTURE_Y_TRAVEL,
+      # GESTURE_WINDOW_S, and GESTURE_STATUS_INTERVAL_S
 
 volumes:
   plex-config:
