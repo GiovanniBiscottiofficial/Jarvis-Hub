@@ -16,36 +16,72 @@ within ~0.6 s; after each action there is a cooldown so one wave can't fire
 twice.
 """
 import os
-import subprocess
+import json
 import time
 from collections import deque
+from urllib.request import urlopen
 
 import cv2
 import mediapipe as mp
+import websocket
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "rtsp://127.0.0.1:8556/x1_webcam")
-WAYLAND_DISPLAY = os.environ.get("WAYLAND_DISPLAY", "wayland-0")
-XDG_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR", "")
+DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
 # Fraction of frame the hand must travel to count as a swipe
 X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.30"))
 Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.28"))
 WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.6"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.4"))
 
-ACTIONS = {
-    "up": ["wtype", "-M", "CTRL", "-k", "PAGEDOWN", "-m", "CTRL"],
-    "down": ["wtype", "-M", "CTRL", "-k", "PAGEUP", "-m", "CTRL"],
-    "forward": ["wtype", "-k", "DOWN"],
-    "back": ["wtype", "-M", "ALT", "-k", "LEFT", "-m", "ALT"],
-}
+def active_page_socket() -> str:
+    with urlopen(f"{DEVTOOLS_URL}/json/list", timeout=3) as response:
+        targets = json.load(response)
+    pages = [target for target in targets if target.get("type") == "page"]
+    if not pages:
+        raise RuntimeError("Chromium has no controllable page")
+    return pages[0]["webSocketDebuggerUrl"]
+
+
+def cdp(method: str, params: dict | None = None) -> None:
+    socket = websocket.create_connection(
+        active_page_socket(), timeout=3, origin=DEVTOOLS_URL
+    )
+    try:
+        socket.send(json.dumps({"id": 1, "method": method, "params": params or {}}))
+        response = json.loads(socket.recv())
+        if "error" in response:
+            raise RuntimeError(response["error"].get("message", "DevTools command failed"))
+    finally:
+        socket.close()
 
 
 def fire(gesture: str) -> None:
-    if not XDG_RUNTIME_DIR:
-        raise RuntimeError("XDG_RUNTIME_DIR is required for Wayland input")
-    env = dict(os.environ, WAYLAND_DISPLAY=WAYLAND_DISPLAY, XDG_RUNTIME_DIR=XDG_RUNTIME_DIR)
-    subprocess.Popen(ACTIONS[gesture], env=env)
-    print(f"gesture: {gesture}", flush=True)
+    if gesture in {"up", "down"}:
+        direction = 1 if gesture == "up" else -1
+        cdp(
+            "Runtime.evaluate",
+            {
+                "expression": (
+                    "window.scrollBy({top:window.innerHeight*"
+                    f"{direction}*0.92,behavior:'smooth'}})"
+                )
+            },
+        )
+    elif gesture == "forward":
+        for event_type in ("keyDown", "keyUp"):
+            cdp(
+                "Input.dispatchKeyEvent",
+                {
+                    "type": event_type,
+                    "key": "ArrowDown",
+                    "code": "ArrowDown",
+                    "windowsVirtualKeyCode": 40,
+                    "nativeVirtualKeyCode": 40,
+                },
+            )
+    else:
+        cdp("Runtime.evaluate", {"expression": "window.history.back()"})
+    print(f"gesture: {gesture} -> Chromium", flush=True)
 
 
 def open_capture() -> cv2.VideoCapture:
@@ -85,8 +121,11 @@ def main() -> None:
         if not result.multi_hand_landmarks:
             trail.clear()
             continue
-        wrist = result.multi_hand_landmarks[0].landmark[0]
-        trail.append((now, wrist.x, wrist.y))
+        landmarks = result.multi_hand_landmarks[0].landmark
+        palm = [landmarks[index] for index in (0, 5, 9, 13, 17)]
+        palm_x = sum(point.x for point in palm) / len(palm)
+        palm_y = sum(point.y for point in palm) / len(palm)
+        trail.append((now, palm_x, palm_y))
         while trail and now - trail[0][0] > WINDOW_S:
             trail.popleft()
         if now - last_fire < COOLDOWN_S or len(trail) < 4:
@@ -99,8 +138,11 @@ def main() -> None:
         elif abs(dx) >= X_TRAVEL and abs(dx) > abs(dy) * 1.5:
             gesture = "forward" if dx > 0 else "back"
         if gesture:
-            fire(gesture)
-            last_fire = now
+            try:
+                fire(gesture)
+                last_fire = now
+            except Exception as error:
+                print(f"gesture dispatch failed: {error}", flush=True)
             trail.clear()
 
 

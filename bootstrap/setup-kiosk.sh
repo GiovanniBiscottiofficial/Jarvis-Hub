@@ -261,6 +261,7 @@ while true; do
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
     --force-renderer-accessibility \\
     --remote-debugging-port=9222 \\
+    --remote-allow-origins=http://127.0.0.1:9222 \\
     --force-device-scale-factor=${KIOSK_SCALE} \\
     "\${FIRST_URL}"
   FIRST_URL="${DASH_URL}"

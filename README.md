@@ -120,7 +120,7 @@ The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up
 | `bootstrap/setup-remote-access.sh` | Tailscale tunnel — control everything from work/cellular, nothing exposed to the internet |
 | `bootstrap/setup-backups.sh` | Nightly 3 AM backup of the LifeOS DB + HA config (`backup.sh` runs one on demand; point `BACKUP_DIR` at a USB drive) |
 | `bootstrap/setup-satellite.sh` | Turns the X1's own mic into a "hey Jarvis" satellite and its webcam into an RTSP camera for Frigate/HA |
-| `bootstrap/setup-gestures.sh` | Hand-gesture control: swipe at the webcam to scroll Shorts, skip videos, go back (MediaPipe + Wayland `wtype`) |
+| `bootstrap/setup-gestures.sh` | Hand-gesture control: swipe at the webcam to scroll Shorts, skip videos, or go back (MediaPipe + local Chromium DevTools) |
 | `ha-config/configuration.yaml` | Home Assistant base config (loads the automations/scripts below) |
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
@@ -464,9 +464,9 @@ bash bootstrap/setup-satellite.sh
   kiosk obeys swipes at the camera — **up** = next Short (screen slides up),
   **down** = previous, **forward** (hand to your right) = skip/next video,
   **back** (hand to your left) = last screen. Needs decent lighting and a
-  deliberate swipe 2–6 ft from the camera; tune sensitivity in
-  `/etc/systemd/system/jarvis-gestures.service`. Watch it think:
-  `journalctl -u jarvis-gestures -f`.
+  deliberate swipe 2–6 ft from the camera. Tune `GESTURE_X_TRAVEL`,
+  `GESTURE_Y_TRAVEL`, or `GESTURE_COOLDOWN_S` in `docker-compose.yml` and
+  watch detections with `docker logs -f gestures`.
 
 The current Wyoming host satellite remains supported but is upstream-deprecated.
 Its replacement, Linux Voice Assistant, uses Home Assistant's ESPHome protocol and
