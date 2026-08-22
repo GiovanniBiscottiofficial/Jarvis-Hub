@@ -5,7 +5,8 @@ set -euo pipefail
 
 KIOSK_USER="${KIOSK_USER:-$USER}"
 KIOSK_SCALE="${KIOSK_SCALE:-2.25}"
-KIOSK_URL="${KIOSK_URL:-http://localhost:8123/jarvis-hub/wall-plus?kiosk}"
+DASH_URL="${DASH_URL:-http://localhost:8123/jarvis-hub/wall-plus?kiosk}"
+KIOSK_URL="${KIOSK_URL:-http://localhost:8123/local/jarvis-splash.html?next=/jarvis-hub/wall-plus%3Fkiosk}"
 KIOSK_HOME=$(eval echo "~${KIOSK_USER}")
 PROFILE="${KIOSK_HOME}/.bash_profile"
 XINIT="${KIOSK_HOME}/.xinitrc"
@@ -15,7 +16,7 @@ echo "==> Installing X11/Openbox kiosk packages..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils chromium-browser \
-  unclutter dbus-x11 onboard
+  unclutter dbus-x11 onboard curl
 
 [ ! -f "$PROFILE" ] || sudo cp -a "$PROFILE" "${PROFILE}.before-x11-${stamp}"
 [ ! -f "$XINIT" ] || sudo cp -a "$XINIT" "${XINIT}.before-x11-${stamp}"
@@ -50,13 +51,25 @@ onboard --startup-delay=3 >/dev/null 2>&1 &
 
 FIRST_URL="${KIOSK_URL}"
 while true; do
+  # Avoid persisting a boot-time connection error in Chromium's kiosk profile.
+  for _ in \$(seq 1 90); do
+    code=\$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 \
+      http://localhost:8123/ 2>/dev/null || true)
+    case "\$code" in 2*|3*|401|403) break ;; esac
+    sleep 2
+  done
+  screen_size=\$(xrandr --current 2>/dev/null | awk '/\\*/ {print \$1; exit}')
+  screen_width=\${screen_size%x*}
+  screen_height=\${screen_size#*x}
+  [ -n "\$screen_width" ] || screen_width=3000
+  [ -n "\$screen_height" ] || screen_height=2000
   chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
-    --window-position=0,0 --window-size=3000,2000 \\
+    --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --ozone-platform=x11 --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
     --force-renderer-accessibility --remote-debugging-port=9222 \\
     --force-device-scale-factor=${KIOSK_SCALE} "\${FIRST_URL}"
-  FIRST_URL="http://localhost:8123/jarvis-hub/wall-plus?kiosk"
+  FIRST_URL="${DASH_URL}"
   sleep 2
 done
 EOF
