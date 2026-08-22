@@ -199,10 +199,12 @@ gsettings set org.onboard.icon-palette in-use false || true
 gsettings set org.onboard.auto-show enabled false || true
 gsettings set org.onboard.window force-to-top true || true
 gsettings set org.onboard.window docking-enabled false || true
-gsettings set org.onboard.window.landscape x 100 || true
-gsettings set org.onboard.window.landscape y 1100 || true
-gsettings set org.onboard.window.landscape width 2800 || true
-gsettings set org.onboard.window.landscape height 800 || true
+# Geometry keys are multiplied by GDK_SCALE (2x): these land the keyboard
+# at 120,1240 sized 2880x680 — fully on the 3000x2000 panel.
+gsettings set org.onboard.window.landscape x 60 || true
+gsettings set org.onboard.window.landscape y 620 || true
+gsettings set org.onboard.window.landscape width 1440 || true
+gsettings set org.onboard.window.landscape height 340 || true
 onboard --startup-delay=3 &
 # Floating Home + Keyboard buttons (bottom-left corner)
 /opt/jarvis-kiosk/hub-bar.py &
