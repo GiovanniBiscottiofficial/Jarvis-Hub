@@ -37,6 +37,14 @@ fi
 xset s off
 xset -dpms
 xset s noblank
+# A dedicated wall console must never present an OS lock screen. Chromium's
+# media session separately reports playback, but these guards also cover sites
+# whose players do not publish MPRIS metadata.
+pkill -x xss-lock >/dev/null 2>&1 || true
+pkill -x light-locker >/dev/null 2>&1 || true
+pkill -x gnome-screensaver >/dev/null 2>&1 || true
+gsettings set org.gnome.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+gsettings set org.gnome.desktop.session idle-delay 0 >/dev/null 2>&1 || true
 unclutter -idle 5 &
 openbox-session &
 
@@ -63,7 +71,9 @@ while true; do
   screen_height=\${screen_size#*x}
   [ -n "\$screen_width" ] || screen_width=3000
   [ -n "\$screen_height" ] || screen_height=2000
-  chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
+  systemd-inhibit --what=idle:sleep --mode=block --who="Jarvis kiosk" \
+    --why="Kiosk display and media playback are active" \
+    chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
     --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --ozone-platform=x11 --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\

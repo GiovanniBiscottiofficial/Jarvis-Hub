@@ -30,7 +30,7 @@ echo "==> Installing minimal X session + Chromium..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils unclutter chromium-browser \
-  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl
+  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl playerctl
 
 echo "==> Auto-login on tty1..."
 sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -150,6 +150,9 @@ while true; do
   current=$(curl -fsS --max-time 3 "$DEVTOOLS/json/list" 2>/dev/null) || continue
   echo "$current" | grep -q "jarvis-idle.html" && continue
   echo "$current" | grep -q "jarvis-splash.html" && continue
+  # HTML5 media exposed by Chromium through MPRIS counts as active use. Do not
+  # replace a playing video, music stream, or podcast with the ambient screen.
+  playerctl --all-players status 2>/dev/null | grep -qi '^playing$' && continue
   # open the idle page in a new tab, then close the others
   enc_url=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$IDLE_URL")
   new_id=$(curl -fsS --max-time 3 -X PUT "$DEVTOOLS/json/new?$enc_url" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
@@ -178,6 +181,11 @@ fi
 xset s off          # never blank the screen
 xset -dpms
 xset s noblank
+pkill -x xss-lock >/dev/null 2>&1 || true
+pkill -x light-locker >/dev/null 2>&1 || true
+pkill -x gnome-screensaver >/dev/null 2>&1 || true
+gsettings set org.gnome.desktop.screensaver lock-enabled false >/dev/null 2>&1 || true
+gsettings set org.gnome.desktop.session idle-delay 0 >/dev/null 2>&1 || true
 unclutter -idle 5 &  # hide the mouse cursor when idle
 openbox-session &
 # Wait for Openbox to claim the display. Without this, Chromium can sometimes
@@ -229,7 +237,9 @@ while true; do
   screen_height=\${screen_size#*x}
   [ -n "\$screen_width" ] || screen_width=3000
   [ -n "\$screen_height" ] || screen_height=2000
-  chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
+  systemd-inhibit --what=idle:sleep --mode=block --who="Jarvis kiosk" \
+    --why="Kiosk display and media playback are active" \
+    chromium-browser --kiosk --start-fullscreen --noerrdialogs --disable-infobars \\
     --window-position=0,0 --window-size="\${screen_width},\${screen_height}" \\
     --no-first-run --no-default-browser-check \\
     --disable-session-crashed-bubble --check-for-update-interval=31536000 \\
