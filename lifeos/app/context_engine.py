@@ -1,4 +1,5 @@
 """Durable house context, behavior evaluation, and action safety policy."""
+
 import json
 import os
 from copy import deepcopy
@@ -104,6 +105,13 @@ HA_URL = os.environ.get("HOME_ASSISTANT_URL", "http://homeassistant:8123").rstri
 HA_TOKEN = os.environ.get("HOME_ASSISTANT_TOKEN", "")
 
 
+def _vision_retention_hours() -> int:
+    try:
+        return max(1, int(os.environ.get("LIFEOS_VISION_EVENT_RETENTION_HOURS", "24")))
+    except ValueError:
+        return 24
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
 
@@ -201,9 +209,7 @@ def lifeos_snapshot() -> dict[str, Any]:
     vitamins = bool(vitamins_row and vitamins_row["taken"])
     water_target = int(get_setting("water_target_glasses") or 8)
     due_soon = [
-        bill
-        for bill in bills
-        if bill["due_day"] < today.day or bill["due_day"] <= today.day + 7
+        bill for bill in bills if bill["due_day"] < today.day or bill["due_day"] <= today.day + 7
     ]
     bills_total = sum(bill["amount"] for bill in due_soon)
     priorities: list[dict[str, str]] = []
@@ -221,14 +227,10 @@ def lifeos_snapshot() -> dict[str, Any]:
             {"domain": "body", "label": f"{water_target - water} glasses of water remaining"}
         )
     if due_soon:
-        priorities.append(
-            {"domain": "vault", "label": f"{len(due_soon)} bill(s) need attention"}
-        )
+        priorities.append({"domain": "vault", "label": f"{len(due_soon)} bill(s) need attention"})
     if any(not workout["done"] for workout in workouts):
         priorities.append({"domain": "body", "label": "Planned workout remains open"})
-    priorities.extend(
-        {"domain": nudge["kind"], "label": nudge["text"]} for nudge in nudges[:2]
-    )
+    priorities.extend({"domain": nudge["kind"], "label": nudge["text"]} for nudge in nudges[:2])
 
     progress = [
         min(1.0, protein / max(1, profile["protein_target_g"])),
@@ -304,6 +306,35 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "touchscreen": devices.get("binary_sensor.x1_touchscreen", "unknown"),
         "monitor": devices.get("binary_sensor.x1_hardware_monitor", "unknown"),
     }
+    visual_presence = devices.get("binary_sensor.x1_visual_presence", "unknown")
+    visual_fact = all_facts.get("device.binary_sensor.x1_visual_presence", {})
+    gesture = all_facts.get("perception.last_gesture", {})
+    perception_link = "awaiting_signal"
+    observation_at = visual_fact.get("updated_at")
+    if observation_at:
+        try:
+            observation_age = datetime.now() - datetime.strptime(
+                observation_at, "%Y-%m-%d %H:%M:%S"
+            )
+            perception_link = "online" if observation_age <= timedelta(minutes=10) else "stale"
+        except ValueError:
+            perception_link = "degraded"
+    perception = {
+        "room_occupied": perception_link == "online" and str(visual_presence).lower() == "on",
+        "visual_presence": visual_presence,
+        "link_state": perception_link,
+        "confidence": visual_fact.get("confidence", 0.0),
+        "last_observation_at": observation_at,
+        "last_gesture": gesture.get("value"),
+        "last_gesture_at": gesture.get("updated_at"),
+        "privacy": {
+            "processing": "local",
+            "raw_frames_stored": False,
+            "identity_recognition": False,
+            "metadata_retention_hours": _vision_retention_hours(),
+            "gesture_can_confirm_actions": False,
+        },
+    }
     latest_event = recent[0]["ts"] if recent else None
     link_state = "awaiting_data"
     if latest_event:
@@ -330,6 +361,7 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         },
         "devices": devices,
         "hardware": hardware,
+        "perception": perception,
         "telemetry": {
             "last_event_at": latest_event,
             "event_count": len(recent),
@@ -348,9 +380,25 @@ def capability_manifest(snapshot: dict[str, Any] | None = None) -> list[dict[str
     hardware = snapshot["hardware"]
     capabilities = [
         ("context", "Context engine", True, "Durable events, facts, and explainable state"),
-        ("voice", "Voice I/O", hardware["microphone"] == "on" and hardware["speakers"] == "on", "Microphone and speakers"),
-        ("vision", "Local vision", hardware["camera"] == "on", "Linux V4L2 camera device"),
-        ("proximity", "Bluetooth proximity", hardware["bluetooth"] == "on", "Powered Bluetooth adapter"),
+        (
+            "voice",
+            "Voice I/O",
+            hardware["microphone"] == "on" and hardware["speakers"] == "on",
+            "Microphone and speakers",
+        ),
+        (
+            "vision",
+            "Local perception",
+            hardware["camera"] == "on"
+            or snapshot["perception"]["visual_presence"] in {"on", "off"},
+            "Camera stream and local perception worker",
+        ),
+        (
+            "proximity",
+            "Bluetooth proximity",
+            hardware["bluetooth"] == "on",
+            "Powered Bluetooth adapter",
+        ),
         ("touch", "Touch command surface", hardware["touchscreen"] == "on", "Touchscreen input"),
         ("automation", "Home control", bool(HA_TOKEN), "HOME_ASSISTANT_TOKEN"),
         ("lifeos", "LifeOS intelligence", True, "Body Ops and Vault Flow data"),
@@ -373,7 +421,7 @@ def command_center_payload(event_limit: int = 40) -> dict[str, Any]:
 
 def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     """Predict a behavior without writing facts, proposals, audits, or HA state."""
-    if behavior not in {"arrival", "departure", "nightly"}:
+    if behavior not in {"arrival", "departure", "nightly", "perception"}:
         raise ValueError(behavior)
     scenario = deepcopy(overrides or {})
     actions: list[dict[str, Any]] = []
@@ -381,9 +429,7 @@ def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) ->
         person = scenario.setdefault("person", "person.simulated_resident")
         actions.append({"action_id": "scene.arrival", "reason": f"{person} arrived home"})
     elif behavior == "departure":
-        open_entries = scenario.setdefault(
-            "open_perimeter", ["binary_sensor.simulated_front_door"]
-        )
+        open_entries = scenario.setdefault("open_perimeter", ["binary_sensor.simulated_front_door"])
         hazards = scenario.setdefault("active_hazards", [])
         if open_entries or hazards:
             actions.append(
@@ -393,7 +439,7 @@ def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) ->
                 }
             )
         actions.append({"action_id": "security.arm_away", "reason": "Last person left"})
-    else:
+    elif behavior == "nightly":
         open_entries = scenario.setdefault("open_perimeter", [])
         alarm = scenario.setdefault("alarm", "disarmed")
         actions.append(
@@ -405,9 +451,20 @@ def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) ->
         if alarm not in {"armed_night", "armed_home"}:
             actions.append({"action_id": "security.arm_night", "reason": "Alarm is not armed"})
         scenario["secure"] = not open_entries and alarm in {"armed_night", "armed_home"}
+    else:
+        scenario.setdefault("visual_presence", True)
+        scenario.setdefault("confidence", 0.86)
+        scenario.setdefault("raw_frames_stored", False)
+        scenario.setdefault("identity_recognition", False)
+        scenario.setdefault("action_execution", False)
     for item in actions:
         item["policy"] = ACTION_REGISTRY[item["action_id"]]
-    return {"simulation": True, "behavior": behavior, "scenario": scenario, "predicted_actions": actions}
+    return {
+        "simulation": True,
+        "behavior": behavior,
+        "scenario": scenario,
+        "predicted_actions": actions,
+    }
 
 
 def _fact_key(entity_id: str) -> str:
@@ -450,6 +507,23 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
         event_id = cursor.lastrowid
     if entity_id and state is not None:
         set_fact(_fact_key(str(entity_id)), str(state), source, float(event.get("confidence", 1)))
+    if event_type == "vision.gesture" and attributes.get("gesture"):
+        set_fact(
+            "perception.last_gesture",
+            {
+                "gesture": str(attributes["gesture"]),
+                "app": str(attributes.get("app") or "unknown"),
+            },
+            source,
+            float(event.get("confidence", 1)),
+        )
+    if source == "x1_vision":
+        retention = _vision_retention_hours()
+        with conn() as c:
+            c.execute(
+                "DELETE FROM context_events WHERE source='x1_vision' AND ts<datetime('now', ?)",
+                (f"-{retention} hours",),
+            )
     _derive_house_mode()
     created = evaluate_behaviors(trigger_event=event) if evaluate else []
     return {"id": event_id, "proposals_created": created}
@@ -625,9 +699,7 @@ def dismiss_proposal(proposal_id: int, requested_by: str) -> bool:
         ).fetchone()
         if not proposal or proposal["status"] != "pending":
             return False
-        c.execute(
-            "UPDATE action_proposals SET status='dismissed' WHERE id=?", (proposal_id,)
-        )
+        c.execute("UPDATE action_proposals SET status='dismissed' WHERE id=?", (proposal_id,))
         c.execute(
             "INSERT INTO action_audit(action_id,proposal_id,requested_by,outcome,details_json)"
             " VALUES(?,?,?,?,?)",

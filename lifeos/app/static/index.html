@@ -97,29 +97,56 @@
         </div>
       </article>
 
+      <article id="command-perception" class="tactical-panel command-perception perception-awaiting" aria-labelledby="perception-heading">
+        <header class="panel-heading"><span>05</span><h2 id="perception-heading">Perception</h2><i id="perception-local-state">EYES / LOCAL</i></header>
+        <div class="perception-console">
+          <div id="perception-aperture" class="sensor-aperture" aria-hidden="true">
+            <span class="aperture-iris"></span><span class="aperture-reticle"></span>
+          </div>
+          <div class="perception-reading">
+            <span>VISUAL PRESENCE</span>
+            <strong id="perception-presence" aria-live="polite">AWAITING SIGNAL</strong>
+            <small id="perception-confidence">CONFIDENCE —</small>
+          </div>
+          <dl class="perception-facts">
+            <div><dt>Last observation</dt><dd id="perception-observed">—</dd></div>
+            <div><dt>Last gesture / app</dt><dd id="perception-gesture">NONE / —</dd></div>
+          </dl>
+        </div>
+        <div class="privacy-boundary" aria-label="Perception privacy boundaries">
+          <span class="privacy-title">PRIVACY BOUNDARY</span>
+          <span id="perception-processing" class="privacy-nominal">LOCAL PROCESSING</span>
+          <span id="perception-storage" class="privacy-disabled">NO RAW-FRAME STORAGE</span>
+          <span id="perception-identity" class="privacy-disabled">IDENTITY RECOGNITION DISABLED</span>
+          <span id="perception-retention" class="privacy-nominal">METADATA RETENTION —</span>
+          <span id="perception-authority" class="privacy-disabled">GESTURES CANNOT CONFIRM ACTIONS</span>
+        </div>
+      </article>
+
       <article class="tactical-panel command-capabilities">
-        <header class="panel-heading"><span>05</span><h2>Capability readiness</h2><i>DEPENDENCY MAP</i></header>
+        <header class="panel-heading"><span>06</span><h2>Capability readiness</h2><i>DEPENDENCY MAP</i></header>
         <div id="command-capability-list" class="capability-grid muted">Loading capability manifest.</div>
       </article>
 
       <article class="tactical-panel behavior-lab">
-        <header class="panel-heading"><span>06</span><h2>Behavior Lab</h2><i>STATE-SAFE</i></header>
+        <header class="panel-heading"><span>07</span><h2>Behavior Lab</h2><i>STATE-SAFE</i></header>
         <p class="panel-note">Predict policy and actions without changing house state.</p>
         <div class="simulation-controls" role="group" aria-label="Behavior simulations">
           <button class="secondary simulation-trigger" data-behavior="arrival">Simulate arrival</button>
           <button class="secondary simulation-trigger" data-behavior="departure">Simulate departure</button>
           <button id="nightly-review" class="secondary simulation-trigger" data-behavior="nightly">Simulate nightly</button>
+          <button id="perception-review" class="secondary simulation-trigger" data-behavior="perception">Simulate perception</button>
         </div>
         <div id="simulation-result" class="simulation-result empty-state" aria-live="polite">Select a behavior to inspect predicted actions.</div>
       </article>
 
       <article class="tactical-panel command-events">
-        <header class="panel-heading"><span>07</span><h2>Live event stream</h2><i id="command-event-count">0 EVENTS</i></header>
+        <header class="panel-heading"><span>08</span><h2>Live event stream</h2><i id="command-event-count">0 EVENTS</i></header>
         <div id="command-event-list" class="event-stream muted" aria-live="polite">No telemetry received.</div>
       </article>
 
       <article class="tactical-panel command-policy">
-        <header class="panel-heading"><span>08</span><h2>Authority matrix</h2><i>POLICY LOCK</i></header>
+        <header class="panel-heading"><span>09</span><h2>Authority matrix</h2><i>POLICY LOCK</i></header>
         <div class="matrix-legend"><span>ACTION</span><span>AUTHORITY / RISK</span></div>
         <div id="command-policy-list" class="command-list muted">Loading policies.</div>
         <details class="audit-disclosure"><summary>Recent simulation audit</summary><div id="command-audit-list" class="audit-list muted">No recorded simulations.</div></details>

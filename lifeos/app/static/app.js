@@ -922,6 +922,57 @@ function renderHardwareTelemetry(hardware) {
       : "NODE NOMINAL";
 }
 
+function formatPerceptionTime(value) {
+  if (!value) return "NO OBSERVATION";
+  const normalized = typeof value === "string" ? value.replace(" ", "T") : value;
+  const observed = new Date(normalized);
+  if (Number.isNaN(observed.valueOf())) return "TIME UNAVAILABLE";
+  return observed.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).toUpperCase();
+}
+
+function renderPerception(perception) {
+  const panel = $("command-perception");
+  const rawPresence = String(perception.visual_presence ?? "unknown").trim().toLowerCase();
+  const rawSignalAvailable = rawPresence === "on" || rawPresence === "off";
+  const linkStateProvided = perception.link_state !== undefined
+    && perception.link_state !== null
+    && String(perception.link_state).trim() !== "";
+  const linkState = String(perception.link_state || "").trim().toLowerCase();
+  const hasSignal = rawSignalAvailable && (!linkStateProvided || linkState === "online");
+  const occupied = hasSignal && (rawPresence === "on" || Boolean(perception.room_occupied));
+  const state = !hasSignal ? "awaiting" : occupied ? "occupied" : "clear";
+  const confidence = Number(perception.confidence);
+  const gesture = perception.last_gesture && typeof perception.last_gesture === "object"
+    ? perception.last_gesture
+    : {};
+  const privacy = perception.privacy || {};
+  const retention = Number(privacy.metadata_retention_hours);
+
+  panel.classList.remove("perception-awaiting", "perception-occupied", "perception-clear");
+  panel.classList.add(`perception-${state}`);
+  commandText("perception-presence", state === "occupied" ? "OCCUPIED" : state === "clear" ? "CLEAR" : "AWAITING SIGNAL");
+  commandText("perception-confidence", Number.isFinite(confidence) && hasSignal
+    ? `CONFIDENCE ${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`
+    : "CONFIDENCE —");
+  commandText("perception-observed", formatPerceptionTime(perception.last_observation_at));
+  commandText("perception-gesture", gesture.gesture
+    ? `${String(gesture.gesture).replaceAll("_", " ").toUpperCase()} / ${String(gesture.app || "BROWSER").toUpperCase()}`
+    : "NONE / —");
+  commandText("perception-processing", `${String(privacy.processing || "local").toUpperCase()} PROCESSING`);
+  commandText("perception-storage", privacy.raw_frames_stored ? "RAW-FRAME STORAGE ENABLED" : "NO RAW-FRAME STORAGE");
+  commandText("perception-identity", privacy.identity_recognition ? "IDENTITY RECOGNITION ENABLED" : "IDENTITY RECOGNITION DISABLED");
+  commandText("perception-retention", Number.isFinite(retention) ? `METADATA RETENTION ${retention}H` : "METADATA RETENTION —");
+  commandText("perception-authority", privacy.gesture_can_confirm_actions
+    ? "GESTURES MAY CONFIRM ACTIONS"
+    : "GESTURES CANNOT CONFIRM ACTIONS");
+}
+
 function ratioPercent(value, target) {
   return `${Math.max(0, Math.min(100, (Number(value) / Math.max(1, Number(target))) * 100))}%`;
 }
@@ -1004,7 +1055,8 @@ async function runBehaviorSimulation(behavior, button) {
     const heading = document.createElement("strong");
     heading.textContent = `${String(simulation.behavior || behavior).toUpperCase()} · DRY RUN`;
     result.appendChild(heading);
-    (simulation.predicted_actions || []).forEach((prediction) => {
+    const predictions = simulation.predicted_actions || [];
+    predictions.forEach((prediction) => {
       const row = document.createElement("div");
       row.className = "simulation-action";
       const copy = document.createElement("span");
@@ -1015,6 +1067,23 @@ async function runBehaviorSimulation(behavior, button) {
       row.append(copy, policy);
       result.appendChild(row);
     });
+    if (!predictions.length) {
+      const observation = document.createElement("div");
+      observation.className = "simulation-observation";
+      if (behavior === "perception") {
+        const scenario = simulation.scenario || {};
+        const presence = scenario.visual_presence === true ? "OCCUPIED" : scenario.visual_presence === false ? "CLEAR" : "AWAITING SIGNAL";
+        const confidence = Number(scenario.confidence);
+        const summary = document.createElement("span");
+        summary.textContent = `Observation metadata: ${presence}${Number.isFinite(confidence) ? ` · ${Math.round(confidence * 100)}% confidence` : ""}.`;
+        const boundary = document.createElement("small");
+        boundary.textContent = "No actions predicted · no house state changed · no raw frames stored.";
+        observation.append(summary, boundary);
+      } else {
+        observation.textContent = "No actions predicted. The simulation changed no house state.";
+      }
+      result.appendChild(observation);
+    }
   } catch (error) {
     result.className = "simulation-result has-error";
     result.textContent = error.message || "Simulation service unavailable.";
@@ -1066,6 +1135,7 @@ async function loadCommandCenter() {
     const hardware = context.hardware || {};
     const telemetry = context.telemetry || {};
     const lifeos = context.lifeos || {};
+    const perception = context.perception || {};
     const openPerimeter = security.open_perimeter || [];
     const hazards = security.active_hazards || [];
     const people = (occupancy.people_home || []).map(friendlyEntity);
@@ -1093,6 +1163,7 @@ async function loadCommandCenter() {
     renderCommandProposals(proposals);
     renderLifeOSPulse(lifeos);
     renderHardwareTelemetry(hardware);
+    renderPerception(perception);
     renderCapabilities(capabilities);
     renderCommandEvents(context.recent_events || []);
     renderCommandPolicies(actions);

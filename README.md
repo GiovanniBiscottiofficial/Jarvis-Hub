@@ -469,6 +469,23 @@ bash bootstrap/setup-satellite.sh
   watch detections with `docker logs -f gestures`. The dispatcher recognizes
   YouTube/Shorts, Spotify, Plex, and generic HTML5 players; it uses each app's
   visible Next/Skip control first, then falls back to browser media keys.
+- **Local perception → LifeOS context**: the same worker publishes camera health,
+  hand-presence transitions, and recognized gesture metadata to LifeOS. Frames stay
+  inside the worker and are never stored by LifeOS; identity recognition is disabled.
+  The Command Center shows the current room signal, confidence, last gesture, and
+  privacy policy. Metadata expires after 24 hours by default. Tune that with
+  `LIFEOS_VISION_EVENT_RETENTION_HOURS` in `.env`.
+
+After pulling this upgrade, rebuild both services so the perception publisher and
+new Command Center are active:
+
+```bash
+cd ~/Jarvis-Hub
+git pull --ff-only origin main
+docker compose up -d --build lifeos
+bash bootstrap/setup-gestures.sh
+docker logs -f gestures
+```
 
 The current Wyoming host satellite remains supported but is upstream-deprecated.
 Its replacement, Linux Voice Assistant, uses Home Assistant's ESPHome protocol and

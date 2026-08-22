@@ -15,12 +15,13 @@ right, "back" = to your left. A swipe must cross about a third of the frame
 within ~0.6 s; after each action there is a cooldown so one wave can't fire
 twice.
 """
+
 import os
 import json
 import time
 from collections import deque
 from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import cv2
 import mediapipe as mp
@@ -34,6 +35,50 @@ Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.18"))
 WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
+LIFEOS_URL = os.environ.get("LIFEOS_URL", "http://127.0.0.1:8090").rstrip("/")
+LIFEOS_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "")
+PRESENCE_CLEAR_S = float(os.environ.get("GESTURE_PRESENCE_CLEAR_S", "8"))
+PRESENCE_HEARTBEAT_S = float(os.environ.get("GESTURE_PRESENCE_HEARTBEAT_S", "300"))
+
+
+def publish_event(
+    event_type: str,
+    *,
+    entity_id: str | None = None,
+    state: str | None = None,
+    previous_state: str | None = None,
+    attributes: dict | None = None,
+    confidence: float = 1.0,
+) -> None:
+    """Publish metadata only. Camera frames never leave the perception worker."""
+    if not LIFEOS_TOKEN:
+        return
+    body = json.dumps(
+        {
+            "source": "x1_vision",
+            "event_type": event_type,
+            "entity_id": entity_id,
+            "state": state,
+            "previous_state": previous_state,
+            "attributes": {"local_only": True, **(attributes or {})},
+            "confidence": confidence,
+        }
+    ).encode()
+    request = Request(
+        f"{LIFEOS_URL}/api/events",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {LIFEOS_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=2) as response:
+            response.read()
+    except Exception as error:
+        print(f"LifeOS perception publish failed: {error}", flush=True)
+
 
 def active_page() -> dict:
     with urlopen(f"{DEVTOOLS_URL}/json/list", timeout=3) as response:
@@ -100,7 +145,7 @@ NEXT_CONTROL = r"""
 """
 
 
-def fire(gesture: str) -> None:
+def fire(gesture: str) -> str:
     page = active_page()
     socket_url = page["webSocketDebuggerUrl"]
     parsed = urlparse(page.get("url", ""))
@@ -149,6 +194,7 @@ def fire(gesture: str) -> None:
             socket_url,
         )
     print(f"gesture: {gesture} -> {app}", flush=True)
+    return app
 
 
 def open_capture() -> cv2.VideoCapture:
@@ -177,15 +223,47 @@ def main() -> None:
     frames = 0
     hand_frames = 0
     last_status = time.monotonic()
+    camera_online = False
+    presence_state: bool | None = None
+    last_presence_seen = 0.0
+    last_presence_publish = 0.0
     while True:
         ok, frame = cap.read()
         if not ok:
             print("video source dropped; reconnecting...", flush=True)
+            if camera_online:
+                publish_event(
+                    "vision.camera_health",
+                    entity_id="binary_sensor.x1_camera",
+                    state="off",
+                    previous_state="on",
+                    attributes={"reason": "stream_unavailable"},
+                )
+                camera_online = False
+            if presence_state:
+                publish_event(
+                    "vision.presence_changed",
+                    entity_id="binary_sensor.x1_visual_presence",
+                    state="off",
+                    previous_state="on",
+                    attributes={"reason": "camera_unavailable"},
+                    confidence=0.0,
+                )
+                presence_state = False
             cap.release()
             time.sleep(3)
             cap = open_capture()
             trail.clear()
             continue
+        if not camera_online:
+            publish_event(
+                "vision.camera_health",
+                entity_id="binary_sensor.x1_camera",
+                state="on",
+                previous_state="off",
+                attributes={"stream": "x1_webcam"},
+            )
+            camera_online = True
         skip = (skip + 1) % 2
         frames += 1
         if skip:  # every other frame is plenty and halves CPU
@@ -203,7 +281,43 @@ def main() -> None:
             frames = 0
             hand_frames = 0
             last_status = now
-        if not result.multi_hand_landmarks:
+        hand_visible = bool(result.multi_hand_landmarks)
+        if hand_visible:
+            last_presence_seen = now
+            if presence_state is not True or now - last_presence_publish >= PRESENCE_HEARTBEAT_S:
+                publish_event(
+                    "vision.presence_changed",
+                    entity_id="binary_sensor.x1_visual_presence",
+                    state="on",
+                    previous_state="off" if presence_state is not True else "on",
+                    attributes={"signal": "hand_landmarks", "frames_stored": False},
+                    confidence=0.86,
+                )
+                presence_state = True
+                last_presence_publish = now
+        elif presence_state is True and now - last_presence_seen >= PRESENCE_CLEAR_S:
+            publish_event(
+                "vision.presence_changed",
+                entity_id="binary_sensor.x1_visual_presence",
+                state="off",
+                previous_state="on",
+                attributes={"reason": "presence_timeout", "frames_stored": False},
+                confidence=0.75,
+            )
+            presence_state = False
+            last_presence_publish = now
+        elif presence_state is False and now - last_presence_publish >= PRESENCE_HEARTBEAT_S:
+            publish_event(
+                "vision.presence_heartbeat",
+                entity_id="binary_sensor.x1_visual_presence",
+                state="off",
+                previous_state="off",
+                attributes={"frames_stored": False},
+                confidence=0.75,
+            )
+            last_presence_publish = now
+
+        if not hand_visible:
             trail.clear()
             continue
         hand_frames += 1
@@ -225,7 +339,17 @@ def main() -> None:
             gesture = "forward" if dx > 0 else "back"
         if gesture:
             try:
-                fire(gesture)
+                app = fire(gesture)
+                publish_event(
+                    "vision.gesture",
+                    attributes={
+                        "gesture": gesture,
+                        "app": app,
+                        "frames_stored": False,
+                        "action_execution": False,
+                    },
+                    confidence=0.82,
+                )
                 last_fire = now
             except Exception as error:
                 print(f"gesture dispatch failed: {error}", flush=True)

@@ -435,6 +435,11 @@ This is the cognitive spine that turns the collection of services into one syste
   detection, and nightly security review.
 - A side-effect-free Behavior Lab for all three scenarios. Simulation never writes
   house facts, creates proposals, or calls Home Assistant.
+- A privacy-minimized local perception path: the X1 vision worker reports camera
+  health, hand presence, and gesture metadata into context without transmitting or
+  retaining raw frames. Identity recognition and gesture authorization are disabled.
+- A fourth read-only Behavior Lab scenario for perception, including explicit proof
+  that no house action is executed.
 - Proposal dismissal and action audit history.
 - A full-screen X1-first Command Center with responsive phone operation.
 
@@ -489,7 +494,9 @@ Build these in evidence-driven order rather than adding disconnected gadgets.
 - Add barge-in, echo cancellation, microphone health, speaker routing, visual listening
   state, and a physical privacy/mute indicator.
 - Use rear/front cameras for opt-in gesture and occupancy signals. Face identity and
-  recordings remain disabled until explicit retention and consent rules exist.
+  recordings remain disabled until explicit retention and consent rules exist. Basic
+  hand-presence telemetry is implemented; full person/room occupancy still requires
+  sensor fusion and must not be inferred from a missing hand.
 
 ### Security and safety
 

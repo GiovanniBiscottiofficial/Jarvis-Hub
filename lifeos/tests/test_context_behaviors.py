@@ -45,9 +45,7 @@ def test_departure_detects_open_perimeter_and_proposes_arming(fresh_db):
     action_ids = {proposal["action_id"] for proposal in list_proposals("pending")}
     assert len(result["proposals_created"]) == 2
     assert action_ids == {"notify.departure_anomaly", "security.arm_away"}
-    assert current_context()["security"]["open_perimeter"] == [
-        "binary_sensor.front_door"
-    ]
+    assert current_context()["security"]["open_perimeter"] == ["binary_sensor.front_door"]
 
 
 def test_nightly_review_reports_findings_and_proposes_night_mode(fresh_db):
@@ -66,12 +64,8 @@ def test_nightly_review_reports_findings_and_proposes_night_mode(fresh_db):
     by_action = {proposal["action_id"]: proposal for proposal in proposals}
     assert len(result["proposals_created"]) == 2
     assert set(by_action) == {"security.nightly_report", "security.arm_night"}
-    assert "cover.garage_door" in by_action["security.nightly_report"]["context"][
-        "findings"
-    ]
-    assert "alarm:disarmed" in by_action["security.nightly_report"]["context"][
-        "findings"
-    ]
+    assert "cover.garage_door" in by_action["security.nightly_report"]["context"]["findings"]
+    assert "alarm:disarmed" in by_action["security.nightly_report"]["context"]["findings"]
 
 
 def test_departure_detects_an_active_hazardous_device(fresh_db):
@@ -80,9 +74,7 @@ def test_departure_detects_an_active_hazardous_device(fresh_db):
 
     event("person.giovanni", "not_home", "home")
 
-    by_action = {
-        proposal["action_id"]: proposal for proposal in list_proposals("pending")
-    }
+    by_action = {proposal["action_id"]: proposal for proposal in list_proposals("pending")}
     assert by_action["notify.departure_anomaly"]["context"]["active_hazards"] == [
         "switch.kitchen_oven"
     ]
@@ -90,19 +82,13 @@ def test_departure_detects_an_active_hazardous_device(fresh_db):
 
 def test_action_policy_requires_confirmation_and_blocks_critical_remote_use(fresh_db):
     with pytest.raises(PermissionError, match="confirmation_required"):
-        execute_action(
-            "security.arm_away", None, False, True, "simulation"
-        )
+        execute_action("security.arm_away", None, False, True, "simulation")
 
-    simulated = execute_action(
-        "security.arm_away", None, True, True, "simulation"
-    )
+    simulated = execute_action("security.arm_away", None, True, True, "simulation")
     assert simulated["outcome"] == "simulated"
 
     with pytest.raises(PermissionError, match="local_confirmation_required"):
-        execute_action(
-            "security.close_garage", None, True, False, "simulation"
-        )
+        execute_action("security.close_garage", None, True, False, "simulation")
 
 
 def test_duplicate_events_do_not_spam_identical_proposals(fresh_db):
@@ -199,6 +185,59 @@ def test_command_center_fuses_house_and_lifeos_state(fresh_db):
     }
 
 
+def test_local_vision_projects_privacy_minimized_perception(fresh_db):
+    ingest_event(
+        {
+            "source": "x1_vision",
+            "event_type": "vision.presence_changed",
+            "entity_id": "binary_sensor.x1_visual_presence",
+            "state": "on",
+            "previous_state": "off",
+            "confidence": 0.86,
+            "attributes": {"signal": "hand_landmarks", "frames_stored": False},
+        },
+        evaluate=False,
+    )
+    ingest_event(
+        {
+            "source": "x1_vision",
+            "event_type": "vision.gesture",
+            "confidence": 0.82,
+            "attributes": {
+                "gesture": "forward",
+                "app": "plex",
+                "frames_stored": False,
+            },
+        },
+        evaluate=False,
+    )
+
+    perception = current_context()["perception"]
+    assert perception["room_occupied"] is True
+    assert perception["confidence"] == pytest.approx(0.86)
+    assert perception["last_gesture"] == {"gesture": "forward", "app": "plex"}
+    assert perception["privacy"] == {
+        "processing": "local",
+        "raw_frames_stored": False,
+        "identity_recognition": False,
+        "metadata_retention_hours": 24,
+        "gesture_can_confirm_actions": False,
+    }
+
+
+def test_perception_simulation_is_read_only(fresh_db):
+    before = current_context()
+    result = simulate_behavior("perception", {"visual_presence": False})
+    after = current_context()
+
+    assert result["simulation"] is True
+    assert result["predicted_actions"] == []
+    assert result["scenario"]["visual_presence"] is False
+    assert result["scenario"]["raw_frames_stored"] is False
+    assert result["scenario"]["action_execution"] is False
+    assert before["facts"] == after["facts"]
+
+
 def test_simulation_and_proposal_lifecycle_api(fresh_db):
     from app.main import app
 
@@ -207,6 +246,13 @@ def test_simulation_and_proposal_lifecycle_api(fresh_db):
     simulation = client.post("/api/simulations/arrival", json={"overrides": {}})
     assert simulation.status_code == 200
     assert simulation.json()["predicted_actions"][0]["action_id"] == "scene.arrival"
+    perception = client.post(
+        "/api/simulations/perception",
+        json={"overrides": {"visual_presence": True}},
+    )
+    assert perception.status_code == 200
+    assert perception.json()["predicted_actions"] == []
+    assert perception.json()["scenario"]["action_execution"] is False
 
     client.post(
         "/api/events",

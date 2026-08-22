@@ -176,7 +176,7 @@ body.command-active main { max-width: 1600px; padding-bottom: 14px; }
   animation: live-pulse 2s ease-in-out infinite;
 }
 .command-actions { flex-wrap: wrap; justify-content: flex-end; }
-button.command-tool { min-height: 42px; font-size: .78rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; border-radius: 2px; }
+button.command-tool { min-height: 46px; font-size: .78rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; border-radius: 2px; }
 button.command-tool span { color: var(--accent); font-size: 1rem; margin-right: 3px; }
 button.command-tool:hover, .compact:hover { border-color: rgba(78, 220, 255, .55); background: rgba(0, 212, 255, .14); }
 button:focus-visible, .tab:focus-visible { outline: 2px solid #84eaff; outline-offset: 2px; }
@@ -257,7 +257,7 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .proposal-row strong { display: block; color: #e7f2fa; font-size: .78rem; line-height: 1.3; font-weight: 560; }
 .proposal-row .muted { margin-top: 3px; color: #7e95a9; font-size: .68rem; line-height: 1.3; }
 .proposal-controls { flex: 0 0 auto; }
-.compact { padding: 7px 10px; min-height: 32px; font-size: .64rem; border-radius: 2px; text-transform: uppercase; letter-spacing: .055em; }
+.compact { padding: 7px 10px; min-height: 44px; font-size: .64rem; border-radius: 2px; text-transform: uppercase; letter-spacing: .055em; }
 .event-stream { max-height: 232px; overflow: auto; scrollbar-color: #1b6f86 #06121d; scrollbar-width: thin; }
 .event-row { display: grid; grid-template-columns: 9px 73px 1fr; gap: 8px; align-items: center; min-height: 43px; padding: 7px 2px; border-bottom: 1px solid rgba(0, 212, 255, .07); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .event-marker { width: 5px; height: 5px; border-radius: 50%; background: #4edcff; box-shadow: 0 0 7px rgba(78, 220, 255, .7); }
@@ -343,7 +343,7 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .app-header .tab {
   position: relative; background: transparent; border: 0; border-left: 1px solid rgba(83, 190, 216, .13);
   border-radius: 0; box-shadow: none; color: #8198aa; font: 600 .68rem ui-monospace, SFMono-Regular, Consolas, monospace;
-  letter-spacing: .09em; text-transform: uppercase; min-height: 42px;
+  letter-spacing: .09em; text-transform: uppercase; min-height: 46px;
 }
 .app-header .tab:last-child { border-right: 1px solid rgba(83, 190, 216, .13); }
 .app-header .tab::after { content: ""; position: absolute; inset: auto 18% 0; height: 2px; background: transparent; }
@@ -351,7 +351,7 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .app-header .tab.active::after { background: #43dcff; box-shadow: 0 0 9px rgba(67, 220, 255, .6); }
 .shell-status { display: flex; align-items: center; gap: 7px; }
 .shell-status span:last-child { color: #91a7b7; border-left: 1px solid #284052; padding-left: 7px; }
-#profile-select { position: static; min-width: 112px; max-width: 150px; border-radius: 2px; font-size: .76rem; padding: 8px 28px 8px 10px; }
+#profile-select { position: static; min-width: 112px; min-height: 44px; max-width: 150px; border-radius: 2px; font-size: .76rem; padding: 8px 28px 8px 10px; }
 
 .panel:not(#command) { max-width: 1240px; margin: 0 auto; }
 .section-intro { display: flex; justify-content: space-between; align-items: flex-end; min-height: 112px; padding: 22px 2px 18px; border-bottom: 1px solid rgba(65, 196, 226, .15); }
@@ -394,13 +394,15 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   grid-template-areas:
     "core status lifeos lifeos"
     "core hardware hardware capabilities"
-    "proposals proposals behavior behavior"
-    "events events policy policy";
-  grid-template-rows: minmax(232px, auto) minmax(180px, auto) auto auto;
+    "perception perception behavior behavior"
+    "proposals proposals events events"
+    "policy policy policy policy";
+  grid-template-rows: minmax(232px, auto) minmax(180px, auto) auto auto auto;
 }
 .command-lifeos { grid-area: lifeos; border-color: rgba(151, 109, 255, .28); }
 .command-lifeos::before { border-color: rgba(175, 137, 255, .58); }
 .command-capabilities { grid-area: capabilities; }
+.command-perception { grid-area: perception; }
 .behavior-lab { grid-area: behavior; }
 .command-core { min-height: 422px; }
 .lifeos-rail { display: grid; grid-template-columns: 90px repeat(5, minmax(82px, 1fr)); gap: 1px; background: rgba(151, 109, 255, .1); }
@@ -422,8 +424,38 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .capability-item small { display: block; color: #5e9b72; font: .51rem ui-monospace, SFMono-Regular, Consolas, monospace; margin-top: 3px; text-transform: uppercase; }
 .capability-item.needs-dependency .capability-marker { background: #8b99a5; box-shadow: none; }
 .capability-item.needs-dependency small { color: #7e8d99; }
-.simulation-controls { display: flex; gap: 7px; margin: 10px 0; }
-.simulation-trigger { min-height: 44px; flex: 1; border-radius: 2px; color: #bcecf7; font: 600 .64rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .055em; text-transform: uppercase; }
+.perception-console { display: grid; grid-template-columns: 112px minmax(145px, .72fr) minmax(210px, 1fr); gap: 15px; align-items: center; }
+.sensor-aperture {
+  position: relative; width: 100%; height: 67px; overflow: hidden; border: 1px solid rgba(72, 220, 250, .42);
+  border-radius: 50% / 72%; background: radial-gradient(circle at 50% 50%, rgba(55, 222, 255, .16), rgba(1, 12, 21, .88) 57%);
+  box-shadow: inset 0 0 22px rgba(25, 190, 225, .12), 0 0 15px rgba(25, 190, 225, .08);
+}
+.sensor-aperture::before, .sensor-aperture::after { content: ""; position: absolute; pointer-events: none; }
+.sensor-aperture::before { inset: 50% 8px auto; border-top: 1px solid rgba(95, 227, 255, .35); }
+.sensor-aperture::after { width: 1px; inset: 8px auto 8px 50%; background: rgba(95, 227, 255, .28); }
+.aperture-iris { position: absolute; width: 36px; height: 36px; inset: 50% auto auto 50%; translate: -50% -50%; border: 1px dashed #52daf7; border-radius: 50%; animation: reactor-spin 14s linear infinite; }
+.aperture-iris::after { content: ""; position: absolute; inset: 9px; border: 1px solid #b7f5ff; border-radius: 50%; background: rgba(62, 220, 250, .34); box-shadow: 0 0 14px rgba(64, 222, 255, .55); }
+.aperture-reticle { position: absolute; inset: 7px 22px; border: 1px solid rgba(75, 218, 247, .14); border-radius: 50%; }
+.perception-reading > span { display: block; color: #668498; font: 600 .53rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .12em; }
+.perception-reading strong { display: block; color: var(--warn); font: 650 1.05rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .11em; margin: 7px 0; }
+.perception-reading small { color: #809bac; font: 600 .57rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .07em; }
+.perception-facts { min-width: 0; margin: 0; }
+.perception-facts > div { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: 10px; align-items: center; min-height: 36px; border-bottom: 1px solid rgba(64, 202, 232, .08); }
+.perception-facts dt { color: #71899b; font-size: .68rem; }
+.perception-facts dd { overflow: hidden; margin: 0; color: #c2dbe5; font: 600 .62rem ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.privacy-boundary { display: grid; grid-template-columns: auto repeat(5, minmax(0, 1fr)); gap: 1px; margin-top: 11px; background: rgba(67, 202, 232, .07); }
+.privacy-boundary > span { display: flex; align-items: center; min-height: 32px; padding: 5px 8px; background: #07131f; font: 600 .49rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .045em; line-height: 1.3; }
+.privacy-title { color: #66dff8; border-left: 2px solid #44d8f6; letter-spacing: .1em !important; }
+.privacy-nominal { color: #69c9df; }
+.privacy-disabled { color: #8b9aa5; }
+.perception-occupied .perception-reading strong { color: var(--good); text-shadow: 0 0 10px rgba(74, 222, 128, .25); }
+.perception-occupied .sensor-aperture { border-color: rgba(91, 225, 132, .55); }
+.perception-occupied .aperture-iris::after { background: rgba(77, 220, 122, .38); box-shadow: 0 0 14px rgba(74, 222, 128, .58); }
+.perception-clear .perception-reading strong { color: #70dff5; }
+.perception-awaiting .sensor-aperture { filter: grayscale(.7); opacity: .62; }
+.perception-awaiting .aperture-iris { animation: none; }
+.simulation-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+.simulation-trigger { min-height: 44px; flex: 1 1 130px; border-radius: 2px; color: #bcecf7; font: 600 .64rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .055em; text-transform: uppercase; }
 .simulation-result { min-height: 84px; padding: 10px; border: 1px solid rgba(88, 210, 240, .12); color: #7f98aa; font-size: .7rem; }
 .simulation-result > strong { display: block; color: #72e4ff; font: 600 .61rem ui-monospace, SFMono-Regular, Consolas, monospace; margin-bottom: 5px; letter-spacing: .08em; }
 .simulation-success { border-left: 2px solid var(--good); color: #b8c9d2; }
@@ -431,9 +463,11 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .simulation-action { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(88, 210, 240, .07); }
 .simulation-action span { color: #d8e7ee; }
 .simulation-action small { color: #8196a6; text-align: right; }
+.simulation-observation { display: flex; flex-direction: column; gap: 5px; border-left: 2px solid #55d8f3; background: rgba(75, 211, 240, .045); padding: 9px 11px; color: #d1e6ee; }
+.simulation-observation small { color: #7f96a6; font: .58rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .035em; text-transform: uppercase; }
 .dismiss-control { color: #95a6b2 !important; }
 .audit-disclosure { border-top: 1px solid rgba(88, 210, 240, .1); margin-top: 9px; padding-top: 8px; }
-.audit-disclosure summary { cursor: pointer; color: #668396; font: .58rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; min-height: 32px; }
+.audit-disclosure summary { display: flex; align-items: center; cursor: pointer; color: #668396; font: .58rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; min-height: 44px; }
 .audit-row { display: flex; justify-content: space-between; padding: 5px 0; border-top: 1px solid rgba(88, 210, 240, .06); font-size: .63rem; }
 .audit-row strong { color: #7bdc9a; font: 600 .56rem ui-monospace, SFMono-Regular, Consolas, monospace; }
 .is-awaiting .system-state { color: #9cacb7; text-shadow: none; }
@@ -448,9 +482,10 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
       "core status status"
       "core lifeos lifeos"
       "hardware hardware capabilities"
-      "proposals behavior behavior"
+      "perception perception behavior"
+      "proposals proposals behavior"
       "events events policy";
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: repeat(6, auto);
   }
   .lifeos-rail { grid-template-columns: 80px repeat(5, minmax(70px, 1fr)); }
 }
@@ -468,13 +503,16 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   .command-status { order: 1; }
   .command-lifeos { order: 2; }
   .command-hardware { order: 3; }
-  .command-capabilities { order: 4; }
-  .command-proposals { order: 5; }
-  .behavior-lab { order: 6; }
-  .command-events { order: 7; }
-  .command-policy { order: 8; }
+  .command-perception { order: 4; }
+  .command-capabilities { order: 5; }
+  .command-proposals { order: 6; }
+  .behavior-lab { order: 7; }
+  .command-events { order: 8; }
+  .command-policy { order: 9; }
   .lifeos-rail { grid-template-columns: repeat(3, 1fr); }
   .score-dial { grid-row: span 2; }
+  .privacy-boundary { grid-template-columns: repeat(3, 1fr); }
+  .privacy-title { grid-column: 1 / -1; }
 }
 @media (max-width: 650px) {
   .app-header { padding: 8px 10px 6px; }
@@ -498,9 +536,35 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   .score-dial { grid-row: span 1; }
   .priority-rail { flex-wrap: wrap; overflow: visible; }
   .capability-grid { grid-template-columns: 1fr; }
+  .perception-console { grid-template-columns: 96px 1fr; gap: 12px; }
+  .perception-facts { grid-column: 1 / -1; }
+  .privacy-boundary { grid-template-columns: 1fr 1fr; }
+  .privacy-title { grid-column: 1 / -1; }
   .simulation-controls { flex-direction: column; }
   .simulation-trigger { flex: 0 0 auto; width: 100%; min-height: 46px; }
   .simulation-action { flex-direction: column; gap: 3px; }
   .simulation-action small { text-align: left; }
   .proposal-controls { min-width: 126px; }
+}
+
+/* Native-resolution X1 kiosk: use the 3000×2000 canvas instead of preserving
+   desktop-laptop density in a narrow centered strip. */
+@media (min-width: 2200px) and (min-height: 1400px) {
+  html { font-size: clamp(20px, .74vw, 22px); }
+  body.command-active main { width: 100%; max-width: 2800px; padding: 18px 28px 28px; }
+  .app-header { padding: 14px 28px; gap: 24px; }
+  .command-grid { gap: 14px; }
+  .tactical-panel { padding: 21px 23px; }
+  .command-core { min-height: 520px; padding: 24px 28px 20px; }
+  .arc-reactor { width: clamp(190px, 8vw, 235px); }
+  .panel-heading h2 { font-size: .82rem; }
+  .panel-heading i { font-size: .62rem; }
+  .privacy-boundary > span { min-height: 40px; font-size: .58rem; }
+  .capability-item { min-height: 58px; }
+  .capability-item strong { font-size: .74rem; }
+  .capability-item small { font-size: .58rem; }
+  .hardware-item { min-height: 55px; }
+  .hardware-item small { font-size: .62rem; }
+  .hardware-item strong { font-size: .76rem; }
+  .simulation-trigger { min-height: 52px; }
 }
