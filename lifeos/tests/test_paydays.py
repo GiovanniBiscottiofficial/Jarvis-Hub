@@ -112,6 +112,7 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     ) == 2064.24
     assert len(overview["paydays"]) == 4
     assert {item["paycheck"] for item in overview["paydays"][:2]} == {1, 2}
+    assert overview["protected_cash"] == 0
 
 
 def test_new_budget_cycle_is_scheduled_not_overdue(fresh_db):

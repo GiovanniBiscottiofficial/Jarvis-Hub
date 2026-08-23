@@ -195,10 +195,11 @@ def _overview(c) -> dict:
     cash = {a["name"]: a["balance"] for a in accounts}
     ecosystem_cash = sum(a["balance"] for a in accounts)
     # Protected rule: savings/bucket money is never spendable pocket cash
-    protected_cash = round(
-        sum(a["balance"] for a in accounts if a["role"] in ("savings", "buckets")),
-        2,
-    )
+    protected_cash = round(sum(
+        max(0, a["balance"])
+        for a in accounts
+        if a["role"] in ("savings", "buckets")
+    ), 2)
     unpaid_total = sum(b["amount"] for b in unpaid)
     bucket_saved = sum(g["saved"] for g in goals)
     relay_balance = cash.get("Relay", 0)
