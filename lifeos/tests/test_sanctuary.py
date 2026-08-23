@@ -220,5 +220,7 @@ def test_context_event_bridge_is_authenticated_and_json_safe():
     )[0]
 
     assert "Authorization: !secret lifeos_api_authorization" in rest_block
+    assert "state | string | tojson" in rest_block
+    assert "previous_state | string | tojson" in rest_block
     assert "trigger.event.data.new_state.attributes" not in mirror
     assert "sanctuary_area_id" in mirror

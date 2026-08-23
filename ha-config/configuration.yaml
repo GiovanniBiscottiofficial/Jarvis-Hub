@@ -217,8 +217,9 @@ rest_command:
     content_type: application/json
     payload: >-
       {"source":"home_assistant","event_type":{{ event_type | tojson }},
-      "entity_id":{{ entity_id | tojson }},"state":{{ state | tojson }},
-      "previous_state":{{ previous_state | tojson }},
+      "entity_id":{{ entity_id | tojson }},
+      "state":{{ (state | string | tojson) if state is not none else 'null' }},
+      "previous_state":{{ (previous_state | string | tojson) if previous_state is not none else 'null' }},
       "attributes":{{ attributes | tojson }}}
 
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
