@@ -215,6 +215,9 @@ Tick them off as you go.
 **Devices — pair as you go:**
 
 - [ ] **Phase 2a — Lights**: re-pair Monster lights in the *Smart Life* app, then HA → Add Integration → **Tuya** (scan QR with Smart Life)
+  - The Wall dashboard discovers enabled `light.*` entities automatically through
+    `/local/jarvis-lights.html`; no dashboard YAML rename is needed after pairing.
+    Lights are grouped by Area with power, brightness, and supported color controls.
 - [ ] **Phase 2b — Vacuum**: try pairing the Juno in Smart Life too; if it won't, install HACS + **tuya-local**
 - [ ] **Phase 5 — Presence**: install the HA Companion app on every phone; link people in Settings → People (unlocks welcome-home, arrival scaffolds, remote Assist)
 - [ ] **Phase 16 — Fire TV**: enable ADB Debugging on the Fire TV, HA → Add Integration → **Android TV** with its IP; install "Notifications for Fire TV" for on-screen alerts (unlocks movie mode + quiet-mode-while-watching)

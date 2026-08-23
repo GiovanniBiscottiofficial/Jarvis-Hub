@@ -85,18 +85,9 @@ views:
           - type: heading
             heading: Lights
             icon: mdi:lightbulb-group
-          - type: tile
-            entity: light.living_room
-            name: Living Room
-            color: amber
-            features:
-              - type: light-brightness
-          - type: tile
-            entity: light.bedroom
-            name: Bedroom
-            color: amber
-            features:
-              - type: light-brightness
+          - type: iframe
+            url: /local/jarvis-lights.html
+            aspect_ratio: 120%
           - type: heading
             heading: Scenes
             icon: mdi:palette
@@ -160,8 +151,6 @@ views:
           - type: logbook
             hours_to_show: 12
             entities:
-              - light.living_room
-              - light.bedroom
               - vacuum.juno
               - script.movie_night
               - script.goodnight

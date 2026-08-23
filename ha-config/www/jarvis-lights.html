@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Jarvis Illumination</title>
+  <style>
+    @font-face { font-family: Orbitron; src: url('/local/fonts/orbitron.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    :root {
+      color-scheme: dark;
+      --ink: #030910;
+      --panel: #07131e;
+      --panel-high: #0a1b28;
+      --line: #193847;
+      --cyan: #43d9ee;
+      --cyan-muted: #286a78;
+      --amber: #f0b653;
+      --amber-soft: #9c6b28;
+      --steel: #8daab7;
+      --text: #e7f6f9;
+      --green: #66dda0;
+      --red: #ee7373;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--ink); color: var(--text); }
+    body {
+      font-family: Rajdhani, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(67,217,238,.025) 1px, transparent 1px),
+        linear-gradient(rgba(67,217,238,.018) 1px, transparent 1px),
+        radial-gradient(circle at 88% -8%, #0d2b3a 0, transparent 36%),
+        var(--ink);
+      background-size: 48px 48px, 48px 48px, auto, auto;
+    }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    .shell { min-height: 100vh; padding: 20px 20px 28px; }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      align-items: end;
+      gap: 16px;
+      padding: 0 2px 15px;
+      border-bottom: 1px solid var(--cyan-muted);
+      position: relative;
+    }
+    header::after { content: ""; position: absolute; left: 0; bottom: -2px; width: 82px; height: 3px; background: var(--cyan); }
+    .eyebrow { color: var(--steel); font: 600 11px/1 Orbitron, monospace; letter-spacing: .22em; }
+    h1 { margin: 7px 0 0; font: 600 clamp(20px,3.2vw,32px)/1 Orbitron, monospace; letter-spacing: .11em; }
+    .sync { display: flex; align-items: center; justify-content: flex-end; gap: 11px; color: var(--steel); font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .sync strong { color: var(--text); font: 600 18px/1 Orbitron, monospace; }
+    .pulse { width: 8px; height: 8px; flex: 0 0 auto; background: var(--green); box-shadow: 0 0 9px rgba(102,221,160,.45); }
+    .pulse.wait { background: var(--amber); }
+    .pulse.error { background: var(--red); }
+    .master {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 14px 0 4px;
+    }
+    .master-label { color: var(--steel); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .button {
+      min-height: 46px;
+      border: 1px solid #285162;
+      background: #081923;
+      color: #c9e4e9;
+      padding: 0 18px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      transition: background .16s, border-color .16s, color .16s, transform .1s;
+    }
+    .button.primary { color: var(--amber); border-color: #805a29; background: #20170c; }
+    .button:hover, .button:focus-visible { outline: none; border-color: var(--cyan); color: white; background: #0d2936; }
+    .button.primary:hover, .button.primary:focus-visible { border-color: var(--amber); background: #32220e; }
+    .button:active { transform: translateY(1px); }
+    .button:disabled { opacity: .35; cursor: default; transform: none; }
+    #notice { min-height: 24px; padding: 8px 2px 0; color: var(--steel); font-size: 14px; font-weight: 600; }
+    #notice[data-kind="error"] { color: var(--red); }
+    #notice[data-kind="success"] { color: var(--green); }
+    #groups { padding-top: 4px; }
+    .group { margin-top: 15px; }
+    .group-heading { display: flex; align-items: baseline; gap: 10px; padding: 0 2px 7px; border-bottom: 1px solid #132d39; }
+    .group-heading h2 { margin: 0; color: var(--text); font: 700 18px/1 Rajdhani, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .group-heading span { color: var(--cyan); font: 600 10px/1 Orbitron, monospace; letter-spacing: .14em; }
+    .lights { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 420px)); justify-content: start; gap: 9px; padding-top: 9px; }
+    .light {
+      --level: 0%;
+      position: relative;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 6px minmax(0,1fr);
+      background: linear-gradient(125deg, rgba(10,27,40,.98), rgba(5,15,24,.98));
+      border: 1px solid var(--line);
+      clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100%, 0 100%);
+      animation: enter .3s ease both;
+    }
+    .rail { background: #243b45; position: relative; overflow: hidden; }
+    .rail::after { content: ""; position: absolute; inset: auto 0 0; height: var(--level); background: linear-gradient(0deg, var(--amber), #ffe5a5); box-shadow: 0 0 14px rgba(240,182,83,.55); transition: height .25s ease; }
+    .light[data-on="false"] .rail::after { opacity: 0; }
+    .light[data-unavailable="true"] { opacity: .58; filter: saturate(.55); }
+    .light[data-unavailable="true"] .rail::after { background: var(--red); height: 12%; opacity: .8; box-shadow: none; }
+    .light-body { min-width: 0; padding: 14px 14px 15px; }
+    .light-top { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: start; }
+    .light-name { margin: 0; overflow-wrap: anywhere; font-size: 21px; line-height: 1.05; letter-spacing: .035em; text-transform: uppercase; }
+    .meta { margin-top: 5px; color: var(--steel); font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .state { color: var(--steel); font: 600 10px/1 Orbitron, monospace; letter-spacing: .13em; text-transform: uppercase; padding-top: 3px; }
+    .light[data-on="true"] .state { color: var(--amber); }
+    .light[data-unavailable="true"] .state { color: var(--red); }
+    .controls { display: grid; grid-template-columns: 112px minmax(0,1fr); gap: 12px; align-items: center; margin-top: 14px; }
+    .toggle { width: 100%; padding: 0 12px; }
+    .light[data-on="true"] .toggle { color: var(--amber); border-color: var(--amber-soft); background: #251a0c; }
+    .dimmer { min-width: 0; }
+    .dimmer-label { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 5px; color: var(--steel); font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    input[type="range"] { width: 100%; height: 44px; margin: 0; accent-color: var(--amber); cursor: pointer; }
+    input[type="range"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+    input[type="range"]:disabled { opacity: .35; cursor: default; }
+    .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .preset { min-width: 50px; min-height: 44px; padding: 0 9px; border: 1px solid #294653; background: #091824; color: var(--text); cursor: pointer; font-weight: 700; font-size: 12px; }
+    .preset::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; background: var(--preset); box-shadow: 0 0 7px color-mix(in srgb, var(--preset) 65%, transparent); }
+    .preset:hover, .preset:focus-visible { outline: none; border-color: var(--cyan); background: #0d2936; }
+    .preset:disabled { opacity: .35; cursor: default; }
+    .message { min-height: 260px; display: grid; place-items: center; text-align: center; border: 1px solid var(--line); border-left: 4px solid var(--cyan); background: rgba(7,18,28,.92); color: var(--steel); padding: 30px; margin-top: 14px; }
+    .message b { display: block; color: var(--text); font: 600 17px/1.4 Orbitron, monospace; letter-spacing: .11em; margin-bottom: 11px; }
+    .message.error { border-left-color: var(--red); }
+    @keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+    @media (max-width: 580px) {
+      .shell { padding: 16px 13px 23px; }
+      header { grid-template-columns: 1fr; gap: 11px; }
+      .sync { justify-content: flex-start; }
+      .master { grid-template-columns: 1fr 1fr; }
+      .master-label { grid-column: 1 / -1; }
+      .button { min-height: 50px; padding-inline: 12px; }
+      .controls { grid-template-columns: 104px minmax(0,1fr); }
+      .preset { flex: 1 1 72px; }
+      .lights { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 360px) {
+      .controls { grid-template-columns: 1fr; }
+      .toggle { min-height: 50px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div><div class="eyebrow">JARVIS // ILLUMINATION</div><h1>LIGHTING CONSOLE</h1></div>
+      <div class="sync"><span id="pulse" class="pulse wait"></span><span><strong id="count">--</strong> LIGHTS · <span id="syncText">LINKING</span></span></div>
+    </header>
+    <section class="master" aria-label="Master light controls">
+      <div class="master-label">Residence illumination override</div>
+      <button id="allOn" class="button primary" type="button" disabled>All on</button>
+      <button id="allOff" class="button" type="button" disabled>All off</button>
+    </section>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <section id="groups" aria-live="polite">
+      <div class="message"><div><b>READING LIGHT REGISTRY</b>Establishing a secure link with Home Assistant.</div></div>
+    </section>
+  </main>
+  <script>
+    'use strict';
+    const groupsEl = document.getElementById('groups');
+    const countEl = document.getElementById('count');
+    const syncText = document.getElementById('syncText');
+    const pulse = document.getElementById('pulse');
+    const noticeEl = document.getElementById('notice');
+    const allOnButton = document.getElementById('allOn');
+    const allOffButton = document.getElementById('allOff');
+    const presets = [
+      { label: 'Warm', kind: 'temperature', css: '#ffb45a', kelvin: 2700 },
+      { label: 'Daylight', kind: 'temperature', css: '#e8f4ff', kelvin: 5000 },
+      { label: 'Red', kind: 'rgb', css: '#ef5350', rgb: [255, 32, 28] },
+      { label: 'Green', kind: 'rgb', css: '#62db80', rgb: [35, 230, 80] },
+      { label: 'Blue', kind: 'rgb', css: '#4f8cff', rgb: [38, 95, 255] }
+    ];
+    let hass;
+    let areas = [];
+    let devices = [];
+    let entities = [];
+    let registeredLights = [];
+    let renderedSignature = '';
+    let noticeTimer;
+    const busy = new Set();
+
+    function locateHass() {
+      let context = window;
+      for (let i = 0; i < 5; i += 1) {
+        try {
+          const root = context.document.querySelector('home-assistant');
+          if (root && root.hass) return root.hass;
+          if (context === context.parent) break;
+          context = context.parent;
+        } catch (_) { break; }
+      }
+      return null;
+    }
+
+    function showNotice(text, kind = '') {
+      window.clearTimeout(noticeTimer);
+      noticeEl.textContent = text;
+      noticeEl.dataset.kind = kind;
+      if (text) noticeTimer = window.setTimeout(() => { noticeEl.textContent = ''; noticeEl.dataset.kind = ''; }, 5000);
+    }
+
+    function showMessage(title, detail, error = false) {
+      groupsEl.replaceChildren();
+      const box = document.createElement('div');
+      box.className = 'message' + (error ? ' error' : '');
+      const inner = document.createElement('div');
+      const heading = document.createElement('b');
+      heading.textContent = title;
+      inner.append(heading, document.createTextNode(detail));
+      box.append(inner);
+      groupsEl.append(box);
+    }
+
+    function areaFor(entity, deviceById) {
+      if (entity.area_id) return entity.area_id;
+      const device = entity.device_id && deviceById.get(entity.device_id);
+      return device ? device.area_id : null;
+    }
+
+    function discoverLights() {
+      const deviceById = new Map(devices.map(device => [device.id, device]));
+      const found = new Map();
+      const registryIds = new Set(entities.map(entity => entity.entity_id));
+      entities.forEach(entity => {
+        if (!entity.entity_id.startsWith('light.') || entity.disabled_by || entity.hidden_by) return;
+        found.set(entity.entity_id, {
+          entityId: entity.entity_id,
+          registry: entity,
+          areaId: areaFor(entity, deviceById)
+        });
+      });
+      Object.keys(hass.states).forEach(entityId => {
+        if (entityId.startsWith('light.') && !registryIds.has(entityId)) {
+          found.set(entityId, { entityId, registry: null, areaId: null });
+        }
+      });
+      registeredLights = Array.from(found.values());
+    }
+
+    function nameFor(light, state) {
+      return (state && state.attributes.friendly_name) ||
+        (light.registry && (light.registry.name || light.registry.original_name)) ||
+        light.entityId.slice(6).replace(/_/g, ' ');
+    }
+
+    function capabilities(state) {
+      const modes = state && Array.isArray(state.attributes.supported_color_modes) ? state.attributes.supported_color_modes : [];
+      const dimmable = modes.some(mode => mode !== 'onoff') || Boolean(state && state.attributes.brightness !== undefined);
+      const color = modes.some(mode => ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'].includes(mode));
+      const temperature = modes.includes('color_temp');
+      return { dimmable, color, temperature, label: color ? 'FULL COLOR' : temperature ? 'TUNABLE WHITE' : dimmable ? 'DIMMABLE' : 'ON / OFF' };
+    }
+
+    function supportsPreset(capability, preset) {
+      return preset.kind === 'temperature' ? capability.temperature : capability.color;
+    }
+
+    function dataForPreset(light, preset) {
+      if (preset.kind === 'rgb') return { rgb_color: preset.rgb };
+      const attributes = light.state ? light.state.attributes : {};
+      const minimum = Number(attributes.min_color_temp_kelvin) || 2000;
+      const maximum = Number(attributes.max_color_temp_kelvin) || 6500;
+      return { color_temp_kelvin: Math.min(maximum, Math.max(minimum, preset.kelvin)) };
+    }
+
+    function liveData() {
+      const areaNames = new Map(areas.map(area => [area.area_id, area.name]));
+      return registeredLights.map(light => {
+        const state = hass.states[light.entityId];
+        const unavailable = !state || ['unavailable', 'unknown'].includes(state.state);
+        const on = Boolean(state && state.state === 'on');
+        const brightness = on ? Math.round(((state.attributes.brightness === undefined ? 255 : state.attributes.brightness) / 255) * 100) : 0;
+        return {
+          ...light,
+          state,
+          name: nameFor(light, state),
+          areaName: light.areaId && areaNames.get(light.areaId) ? areaNames.get(light.areaId) : 'Unassigned',
+          unavailable,
+          on,
+          brightness,
+          capability: capabilities(state)
+        };
+      }).sort((a, b) => a.areaName.localeCompare(b.areaName) || a.name.localeCompare(b.name));
+    }
+
+    async function callLight(light, service, data = {}) {
+      if (!hass || busy.has(light.entityId)) return;
+      busy.add(light.entityId);
+      renderedSignature = '';
+      render();
+      try {
+        await hass.callService('light', service, { entity_id: light.entityId, ...data });
+        showNotice(light.name + ' command accepted.', 'success');
+      } catch (error) {
+        showNotice('Could not control ' + light.name + ': ' + (error && error.message ? error.message : 'service call failed'), 'error');
+      } finally {
+        busy.delete(light.entityId);
+        renderedSignature = '';
+        render();
+      }
+    }
+
+    function makeButton(label, className, handler, disabled = false) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = className;
+      button.textContent = label;
+      button.disabled = disabled;
+      button.addEventListener('click', handler);
+      return button;
+    }
+
+    function buildLight(light, index) {
+      const article = document.createElement('article');
+      article.className = 'light';
+      article.dataset.on = String(light.on);
+      article.dataset.unavailable = String(light.unavailable);
+      article.style.setProperty('--level', light.brightness + '%');
+      article.style.animationDelay = Math.min(index * 35, 280) + 'ms';
+
+      const rail = document.createElement('div');
+      rail.className = 'rail';
+      const body = document.createElement('div');
+      body.className = 'light-body';
+      const top = document.createElement('div');
+      top.className = 'light-top';
+      const identity = document.createElement('div');
+      const name = document.createElement('h3');
+      name.className = 'light-name';
+      name.textContent = light.name;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = light.areaName + ' · ' + light.capability.label;
+      identity.append(name, meta);
+      const state = document.createElement('div');
+      state.className = 'state';
+      state.textContent = light.unavailable ? 'OFFLINE' : busy.has(light.entityId) ? 'SENDING' : light.on ? 'ON · ' + light.brightness + '%' : 'OFF';
+      top.append(identity, state);
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+      const disabled = light.unavailable || busy.has(light.entityId);
+      const toggle = makeButton(light.on ? 'Turn off' : 'Turn on', 'button toggle', () => callLight(light, light.on ? 'turn_off' : 'turn_on'), disabled);
+      controls.append(toggle);
+
+      if (light.capability.dimmable) {
+        const dimmer = document.createElement('div');
+        dimmer.className = 'dimmer';
+        const label = document.createElement('label');
+        label.className = 'dimmer-label';
+        const labelText = document.createElement('span');
+        labelText.textContent = 'Brightness';
+        const value = document.createElement('span');
+        value.textContent = light.brightness + '%';
+        label.append(labelText, value);
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '1';
+        slider.max = '100';
+        slider.value = String(Math.max(1, light.brightness));
+        slider.disabled = disabled;
+        slider.setAttribute('aria-label', 'Brightness for ' + light.name);
+        slider.addEventListener('input', () => { value.textContent = slider.value + '%'; });
+        slider.addEventListener('change', () => callLight(light, 'turn_on', { brightness_pct: Number(slider.value) }));
+        dimmer.append(label, slider);
+        controls.append(dimmer);
+      } else {
+        const capability = document.createElement('div');
+        capability.className = 'meta';
+        capability.textContent = 'Discrete relay';
+        controls.append(capability);
+      }
+
+      body.append(top, controls);
+      if (light.capability.color || light.capability.temperature) {
+        const row = document.createElement('div');
+        row.className = 'presets';
+        presets.forEach(preset => {
+          if (!supportsPreset(light.capability, preset)) return;
+          const button = makeButton(preset.label, 'preset', () => callLight(light, 'turn_on', dataForPreset(light, preset)), disabled);
+          button.style.setProperty('--preset', preset.css);
+          row.append(button);
+        });
+        body.append(row);
+      }
+      article.append(rail, body);
+      return article;
+    }
+
+    function render() {
+      hass = locateHass() || hass;
+      if (!hass || !registeredLights.length) return;
+      const lights = liveData();
+      const signature = JSON.stringify(lights.map(light => [light.entityId, light.state && light.state.last_updated, light.unavailable, busy.has(light.entityId)]));
+      if (signature === renderedSignature) return;
+      renderedSignature = signature;
+      countEl.textContent = String(lights.length).padStart(2, '0');
+      syncText.textContent = 'SYNCED';
+      pulse.className = 'pulse';
+      allOnButton.disabled = !lights.some(light => !light.unavailable) || busy.has('*');
+      allOffButton.disabled = allOnButton.disabled;
+      groupsEl.replaceChildren();
+
+      const grouped = new Map();
+      lights.forEach(light => {
+        if (!grouped.has(light.areaName)) grouped.set(light.areaName, []);
+        grouped.get(light.areaName).push(light);
+      });
+      let cardIndex = 0;
+      grouped.forEach((members, areaName) => {
+        const section = document.createElement('section');
+        section.className = 'group';
+        const heading = document.createElement('div');
+        heading.className = 'group-heading';
+        const title = document.createElement('h2');
+        title.textContent = areaName;
+        const count = document.createElement('span');
+        count.textContent = String(members.length).padStart(2, '0') + ' NODES';
+        heading.append(title, count);
+        const grid = document.createElement('div');
+        grid.className = 'lights';
+        members.forEach(light => { grid.append(buildLight(light, cardIndex)); cardIndex += 1; });
+        section.append(heading, grid);
+        groupsEl.append(section);
+      });
+    }
+
+    async function callAll(service) {
+      const lights = liveData().filter(light => !light.unavailable);
+      if (!lights.length || busy.has('*')) return;
+      busy.add('*');
+      allOnButton.disabled = true;
+      allOffButton.disabled = true;
+      try {
+        await hass.callService('light', service, { entity_id: lights.map(light => light.entityId) });
+        showNotice('Residence illumination command accepted.', 'success');
+      } catch (error) {
+        showNotice('Master command failed: ' + (error && error.message ? error.message : 'service call failed'), 'error');
+      } finally {
+        busy.delete('*');
+        renderedSignature = '';
+        render();
+      }
+    }
+
+    allOnButton.addEventListener('click', () => callAll('turn_on'));
+    allOffButton.addEventListener('click', () => callAll('turn_off'));
+
+    async function connect() {
+      for (let tries = 0; tries < 40; tries += 1) {
+        hass = locateHass();
+        if (hass && hass.callWS && hass.states) break;
+        await new Promise(resolve => window.setTimeout(resolve, 500));
+      }
+      if (!hass || !hass.callWS) throw new Error('Home Assistant session is not available.');
+      [areas, devices, entities] = await Promise.all([
+        hass.callWS({ type: 'config/area_registry/list' }),
+        hass.callWS({ type: 'config/device_registry/list' }),
+        hass.callWS({ type: 'config/entity_registry/list' })
+      ]);
+      discoverLights();
+      if (!registeredLights.length) {
+        countEl.textContent = '00';
+        syncText.textContent = 'SYNCED';
+        pulse.className = 'pulse';
+        showMessage('NO LIGHTS DISCOVERED', 'Add or repair Tuya in Settings → Devices & Services. No YAML editing is required.');
+        return;
+      }
+      render();
+      window.setInterval(render, 1500);
+    }
+
+    connect().catch(error => {
+      syncText.textContent = 'FAULT';
+      pulse.className = 'pulse error';
+      allOnButton.disabled = true;
+      allOffButton.disabled = true;
+      showMessage('REGISTRY LINK FAILED', error && error.message ? error.message : 'Unable to read the Home Assistant light registry.', true);
+    });
+  </script>
+</body>
+</html>
