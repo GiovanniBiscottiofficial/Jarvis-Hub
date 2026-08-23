@@ -58,6 +58,20 @@ def test_raw_lifeos_secret_is_not_accepted_as_a_browser_cookie(fresh_db):
     assert client.get("/api/context").status_code == 401
 
 
+def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
+    app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
+    wrapper = (REPO_ROOT / "ha-config/www/lifeos.html").read_text(encoding="utf-8")
+
+    assert "lifeos-auth-request" in app_script
+    assert "lifeos-auth-request" in wrapper
+    assert "lifeos-ha-auth" in app_script
+    assert "lifeos-ha-auth" in wrapper
+    assert "window.prompt" not in app_script
+    assert "localStorage" not in wrapper
+    assert "sessionStorage" not in wrapper
+    assert "?embedded=home-assistant" in wrapper
+
+
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))
 def test_every_sanctuary_mode_is_side_effect_free_in_simulation(fresh_db, mode):
     before = current_context()

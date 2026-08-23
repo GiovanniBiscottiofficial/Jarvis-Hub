@@ -15,29 +15,51 @@ function escapeHtml(value) {
 let homeAssistantToken = null;
 let tokenWaiter = null;
 let authenticationPromise = null;
+let authRequestTimer = null;
 
 window.addEventListener("message", (event) => {
   let source;
   try { source = new URL(event.origin); } catch (_) { return; }
+  if (event.source !== window.parent) return;
   if (source.hostname !== window.location.hostname) return;
   if (!event.data || event.data.type !== "lifeos-ha-auth" || !event.data.token) return;
   homeAssistantToken = String(event.data.token);
   if (tokenWaiter) tokenWaiter(homeAssistantToken);
 });
 
-function waitForHomeAssistantToken(timeout = 1600) {
+function requestHomeAssistantSession() {
+  if (window.parent === window) return;
+  window.parent.postMessage({ type: "lifeos-auth-request" }, "*");
+}
+
+function waitForHomeAssistantToken(timeout = 8000) {
   if (homeAssistantToken) return Promise.resolve(homeAssistantToken);
   return new Promise((resolve) => {
+    requestHomeAssistantSession();
+    authRequestTimer = window.setInterval(requestHomeAssistantSession, 500);
     const timer = window.setTimeout(() => {
+      if (authRequestTimer) window.clearInterval(authRequestTimer);
+      authRequestTimer = null;
       tokenWaiter = null;
       resolve(null);
     }, timeout);
     tokenWaiter = (token) => {
       window.clearTimeout(timer);
+      if (authRequestTimer) window.clearInterval(authRequestTimer);
+      authRequestTimer = null;
       tokenWaiter = null;
       resolve(token);
     };
   });
+}
+
+function showAuthenticationProblem(message) {
+  const status = $("shell-sync");
+  if (status) status.textContent = "AUTH REQUIRED";
+  const state = $("command-system-state");
+  if (state) state.textContent = "SESSION REQUIRED";
+  const detail = $("command-system-detail");
+  if (detail) detail.textContent = message;
 }
 
 async function authenticateBrowser() {
@@ -53,14 +75,10 @@ async function authenticateBrowser() {
       homeAssistantToken = null;
       if (exchanged.ok) return true;
     }
-    const token = window.prompt("Enter your LifeOS API token");
-    if (!token) return false;
-    const auth = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    return auth.ok;
+    showAuthenticationProblem(
+      "LifeOS could not verify the Home Assistant session. Open LifeOS from the Home Assistant sidebar and refresh once."
+    );
+    return false;
   })();
   try {
     return await authenticationPromise;
@@ -81,6 +99,9 @@ async function api(path, method = "GET", body, retried = false) {
     return api(path, method, body, true);
   }
   const data = await res.json();
+  if (res.status === 401) {
+    throw new Error("Home Assistant session required. Open LifeOS from the Home Assistant sidebar.");
+  }
   if (!res.ok) throw new Error(data.detail || data.message || `LifeOS request failed (${res.status})`);
   return data;
 }

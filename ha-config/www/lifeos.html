@@ -19,6 +19,7 @@
   'use strict';
   const app = document.getElementById('app');
   const appOrigin = location.protocol + '//' + location.hostname + ':8090';
+  let retryTimer = null;
 
   function locateHass() {
     let context = window;
@@ -33,14 +34,49 @@
     return null;
   }
 
-  app.addEventListener('load', () => {
+  function currentAccessToken() {
     const hass = locateHass();
-    const token = hass && hass.auth && hass.auth.data && hass.auth.data.access_token;
+    const auth = hass && hass.auth;
+    return auth && (
+      (auth.data && auth.data.access_token) ||
+      auth.accessToken ||
+      (auth.currentSession && auth.currentSession.access_token) ||
+      (auth._token && auth._token.access_token)
+    );
+  }
+
+  function sendHomeAssistantSession() {
+    const token = currentAccessToken();
     if (token) {
       app.contentWindow.postMessage({ type: 'lifeos-ha-auth', token }, appOrigin);
+      if (retryTimer) {
+        window.clearInterval(retryTimer);
+        retryTimer = null;
+      }
+      return true;
     }
+    return false;
+  }
+
+  // LifeOS may install its message listener after the iframe load event.  A
+  // request/reply handshake makes the bridge reliable without persisting the
+  // Home Assistant token in the URL or browser storage.
+  window.addEventListener('message', (event) => {
+    if (event.source !== app.contentWindow || event.origin !== appOrigin) return;
+    if (!event.data || event.data.type !== 'lifeos-auth-request') return;
+    sendHomeAssistantSession();
   });
-  app.src = appOrigin + '/';
+
+  app.addEventListener('load', () => {
+    sendHomeAssistantSession();
+    if (retryTimer) window.clearInterval(retryTimer);
+    retryTimer = window.setInterval(sendHomeAssistantSession, 500);
+    window.setTimeout(() => {
+      if (retryTimer) window.clearInterval(retryTimer);
+      retryTimer = null;
+    }, 10000);
+  });
+  app.src = appOrigin + '/?embedded=home-assistant';
 </script>
 </body>
 </html>
