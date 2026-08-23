@@ -1,0 +1,91 @@
+class JarvisLifeOSPanel extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._hass = null;
+    this._retryTimer = null;
+    this._appOrigin = `${window.location.protocol}//${window.location.hostname}:8090`;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      :host { display: block; width: 100%; height: 100%; min-height: 100vh; background: #04070f; }
+      iframe { display: block; width: 100%; height: 100%; min-height: 100vh; border: 0; background: #04070f; }
+    `;
+    this._frame = document.createElement("iframe");
+    this._frame.title = "LifeOS";
+    this._frame.allow = "camera; microphone";
+    this._frame.src = `${this._appOrigin}/?embedded=home-assistant`;
+    this.shadowRoot.append(style, this._frame);
+
+    this._onMessage = (event) => {
+      if (event.source !== this._frame.contentWindow || event.origin !== this._appOrigin) return;
+      if (!event.data || event.data.type !== "lifeos-auth-request") return;
+      this._sendSession();
+    };
+    this._onLoad = () => this._beginSessionDelivery();
+  }
+
+  set hass(value) {
+    this._hass = value;
+    this._sendSession();
+  }
+
+  set panel(value) {
+    this._panel = value;
+  }
+
+  connectedCallback() {
+    window.addEventListener("message", this._onMessage);
+    this._frame.addEventListener("load", this._onLoad);
+    this._beginSessionDelivery();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("message", this._onMessage);
+    this._frame.removeEventListener("load", this._onLoad);
+    this._stopRetrying();
+  }
+
+  _accessToken() {
+    const hass = this._hass;
+    if (!hass) return null;
+    const candidates = [
+      hass.auth,
+      hass.connection && hass.connection.options && hass.connection.options.auth,
+      hass.connection && hass.connection.auth,
+    ].filter(Boolean);
+    for (const auth of candidates) {
+      const token = (
+        (auth.data && auth.data.access_token) ||
+        auth.accessToken ||
+        (auth.currentSession && auth.currentSession.access_token) ||
+        (auth._token && auth._token.access_token)
+      );
+      if (token) return token;
+    }
+    return null;
+  }
+
+  _sendSession() {
+    const token = this._accessToken();
+    if (!token || !this._frame.contentWindow) return false;
+    this._frame.contentWindow.postMessage({ type: "lifeos-ha-auth", token }, this._appOrigin);
+    return true;
+  }
+
+  _beginSessionDelivery() {
+    this._sendSession();
+    this._stopRetrying();
+    this._retryTimer = window.setInterval(() => this._sendSession(), 500);
+    window.setTimeout(() => this._stopRetrying(), 10000);
+  }
+
+  _stopRetrying() {
+    if (this._retryTimer) window.clearInterval(this._retryTimer);
+    this._retryTimer = null;
+  }
+}
+
+if (!customElements.get("jarvis-lifeos-panel")) {
+  customElements.define("jarvis-lifeos-panel", JarvisLifeOSPanel);
+}

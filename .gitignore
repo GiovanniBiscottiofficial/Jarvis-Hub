@@ -24,6 +24,7 @@ ha-config/www/*
 !ha-config/www/jarvis-lights.html
 !ha-config/www/sanctuary-floorplan.png
 !ha-config/www/lifeos.html
+!ha-config/www/lifeos-panel.js
 !ha-config/www/open.html
 !ha-config/www/community
 !ha-config/www/fonts

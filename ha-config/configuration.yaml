@@ -41,12 +41,15 @@ lovelace:
       icon: mdi:robot
       show_in_sidebar: true
       filename: dashboards/jarvis.yaml
-    lifeos-app:
-      mode: yaml
-      title: LifeOS
-      icon: mdi:heart-pulse
-      show_in_sidebar: true
-      filename: dashboards/lifeos.yaml
+
+# Authenticated LifeOS panel. Home Assistant passes its live `hass` session to
+# this panel; the panel exchanges it for a short-lived HttpOnly LifeOS cookie.
+panel_custom:
+  - name: jarvis-lifeos-panel
+    sidebar_title: LifeOS
+    sidebar_icon: mdi:heart-pulse
+    url_path: lifeos-app
+    module_url: /local/lifeos-panel.js?v=1
 
 # Phone notifications route through this group: alerts land in the HA UI
 # (persistent notifications) and on the paired Companion-app phone.

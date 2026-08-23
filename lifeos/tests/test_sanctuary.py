@@ -61,16 +61,25 @@ def test_raw_lifeos_secret_is_not_accepted_as_a_browser_cookie(fresh_db):
 def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
     app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
     wrapper = (REPO_ROOT / "ha-config/www/lifeos.html").read_text(encoding="utf-8")
+    panel = (REPO_ROOT / "ha-config/www/lifeos-panel.js").read_text(encoding="utf-8")
+    configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text(encoding="utf-8")
 
     assert "lifeos-auth-request" in app_script
     assert "lifeos-auth-request" in wrapper
+    assert "lifeos-auth-request" in panel
     assert "lifeos-ha-auth" in app_script
     assert "lifeos-ha-auth" in wrapper
+    assert "lifeos-ha-auth" in panel
     assert "hass.connection && hass.connection.options" in wrapper
+    assert "hass.connection && hass.connection.options" in panel
     assert "window.prompt" not in app_script
     assert "localStorage" not in wrapper
     assert "sessionStorage" not in wrapper
+    assert "localStorage" not in panel
+    assert "sessionStorage" not in panel
     assert "?embedded=home-assistant" in wrapper
+    assert "name: jarvis-lifeos-panel" in configuration
+    assert "url_path: lifeos-app" in configuration
 
 
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))
