@@ -243,6 +243,10 @@ input_boolean:
     name: Sanctuary manual hold
     icon: mdi:hand-back-right
     initial: false
+  sanctuary_thunderstorm_tv_enabled:
+    name: Thunderstorm video on bedroom Fire TV
+    icon: mdi:television-play
+    initial: true
   guest_mode:
     name: Guest mode
     icon: mdi:account-group
@@ -302,6 +306,10 @@ input_text:
     name: Sanctuary mode before hold
     max: 32
     initial: Home Base
+  sanctuary_thunderstorm_media_url:
+    name: Thunderstorm media URL
+    max: 255
+    initial: https://www.youtube.com/watch?v=oebqrILXLWs
 
 # Calibration values are device commands, never assumptions about perceived
 # brightness. The first five helpers are intentionally capped at 5 percent.

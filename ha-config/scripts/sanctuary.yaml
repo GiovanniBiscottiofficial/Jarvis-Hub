@@ -108,6 +108,83 @@ sanctuary_apply_room_lighting:
                   - "{{ saturation_value }}"
                 transition: "{{ transition_value }}"
 
+sanctuary_start_thunderstorm_media:
+  alias: "Sanctuary: start thunderstorm media"
+  description: >-
+    Launch the approved black-screen YouTube thunderstorm on the commissioned
+    bedroom Fire TV. Scheduled calls protect active or paused playback; an
+    explicit voice or manual request may intentionally replace it.
+  mode: restart
+  fields:
+    force:
+      description: Replace active playback after an explicit user request.
+      selector:
+        boolean:
+    source:
+      selector:
+        text:
+  sequence:
+    - variables:
+        fire_tv: media_player.fire_tv_192_168_1_62
+        request_source: "{{ source | default('sanctuary') | string }}"
+        media_url: "{{ states('input_text.sanctuary_thunderstorm_media_url') | trim }}"
+        force_launch: "{{ force | default(false) | bool }}"
+        tv_state: "{{ states(fire_tv) }}"
+        playback_protected: "{{ tv_state in ['playing', 'paused'] }}"
+        media_ready: >-
+          {{ has_value(fire_tv)
+             and media_url.startswith('https://www.youtube.com/watch') }}
+    - choose:
+        - conditions: >-
+            {{ not is_state('input_boolean.sanctuary_thunderstorm_tv_enabled', 'on') }}
+          sequence:
+            - event: sanctuary_media_skipped
+              event_data:
+                mode: Thunderstorm
+                source: "{{ request_source }}"
+                reason: disabled_by_giovanni
+                entity_id: "{{ fire_tv }}"
+            - stop: "Thunderstorm Fire TV playback is disabled"
+        - conditions: "{{ not media_ready }}"
+          sequence:
+            - event: sanctuary_media_skipped
+              event_data:
+                mode: Thunderstorm
+                source: "{{ request_source }}"
+                reason: fire_tv_or_media_unavailable
+                entity_id: "{{ fire_tv }}"
+            - stop: "Fire TV or approved thunderstorm media is unavailable"
+        - conditions: "{{ playback_protected and not force_launch }}"
+          sequence:
+            - event: sanctuary_media_skipped
+              event_data:
+                mode: Thunderstorm
+                source: "{{ request_source }}"
+                reason: active_playback_protected
+                entity_id: "{{ fire_tv }}"
+                playback_state: "{{ tv_state }}"
+            - stop: "Existing Fire TV playback was protected"
+    - service: media_player.turn_on
+      continue_on_error: true
+      target:
+        entity_id: "{{ fire_tv }}"
+    - delay:
+        seconds: 2
+    - service: androidtv.adb_command
+      continue_on_error: true
+      target:
+        entity_id: "{{ fire_tv }}"
+      data:
+        command: >-
+          am start -a android.intent.action.VIEW -d "{{ media_url }}"
+    - event: sanctuary_media_started
+      event_data:
+        mode: Thunderstorm
+        source: "{{ request_source }}"
+        entity_id: "{{ fire_tv }}"
+        provider: youtube
+        forced: "{{ force_launch }}"
+
 sanctuary_activate_mode:
   alias: "Sanctuary: activate mode"
   description: >-
@@ -337,16 +414,22 @@ sanctuary_activate_mode:
             - service: input_boolean.turn_on
               target:
                 entity_id: input_boolean.sleep_mode
-            - condition: template
-              value_template: >-
-                {{ has_value('light.bathroom_bathroom_light_5') }}
-            - service: light.turn_on
-              target:
-                entity_id: light.bathroom_bathroom_light_5
+            - choose:
+                - conditions: >-
+                    {{ has_value('light.bathroom_bathroom_light_5') }}
+                  sequence:
+                    - service: light.turn_on
+                      target:
+                        entity_id: light.bathroom_bathroom_light_5
+                      data:
+                        brightness_pct: >-
+                          {{ states('input_number.sanctuary_bathroom_night_brightness') | int(1) }}
+                        transition: 30
+            - service: script.sanctuary_start_thunderstorm_media
               data:
-                brightness_pct: >-
-                  {{ states('input_number.sanctuary_bathroom_night_brightness') | int(1) }}
-                transition: 30
+                source: "{{ transition_source }}"
+                force: >-
+                  {{ transition_source in ['voice', 'manual', 'floor_plan'] }}
         - conditions: "{{ previous_mode == 'Thunderstorm' and requested_mode != 'Thunderstorm' }}"
           sequence:
             - service: input_boolean.turn_off

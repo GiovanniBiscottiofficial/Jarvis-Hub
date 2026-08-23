@@ -1,5 +1,6 @@
-# "Jarvis, goodnight" — enter the governed Thunderstorm state. Media is
-# deliberately independent so watching or listening is never interrupted.
+# "Jarvis, goodnight" — enter the governed Thunderstorm state. Because this is
+# an explicit voice request, it may intentionally launch the approved Fire TV
+# storm video; scheduled transitions continue to protect existing playback.
 goodnight:
   alias: "Goodnight"
   sequence:

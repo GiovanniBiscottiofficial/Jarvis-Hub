@@ -175,6 +175,22 @@ ACTION_REGISTRY: dict[str, dict[str, Any]] = {
             "reason": "Confirmed emergency lighting request",
         },
     },
+    "sanctuary.thunderstorm_media": {
+        "name": "Start bedroom thunderstorm media",
+        "description": (
+            "Launch the approved black-screen YouTube storm on the commissioned "
+            "Fire TV while protecting existing playback by default."
+        ),
+        "risk": "low",
+        "scope": "comfort_media",
+        "reversible": True,
+        "confirmation_policy": "automatic_when_idle_or_explicit_voice_request",
+        "requires_confirmation": False,
+        "remote_execution": True,
+        "service": "script.sanctuary_start_thunderstorm_media",
+        "target": None,
+        "default_data": {"force": False, "source": "lifeos"},
+    },
 }
 
 SANCTUARY_MODES = {

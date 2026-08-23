@@ -215,6 +215,25 @@ def test_action_policies_cover_sanctuary_authority(fresh_db):
     assert ACTION_REGISTRY["scene.arrival"]["service"] == (
         "script.sanctuary_activate_mode"
     )
+    media = ACTION_REGISTRY["sanctuary.thunderstorm_media"]
+    assert media["risk"] == "low"
+    assert media["reversible"] is True
+    assert media["default_data"]["force"] is False
+
+
+def test_thunderstorm_media_is_available_but_protects_scheduled_playback():
+    configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text()
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+
+    assert "sanctuary_thunderstorm_tv_enabled:" in configuration
+    assert "https://www.youtube.com/watch?v=oebqrILXLWs" in configuration
+    assert "sanctuary_start_thunderstorm_media:" in script
+    assert "media_player.fire_tv_192_168_1_62" in script
+    assert "active_playback_protected" in script
+    assert "tv_state in ['playing', 'paused']" in script
+    assert "transition_source in ['voice', 'manual', 'floor_plan']" in script
+    assert "androidtv.adb_command" in script
+    assert script.count("continue_on_error: true") >= 2
 
 
 def test_sanctuary_yaml_never_targets_protected_domains():
