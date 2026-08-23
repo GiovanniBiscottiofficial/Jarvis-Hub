@@ -641,9 +641,17 @@ views:
             icon: mdi:television
           - type: markdown
             content: >-
+              {% set players = states.media_player
+                 | rejectattr('state', 'in', ['unknown', 'unavailable']) | list %}
+              {% if players %}
+              ## {{ players | count }} media player{{ 's' if players | count != 1 else '' }} ready
+              Cinema mode follows active playback without interrupting Sleep,
+              Guest, Date Night, or Manual Hold.
+              {% else %}
               ## Media player not commissioned
-              Cinema lighting is available; playback controls appear only after
-              a media player is added to Home Assistant.
+              Cinema lighting is available; playback controls appear after a
+              media player is added to Home Assistant.
+              {% endif %}
           - type: tile
             entity: script.movie_night
             name: "Movie Night (Netflix + dim lights)"

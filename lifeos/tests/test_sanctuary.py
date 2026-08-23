@@ -210,3 +210,15 @@ def test_timeline_and_calibration_gate_are_declared():
     assert "input_boolean.sanctuary_automations_enabled" in automation
     assert "input_boolean.sanctuary_calibration_ready" in automation
     assert "lighting_persists_until: weekday_sunrise" in automation
+
+
+def test_context_event_bridge_is_authenticated_and_json_safe():
+    configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text()
+    mirror = (REPO_ROOT / "ha-config/automations/context_engine.yaml").read_text()
+    rest_block = configuration.split("lifeos_context_event:", 1)[1].split(
+        "# Toggles", 1
+    )[0]
+
+    assert "Authorization: !secret lifeos_api_authorization" in rest_block
+    assert "trigger.event.data.new_state.attributes" not in mirror
+    assert "sanctuary_area_id" in mirror

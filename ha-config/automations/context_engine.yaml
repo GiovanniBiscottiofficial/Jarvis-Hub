@@ -28,9 +28,11 @@
              if trigger.event.data.old_state else none }}
         attributes: >-
           {% set entity = trigger.event.data.entity_id | default('') %}
-          {% set base = trigger.event.data.new_state.attributes
-             if trigger.event.data.new_state else {} %}
-          {{ dict(base, sanctuary_area_id=area_id(entity)) }}
+          {{ {
+            'friendly_name': state_attr(entity, 'friendly_name'),
+            'device_class': state_attr(entity, 'device_class'),
+            'sanctuary_area_id': area_id(entity)
+          } }}
 
 - alias: "Jarvis: nightly security review"
   id: jarvis_nightly_security_review

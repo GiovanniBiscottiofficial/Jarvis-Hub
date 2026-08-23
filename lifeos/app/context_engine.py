@@ -802,6 +802,12 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
     state = event.get("state")
     previous = event.get("previous_state")
     attributes = event.get("attributes") or {}
+    if isinstance(attributes, str):
+        try:
+            decoded_attributes = json.loads(attributes)
+        except json.JSONDecodeError:
+            decoded_attributes = {}
+        attributes = decoded_attributes if isinstance(decoded_attributes, dict) else {}
     with conn() as c:
         cursor = c.execute(
             "INSERT INTO context_events(source,event_type,entity_id,state,previous_state,"
