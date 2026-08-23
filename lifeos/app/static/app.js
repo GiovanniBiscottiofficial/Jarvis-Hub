@@ -718,7 +718,7 @@ async function loadBudgetData() {
     <div class="line"><span>Bills allocated</span><span>−$${o.allocated.toFixed(2)}</span></div>
     <div class="line"><span>Bucket contributions</span><span>−$${o.bucket_contribution.toFixed(2)}</span></div>`;
   const auditCls =
-    o.audit === "balanced" ? "good" : o.audit === "buffered" ? "" : "warn";
+    ["balanced", "scheduled"].includes(o.audit) ? "good" : o.audit === "buffered" ? "" : "warn";
   let auditHtml =
     `<span class="tag ${auditCls}">audit: ${o.audit}</span>
      <div class="muted">${o.audit_note}</div>`;
@@ -953,7 +953,7 @@ async function loadVaultData() {
   pl.replaceChildren();
   [
     ["Available now", `$${plan.total_available.toFixed(2)}`, false],
-    ["Scheduled from Paycheck 1", `$${plan.unpaid_bills_total.toFixed(2)}`, false],
+    ["Scheduled this first-pay cycle", `$${plan.unpaid_bills_total.toFixed(2)}`, false],
     ["Current cash before first pay", `$${plan.leftover_after_bills.toFixed(2)}`, true],
   ].forEach(([label, value, strong]) => {
     const line = el("div", "line");

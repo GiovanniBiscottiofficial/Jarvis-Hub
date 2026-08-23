@@ -73,6 +73,17 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert {item["paycheck"] for item in overview["paydays"][:2]} == {1, 2}
 
 
+def test_new_budget_cycle_is_scheduled_not_overdue(fresh_db):
+    from app.db import set_setting
+    from app.routers import budget
+
+    set_setting("budget_cycle_start", "2999-08-28")
+    overview = budget.overview()
+    assert overview["audit"] == "scheduled"
+    assert overview["cycle_pending"] is True
+    assert "No bill is overdue before that deposit" in overview["audit_note"]
+
+
 def test_vault_bills_are_grouped_by_paycheck(fresh_db):
     from app.routers import vaultflow
 

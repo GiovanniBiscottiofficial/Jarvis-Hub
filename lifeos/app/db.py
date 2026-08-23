@@ -439,6 +439,19 @@ def init_db() -> None:
         c.executescript(SCHEMA)
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='budget_cycle_start'"
+        ).fetchone() is None:
+            from .paydays import payday_schedule
+
+            first_pay = next(
+                item for item in payday_schedule(date.today(), 4)
+                if item["paycheck"] == 1
+            )
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('budget_cycle_start',?)",
+                (first_pay["date"],),
+            )
         # Correct the legacy one-cent payroll default without overwriting a
         # future user-customized value.
         c.execute(

@@ -203,7 +203,21 @@ def _overview(c) -> dict:
     relay_gap = round(relay_balance - bucket_saved, 2)
     onepay_gap = round(cash.get("OnePay", 0) - unpaid_total, 2)
     auto_shift = None
-    if onepay_gap < 0:
+    cycle_start_text = get_setting("budget_cycle_start")
+    try:
+        cycle_start = date.fromisoformat(cycle_start_text)
+    except ValueError:
+        cycle_start = date.today()
+    cycle_pending = date.today() < cycle_start
+    if cycle_pending:
+        audit = "scheduled"
+        audit_note = (
+            f"The first budget cycle begins with Paycheck 1 on"
+            f" {cycle_start.strftime('%B')} {cycle_start.day}. No bill is overdue"
+            " before that deposit."
+        )
+        onepay_gap = round(cash.get("OnePay", 0), 2)
+    elif onepay_gap < 0:
         audit = "action needed"
         audit_note = (
             f"OnePay is ${-onepay_gap:.2f} short of the ${unpaid_total:.2f}"
@@ -242,6 +256,8 @@ def _overview(c) -> dict:
         "pocket_cash": onepay_gap,
         "audit": audit,
         "audit_note": audit_note,
+        "cycle_start": cycle_start.isoformat(),
+        "cycle_pending": cycle_pending,
         "auto_shift": auto_shift,
         "debt_free": debt_free,
         "funds": goals,
