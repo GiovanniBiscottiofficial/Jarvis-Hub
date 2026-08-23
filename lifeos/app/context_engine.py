@@ -305,7 +305,7 @@ def lifeos_snapshot() -> dict[str, Any]:
         bills = [
             dict(row)
             for row in c.execute(
-                "SELECT id,name,amount,due_day,paycheck FROM bills"
+                "SELECT id,name,amount,due_day,paycheck,start_period FROM bills"
                 " WHERE paid_month IS NULL OR paid_month<>? ORDER BY due_day",
                 (month,),
             ).fetchall()
@@ -322,7 +322,9 @@ def lifeos_snapshot() -> dict[str, Any]:
     vitamins = bool(vitamins_row and vitamins_row["taken"])
     water_target = int(get_setting("water_target_glasses") or 8)
     due_soon = [bill for bill in bills if 0 <= (
-        scheduled_bill_due_date(bill["paycheck"] or 1, bill["due_day"], today) - today
+        scheduled_bill_due_date(
+            bill["paycheck"] or 1, bill["due_day"], today, bill["start_period"]
+        ) - today
     ).days <= 7]
     bills_total = sum(bill["amount"] for bill in due_soon)
     priorities: list[dict[str, str]] = []

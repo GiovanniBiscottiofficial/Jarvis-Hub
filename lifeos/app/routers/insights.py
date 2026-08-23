@@ -67,7 +67,9 @@ def _bills_due_soon(c, days: int = 7) -> list[dict]:
         ).fetchall()
     ]
     return [b for b in bills if 0 <= (
-        scheduled_bill_due_date(b["paycheck"] or 1, b["due_day"], today) - today
+        scheduled_bill_due_date(
+            b["paycheck"] or 1, b["due_day"], today, b.get("start_period")
+        ) - today
     ).days <= days]
 
 

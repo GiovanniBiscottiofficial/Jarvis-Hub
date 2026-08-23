@@ -43,6 +43,7 @@ def test_upcoming_period_follows_payroll_order():
 def test_bill_due_dates_begin_with_the_upcoming_first_pay_cycle():
     today = date(2026, 8, 23)
     assert scheduled_bill_due_date(1, 1, today) == date(2026, 9, 1)
+    assert scheduled_bill_due_date(1, 28, today) == date(2026, 8, 28)
     assert scheduled_bill_due_date(2, 15, today) == date(2026, 9, 15)
 
 
@@ -58,7 +59,47 @@ def test_vault_plan_never_infers_overdue_from_day_of_month(fresh_db, monkeypatch
     result = vaultflow.plan()
     assert result["cycle_starts"] == "2026-08-28"
     assert all("overdue" not in item["status"] for item in result["recommendations"])
-    assert all(item["due_date"] >= "2026-09-01" for item in result["recommendations"])
+    assert all(item["due_date"] >= "2026-08-23" for item in result["recommendations"])
+
+
+def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
+    from app.db import conn
+    from app.paydays import payday_schedule
+
+    schedule = payday_schedule(count=3)
+    with conn() as c:
+        accounts = {
+            row["name"]: row["balance"]
+            for row in c.execute("SELECT name,balance FROM accounts")
+        }
+        bills = {
+            row["name"]: dict(row)
+            for row in c.execute("SELECT * FROM bills")
+        }
+    assert accounts["Truliant"] == -25.73
+    assert accounts["Relay"] == 0
+    assert accounts["OnePay Savings"] == 0
+    assert bills["Spectrum Internet"]["amount"] == 93.95
+    assert bills["Spectrum Internet"]["due_day"] == 28
+    assert bills["Spectrum Internet"]["paycheck"] == 1
+    assert bills["Apartment Water Activation"]["amount"] == 90
+    assert bills["Apartment Water Activation"]["start_period"] == schedule[0]["period"]
+    for name in ("Klarna Statement", "Duke Energy Payment Plan", "Old Spectrum Paydown"):
+        assert bills[name]["start_period"] == schedule[2]["period"]
+        assert bills[name]["paycheck"] == 1
+
+
+def test_reconcile_accepts_real_negative_account_balance(fresh_db):
+    from app.db import conn
+    from app.routers import vaultflow
+
+    with conn() as c:
+        account_id = c.execute(
+            "SELECT id FROM accounts WHERE name='Truliant'"
+        ).fetchone()["id"]
+    assert vaultflow.set_balance(
+        account_id, vaultflow.BalanceIn(balance=-25.73)
+    ) == {"ok": True}
 
 
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
@@ -100,10 +141,11 @@ def test_bill_payment_records_the_selected_paycheck_period(fresh_db):
         bill_id = c.execute(
             "SELECT id FROM bills WHERE name='Spectrum Internet'"
         ).fetchone()["id"]
-    result = budget.mark_bill_paid(bill_id, "2026-09-P2")
-    assert result["period"] == "2026-09-P2"
+    period = payday_schedule(count=1)[0]["period"]
+    result = budget.mark_bill_paid(bill_id, period)
+    assert result["period"] == period
     with conn() as c:
         row = c.execute(
             "SELECT paid_period FROM bills WHERE id=?", (bill_id,)
         ).fetchone()
-    assert row["paid_period"] == "2026-09-P2"
+    assert row["paid_period"] == period

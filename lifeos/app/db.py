@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS bills (
     paid_month TEXT,
     paycheck INTEGER NOT NULL DEFAULT 0,
     paid_period TEXT,
+    start_period TEXT,
     note TEXT NOT NULL DEFAULT ''
 );
 
@@ -305,6 +306,7 @@ SEED_MEALS = [
 # name, role, baseline balance (applied only while the balance is still 0)
 SEED_ACCOUNTS = [
     ("OnePay", "operating", 113.00),
+    ("OnePay Savings", "savings", 0.00),
     ("Truliant", "savings", 147.96),
     ("Relay", "buckets", 311.68),
 ]
@@ -320,14 +322,16 @@ SEED_BILLS = [
     ("Gas / Fuel (check 2)", 80.00, 15, 2, "fill-up budget", 0),
     ("Car Insurance Catchup", 213.00, 1, 1, "late catchup payment", 1),
     ("Car Insurance (monthly)", 105.00, 15, 2, "regular monthly bill", 0),
-    ("Spectrum Internet", 80.00, 15, 2,
-     "August $100 activation payment already paid; $80 recurring", 1),
+    ("Spectrum Internet", 93.95, 28, 1,
+     "recurring apartment internet · due on the 28th", 0),
     ("Phone Reconnection", 216.75, 1, 1, "restores service ($480.84 balance)", 1),
     ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
-    ("Klarna Statement", 61.77, 1, 1, "statement paydown", 1),
-    ("Old Spectrum Paydown", 39.00, 15, 2, "$39 per check", 0),
-    ("Duke Energy Payment Plan", 65.50, 15, 2,
+    ("Klarna Statement", 61.77, 28, 1, "starts with third upcoming pay", 0),
+    ("Old Spectrum Paydown", 39.00, 28, 1, "$39 per check · starts with third upcoming pay", 0),
+    ("Duke Energy Payment Plan", 65.50, 28, 1,
      "$65.50 installment · 4 scheduled payments", 0),
+    ("Apartment Water Activation", 90.00, 28, 1,
+     "one-time water turn-on · first upcoming pay", 0),
 ]
 
 # name, total, remaining, installment, cadence, note
@@ -382,6 +386,7 @@ def _migrate(c: sqlite3.Connection) -> None:
         "bills": [
             ("paycheck", "INTEGER NOT NULL DEFAULT 0"),
             ("paid_period", "TEXT"),
+            ("start_period", "TEXT"),
             ("note", "TEXT NOT NULL DEFAULT ''"),
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
@@ -495,6 +500,57 @@ def init_db() -> None:
                     "paid_period) VALUES(?,?,?,?,?,?)",
                     (name, amount, due_day, paycheck, note, paid_period),
                 )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='finance_commissioning_v2'"
+        ).fetchone() is None:
+            from .paydays import payday_schedule
+
+            schedule = payday_schedule(date.today(), 3)
+            first_period = schedule[0]["period"]
+            third_period = schedule[2]["period"]
+            c.execute(
+                "UPDATE bills SET amount=93.95,due_day=28,paycheck=1,"
+                " start_period=?,paid_month=NULL,paid_period=NULL,"
+                " note='recurring apartment internet · due on the 28th'"
+                " WHERE name='Spectrum Internet'",
+                (first_period,),
+            )
+            c.execute(
+                "UPDATE bills SET due_day=28,paycheck=1,start_period=?"
+                " WHERE name IN ('Klarna Statement','Duke Energy Payment Plan',"
+                " 'Old Spectrum Paydown')",
+                (third_period,),
+            )
+            c.execute(
+                "UPDATE bills SET note='starts with third upcoming pay'"
+                " WHERE name='Klarna Statement'"
+            )
+            c.execute(
+                "UPDATE bills SET note='$39 per check · starts with third upcoming pay'"
+                " WHERE name='Old Spectrum Paydown'"
+            )
+            c.execute(
+                "INSERT INTO bills(name,amount,due_day,paycheck,start_period,note)"
+                " SELECT 'Apartment Water Activation',90,28,1,?,"
+                " 'one-time water turn-on · first upcoming pay'"
+                " WHERE NOT EXISTS (SELECT 1 FROM bills"
+                " WHERE name='Apartment Water Activation')",
+                (first_period,),
+            )
+            c.execute(
+                "UPDATE bills SET amount=90,due_day=28,paycheck=1,start_period=?,"
+                " note='one-time water turn-on · first upcoming pay'"
+                " WHERE name='Apartment Water Activation'",
+                (first_period,),
+            )
+            c.execute("UPDATE accounts SET balance=-25.73 WHERE name='Truliant'")
+            c.execute("UPDATE accounts SET balance=0 WHERE name='Relay'")
+            c.execute("UPDATE accounts SET balance=0 WHERE name='OnePay Savings'")
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('finance_commissioning_v2',?)",
+                (date.today().isoformat(),),
+            )
         if c.execute("SELECT COUNT(*) AS n FROM debts").fetchone()["n"] == 0:
             for d in SEED_DEBTS:
                 c.execute(

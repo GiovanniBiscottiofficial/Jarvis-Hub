@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..db import conn
-from ..paydays import payday_schedule, scheduled_bill_due_date
+from ..paydays import bill_due_date_for_payday, payday_schedule
 
 router = APIRouter(prefix="/api/vault", tags=["vaultflow"])
 
@@ -25,6 +25,7 @@ class BillIn(BaseModel):
     amount: float
     due_day: int
     paycheck: int = 1
+    start_period: str | None = None
     account_id: int | None = None
 
 
@@ -98,8 +99,6 @@ def add_account(body: AccountIn):
 
 @router.put("/accounts/{account_id}/balance")
 def set_balance(account_id: int, body: BalanceIn):
-    if body.balance < 0:
-        raise HTTPException(400, "account balance cannot be negative")
     with conn() as c:
         cur = c.execute(
             "UPDATE accounts SET balance=? WHERE id=?", (body.balance, account_id)
@@ -141,9 +140,12 @@ def add_bill(body: BillIn):
             if account is None:
                 raise HTTPException(404, "account not found")
         c.execute(
-            "INSERT INTO bills(name,amount,due_day,paycheck,account_id)"
-            " VALUES(?,?,?,?,?)",
-            (name, body.amount, body.due_day, body.paycheck, body.account_id),
+            "INSERT INTO bills(name,amount,due_day,paycheck,account_id,start_period)"
+            " VALUES(?,?,?,?,?,?)",
+            (
+                name, body.amount, body.due_day, body.paycheck,
+                body.account_id, body.start_period,
+            ),
         )
         return {"ok": True}
 
@@ -324,10 +326,9 @@ def plan():
     show leftover discretionary balance."""
     today = date.today()
     paydays = payday_schedule(today, 4)
-    next_by_paycheck = {
-        paycheck: next(item for item in paydays if item["paycheck"] == paycheck)
-        for paycheck in (1, 2)
-    }
+    next_by_paycheck = {paycheck: next(
+        item for item in paydays if item["paycheck"] == paycheck
+    ) for paycheck in (1, 2)}
     with conn() as c:
         accounts = [dict(r) for r in c.execute("SELECT * FROM accounts").fetchall()]
         bills = [
@@ -342,8 +343,12 @@ def plan():
         recommendations = []
         for b in bills:
             paycheck = b["paycheck"] if b["paycheck"] in (1, 2) else 1
-            payday = next_by_paycheck[paycheck]
-            due_date = scheduled_bill_due_date(paycheck, b["due_day"], today)
+            payday = next(
+                item for item in payday_schedule(today, 6)
+                if item["paycheck"] == paycheck
+                and (not b["start_period"] or item["period"] >= b["start_period"])
+            )
+            due_date = bill_due_date_for_payday(payday, b["due_day"])
             recommendations.append(
                 {
                     "bill": b["name"],

@@ -58,8 +58,10 @@ def _period_bills(c, period: dict) -> list[dict]:
     bills = [
         dict(r)
         for r in c.execute(
-            "SELECT * FROM bills WHERE paycheck=? ORDER BY due_day, name",
-            (period["paycheck"],),
+            "SELECT * FROM bills WHERE paycheck=?"
+            " AND (start_period IS NULL OR start_period='' OR start_period<=?)"
+            " ORDER BY due_day, name",
+            (period["paycheck"], period["key"]),
         ).fetchall()
     ]
     for b in bills:
@@ -284,24 +286,23 @@ def forecast(periods: int = 6):
         onepay_in = _cfg("split_onepay", 1754.60)
         truliant_in = _cfg("split_truliant", 309.64)
         fund_half = _fund_monthly_total(c) / 2
-        by_check = {}
-        for n in (1, 2):
-            row = c.execute(
-                "SELECT COALESCE(SUM(amount),0) s FROM bills WHERE paycheck=?",
-                (n,),
-            ).fetchone()
-            by_check[n] = row["s"]
         running = 0.0
         out = []
         for payday in payday_schedule(count=periods):
             n = payday["paycheck"]
-            surplus = round(onepay_in - by_check[n] - fund_half, 2)
+            row = c.execute(
+                "SELECT COALESCE(SUM(amount),0) s FROM bills WHERE paycheck=?"
+                " AND (start_period IS NULL OR start_period='' OR start_period<=?)",
+                (n, payday["period"]),
+            ).fetchone()
+            bills = row["s"]
+            surplus = round(onepay_in - bills - fund_half, 2)
             running = round(running + surplus + truliant_in, 2)
             out.append(
                 {
                     "period": payday["period"],
                     "payday": payday["date"],
-                    "bills": round(by_check[n], 2),
+                    "bills": round(bills, 2),
                     "surplus": surplus,
                     "savings_split": truliant_in,
                     "projected_buffer": running,
@@ -319,6 +320,8 @@ def _payment_period(row, requested: str | None) -> dict:
     paycheck = int(match.group(2))
     if row["paycheck"] in (1, 2) and row["paycheck"] != paycheck:
         raise HTTPException(409, "bill is assigned to a different paycheck")
+    if row["start_period"] and requested < row["start_period"]:
+        raise HTTPException(409, f"bill begins with {row['start_period']}")
     return {"month": match.group(1), "paycheck": paycheck, "key": requested}
 
 

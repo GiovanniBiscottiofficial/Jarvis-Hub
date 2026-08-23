@@ -677,7 +677,8 @@ function countdown(days) {
 function billPaid(bill, payday) {
   const period = payday && payday.period;
   const month = payday && String(payday.nominal_date || "").slice(0, 7);
-  return Boolean((bill.paid_period && (!period || bill.paid_period === period)) || (bill.paid_month && (!month || bill.paid_month === month)));
+  if (bill.paid_period) return Boolean(!period || bill.paid_period === period);
+  return Boolean(bill.paid_month && (!month || bill.paid_month === month));
 }
 
 function assignedPaycheck(bill) {
@@ -686,11 +687,16 @@ function assignedPaycheck(bill) {
   return Number(bill.due_day) <= 14 ? 1 : 2;
 }
 
+function billAppliesToPayday(bill, payday) {
+  if (assignedPaycheck(bill) !== Number(payday.paycheck)) return false;
+  return !bill.start_period || String(payday.period) >= String(bill.start_period);
+}
+
 async function loadBudgetData() {
   const [o, allBills] = await Promise.all([api("/api/budget/overview"), api("/api/vault/bills")]);
   const runway = $("paycheck-runway");
   runway.replaceChildren();
-  const upcoming = [1, 2].map((number) => (o.paydays || []).find((payday) => Number(payday.paycheck) === number)).filter(Boolean);
+  const upcoming = (o.paydays || []).slice(0, 3);
   if (!upcoming.length) runway.appendChild(el("div", "empty-state error-state", "Payday calendar unavailable"));
   upcoming.forEach((payday) => {
     const instrument = el("article", `paycheck-instrument paycheck-${payday.paycheck}`);
@@ -698,7 +704,7 @@ async function loadBudgetData() {
     head.append(el("span", "paycheck-label", `${payday.label || `Paycheck ${payday.paycheck}`} · ${Number(payday.paycheck) === 1 ? "MONTH-END" : "15TH"}`), el("strong", "paycheck-countdown", countdown(payday.days_away)));
     const date = new Date(`${payday.date}T12:00:00`);
     const dateText = Number.isNaN(date.valueOf()) ? payday.date : date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    const stack = allBills.filter((bill) => assignedPaycheck(bill) === Number(payday.paycheck));
+    const stack = allBills.filter((bill) => billAppliesToPayday(bill, payday));
     instrument.append(
       head,
       el("div", "paycheck-amount", money(payday.amount || 2064.24)),
@@ -733,12 +739,13 @@ async function loadBudgetData() {
   const bl = $("budget-bills");
   bl.replaceChildren();
   if (!allBills.length) bl.appendChild(el("div", "empty-state", "No bills configured"));
-  [1, 2].forEach((paycheck) => {
-    const bills = allBills.filter((bill) => assignedPaycheck(bill) === paycheck);
-    const stackPayday = upcoming.find((payday) => Number(payday.paycheck) === paycheck);
+  upcoming.forEach((stackPayday, payIndex) => {
+    const paycheck = Number(stackPayday.paycheck);
+    const bills = allBills.filter((bill) => billAppliesToPayday(bill, stackPayday));
     const stack = el("section", "bill-stack");
     const stackHead = el("header", "bill-stack-head");
-    stackHead.append(el("strong", "", `PAYCHECK ${paycheck}`), el("span", "", `${bills.length} ITEMS · ${money(bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0))}`));
+    const payDate = new Date(`${stackPayday.date}T12:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
+    stackHead.append(el("strong", "", `PAY ${payIndex + 1} · PAYCHECK ${paycheck} · ${payDate.toUpperCase()}`), el("span", "", `${bills.length} ITEMS · ${money(bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0))}`));
     stack.appendChild(stackHead);
     if (!bills.length) stack.appendChild(el("div", "empty-state", `No Paycheck ${paycheck} obligations`));
     bills.sort((a, b) => Number(a.due_day) - Number(b.due_day)).forEach((bill) => {
@@ -895,10 +902,25 @@ $("wf-buffer").onclick = () => dispatchWindfall("buffer");
 
 $("bal-btn").onclick = async () => {
   const balance = parseFloat($("bal-amount").value);
-  if (isNaN(balance)) return;
-  await api(`/api/vault/accounts/${$("bal-account").value}/balance`, "PUT", { balance });
-  $("bal-amount").value = "";
-  loadFinance();
+  const status = $("bal-status");
+  if (!Number.isFinite(balance)) {
+    status.textContent = "Enter the actual account balance, including a negative balance when applicable.";
+    return;
+  }
+  const button = $("bal-btn");
+  const account = $("bal-account").selectedOptions[0]?.textContent || "Account";
+  button.disabled = true;
+  status.textContent = `Updating ${account}…`;
+  try {
+    await api(`/api/vault/accounts/${$("bal-account").value}/balance`, "PUT", { balance });
+    $("bal-amount").value = "";
+    await loadFinance();
+    status.textContent = `${account} reconciled to ${money(balance)}.`;
+  } catch (error) {
+    status.textContent = `Balance not updated: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
 };
 
 // ---------- Consolidated Budget & Vault support ----------

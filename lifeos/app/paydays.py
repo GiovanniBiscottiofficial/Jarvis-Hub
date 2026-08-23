@@ -74,8 +74,24 @@ def upcoming_period(today: date | None = None) -> dict:
     }
 
 
+def bill_due_date_for_payday(payday: dict, due_day: int) -> date:
+    """Resolve a bill's due day around the paycheck that funds it."""
+    nominal = date.fromisoformat(payday["nominal_date"])
+    actual = date.fromisoformat(payday["date"])
+    day = min(max(1, int(due_day)), monthrange(nominal.year, nominal.month)[1])
+    same_month = date(nominal.year, nominal.month, day)
+    if same_month >= actual:
+        return same_month
+    year, month = _month_offset(nominal, 1)
+    day = min(day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
 def scheduled_bill_due_date(
-    paycheck: int, due_day: int, today: date | None = None
+    paycheck: int,
+    due_day: int,
+    today: date | None = None,
+    start_period: str | None = None,
 ) -> date:
     """Return the due date funded by the next matching paycheck.
 
@@ -88,10 +104,6 @@ def scheduled_bill_due_date(
         item
         for item in payday_schedule(today, 6)
         if item["paycheck"] == paycheck
+        and (not start_period or item["period"] >= start_period)
     )
-    nominal = date.fromisoformat(payday["nominal_date"])
-    year, month = nominal.year, nominal.month
-    if paycheck == 1:
-        year, month = _month_offset(nominal, 1)
-    day = min(max(1, int(due_day)), monthrange(year, month)[1])
-    return date(year, month, day)
+    return bill_due_date_for_payday(payday, due_day)
