@@ -162,7 +162,7 @@ Home Assistant long-lived token. To enable that API intentionally, add these to
 `.env` and rebuild LifeOS:
 
 ```bash
-HOME_ASSISTANT_URL=http://homeassistant:8123
+HOME_ASSISTANT_URL=http://host.docker.internal:8123
 HOME_ASSISTANT_TOKEN=replace-with-a-long-lived-access-token
 ```
 

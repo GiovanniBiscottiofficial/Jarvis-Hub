@@ -81,6 +81,10 @@ def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
     assert "name: jarvis-lifeos-panel" in configuration
     assert "url_path: lifeos-app" in configuration
 
+    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://host.docker.internal:8123}" in compose
+    assert "host.docker.internal:host-gateway" in compose
+
 
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))
 def test_every_sanctuary_mode_is_side_effect_free_in_simulation(fresh_db, mode):

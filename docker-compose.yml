@@ -47,8 +47,10 @@ services:
       - LIFEOS_MAX_PHOTO_BYTES=${LIFEOS_MAX_PHOTO_BYTES:-8388608}
       - LIFEOS_VISION_EVENT_RETENTION_HOURS=${LIFEOS_VISION_EVENT_RETENTION_HOURS:-24}
       # Optional: enables policy-controlled actions after proposals are reviewed.
-      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://homeassistant:8123}
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://host.docker.internal:8123}
       - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8090:8090"
     volumes:

@@ -99,7 +99,9 @@ async def _verify_home_assistant_token(token: str) -> dict:
     """Validate a browser token against HA without retaining it."""
     if not token:
         raise ValueError("missing Home Assistant token")
-    url = os.environ.get("HOME_ASSISTANT_URL", "http://homeassistant:8123").rstrip("/")
+    url = os.environ.get(
+        "HOME_ASSISTANT_URL", "http://host.docker.internal:8123"
+    ).rstrip("/")
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=8) as client:
         response = await client.get(f"{url}/api/auth/current_user", headers=headers)
