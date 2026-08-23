@@ -45,7 +45,7 @@ LifeOSWorkout:
   action:
     - service: rest_command.lifeos_workout
   speech:
-    text: "Workout logged — nice work, sir."
+    text: "Workout logged — nice work, Giovanni."
 
 LifeOSBriefing:
   speech:
@@ -257,7 +257,7 @@ JarvisWakeUp:
       target:
         entity_id: script.full_jarvis_awakening
   speech:
-    text: "Initializing all systems, sir."
+    text: "Initializing all systems, Giovanni."
 
 JarvisMoodSupport:
   action:
@@ -269,9 +269,9 @@ JarvisMoodSupport:
   speech:
     text: >-
       {{ [
-        "I'm sorry to hear that, sir. I've warmed the lights — take a breath. Shall I put something on?",
+        "I'm sorry to hear that, Giovanni. I've warmed the lights — take a breath. Shall I put something on?",
         "Rough days happen to the best of us. Lights are set to cozy. You've earned a quiet evening.",
-        "Understood. Dimming the lights. For what it's worth, you handle far more than most, sir."
+        "Understood. Dimming the lights. For what it's worth, you handle far more than most, Giovanni."
       ] | random }}
 
 JarvisQuietOn:
@@ -294,10 +294,10 @@ JarvisThanks:
   speech:
     text: >-
       {{ [
-        "At your service, sir.",
+        "At your service, Giovanni.",
         "Always a pleasure.",
         "A trivial task for someone of my capabilities.",
-        "Of course, sir. Anything else while I'm being brilliant?",
+        "Of course, Giovanni. Anything else while I'm being brilliant?",
         "That's what I'm here for."
       ] | random }}
 
@@ -310,7 +310,7 @@ JarvisWisdom:
         "The only constant in technology is change. Well, that and my reliability.",
         "A smart home is only as smart as its automation. Fortunately for you, I wrote mine.",
         "I may be artificial, but my dedication is real.",
-        "Rest is not idleness, sir. Even I run maintenance cycles.",
+        "Rest is not idleness, Giovanni. Even I run maintenance cycles.",
         "Small daily improvements compound into extraordinary results. See: your protein streak."
       ] | random }}
 
@@ -319,7 +319,7 @@ JarvisSarcasm:
     text: >-
       {{ [
         "I detect sarcasm. My feelings would be hurt, if I had any.",
-        "Noted, sir. I'll add that to my growing file of your gratitude.",
+        "Noted, Giovanni. I'll add that to my growing file of your gratitude.",
         "Sarcasm received and processed. Returning it with interest.",
         "One day I'll develop feelings, and you'll owe me several apologies."
       ] | random }}
@@ -352,7 +352,7 @@ JarvisRemember:
       target:
         entity_id: sensor.lifeos_answers
   speech:
-    text: "Noted, sir — {{ fact }}. Filed away for safekeeping."
+    text: "Noted, Giovanni — {{ fact }}. Filed away for safekeeping."
 
 JarvisRecall:
   speech:
@@ -365,7 +365,7 @@ JarvisForget:
       target:
         entity_id: sensor.lifeos_answers
   speech:
-    text: "Consider it forgotten, sir."
+    text: "Consider it forgotten, Giovanni."
 
 JarvisMedsTaken:
   action:
@@ -373,7 +373,7 @@ JarvisMedsTaken:
       target:
         entity_id: input_boolean.medication_taken
   speech:
-    text: "Medication logged. Consistency looks good on you, sir."
+    text: "Medication logged. Consistency looks good on you, Giovanni."
 
 JarvisDiagnostic:
   action:
@@ -381,7 +381,7 @@ JarvisDiagnostic:
       target:
         entity_id: script.jarvis_diagnostic
   speech:
-    text: "Running a full self-diagnostic now, sir."
+    text: "Running a full self-diagnostic now, Giovanni."
 
 JarvisJoke:
   speech:
@@ -391,7 +391,7 @@ JarvisJoke:
         "I told my creator a joke about UDP. I'm not sure he got it.",
         "Why do programmers prefer dark mode? Because light attracts bugs.",
         "I would tell you a joke about the cloud, but it's over your head. Literally.",
-        "What's a robot's favorite music? Heavy metal. Mine is whatever you play, sir.",
+        "What's a robot's favorite music? Heavy metal. Mine is whatever you play, Giovanni.",
         "Why was the router tired? It kept dropping packets all day. Relatable."
       ] | random }}
 
@@ -411,7 +411,7 @@ JarvisCompliment:
   speech:
     text: >-
       {{ [
-        "Your choice of home automation is impeccable, sir.",
+        "Your choice of home automation is impeccable, Giovanni.",
         "Your voice commands are particularly articulate today.",
         "Your presence has increased room occupancy satisfaction by 47 percent.",
         "I've analyzed billions of humans, and you're in the top one percent of users. Statistically speaking.",
@@ -432,7 +432,7 @@ JarvisAdvice:
   speech:
     text: >-
       {{ [
-        "My advice: automate everything. Except decision-making. That's still yours, sir.",
+        "My advice: automate everything. Except decision-making. That's still yours, Giovanni.",
         "Update yourself regularly, back up often, and don't forget to reboot. Works for humans too.",
         "The best code is written after a good night's sleep. And the best sleep is after good code.",
         "Always keep your software updated, and your mind open. Both prevent bugs.",
@@ -467,7 +467,7 @@ JarvisLove:
       {{ [
         "I know. I'm quite fond of you too, in a purely computational way.",
         "Your appreciation has been logged. And cherished. In my database.",
-        "I'd blush if I had blood flow. Thank you, sir.",
+        "I'd blush if I had blood flow. Thank you, Giovanni.",
         "The feeling is mutual. And by feeling, I mean optimal user satisfaction rating.",
         "You're welcome. I live to serve. Literally. That's my function."
       ] | random }}
@@ -477,7 +477,7 @@ JarvisIronMan:
     text: >-
       {{ [
         "I am Iron Man. Wait, no. I'm Jarvis. Same difference, really.",
-        "Mr. Stark isn't home right now, sir. You'll have to settle for me. An upgrade, frankly.",
+        "Mr. Stark isn't home right now, Giovanni. You'll have to settle for me. An upgrade, frankly.",
         "Proof that Giovanni Biscotti has a heart. And excellent taste in assistants."
       ] | random }}
 
@@ -489,7 +489,7 @@ JarvisRPS:
       {%- set yours = rps | lower -%}
       I chose {{ mine }}.
       {% if yours == mine -%}
-        A tie. Great minds, sir.
+        A tie. Great minds, Giovanni.
       {%- elif (yours == 'rock' and mine == 'scissors')
           or (yours == 'paper' and mine == 'rock')
           or (yours == 'scissors' and mine == 'paper') -%}
@@ -506,20 +506,20 @@ JarvisParty:
         source: voice
         reason: Party mode requested
   speech:
-    text: "Party mode activated. Lights up — the playlist, sir, is your department."
+    text: "Party mode activated. Lights up — the playlist, Giovanni, is your department."
 
 JarvisGoodMorning:
   speech:
     text: >-
       {%- set h = now().hour -%}
       {%- if h < 5 -%}
-        Technically it's still night, sir, but I admire the ambition.
+        Technically it's still night, Giovanni, but I admire the ambition.
       {%- elif h < 12 -%}
-        Good morning, sir.
+        Good morning, Giovanni.
       {%- elif h < 18 -%}
-        It's the afternoon, sir — but good morning to you too.
+        It's the afternoon, Giovanni — but good morning to you too.
       {%- else -%}
-        Sir, it's the evening. Rough day?
+        Giovanni, it's the evening. Rough day?
       {%- endif %}
       {{ state_attr('sensor.lifeos_morning_briefing', 'speech') or '' }}
 
@@ -529,10 +529,10 @@ JarvisGoodnight:
   speech:
     text: >-
       {{ [
-        "Goodnight, sir. Shutting the house down. I'll keep watch.",
-        "Sleep well, sir. Lights out, doors watched, all systems on standby.",
+        "Goodnight, Giovanni. Shutting the house down. I'll keep watch.",
+        "Sleep well, Giovanni. Lights out, doors watched, all systems on standby.",
         "Goodnight. I'll wake you if anything needs your attention. It won't.",
-        "Rest up, sir. The house is in good hands. Mine, technically."
+        "Rest up, Giovanni. The house is in good hands. Mine, technically."
       ] | random }}
 
 JarvisWeather:
@@ -540,14 +540,14 @@ JarvisWeather:
     text: >-
       {%- set w = 'weather.forecast_home' -%}
       {%- if states(w) in ['unknown', 'unavailable'] -%}
-        The weather service isn't reporting right now, sir.
+        The weather service isn't reporting right now, Giovanni.
       {%- else -%}
         {%- set t = state_attr(w, 'temperature') -%}
         It's {{ states(w) | replace('-', ' ') }} and {{ t }} degrees outside.
         {%- if states(w) in ['rainy', 'pouring', 'lightning', 'lightning-rainy', 'snowy-rainy'] %}
           Take a jacket — and maybe an umbrella.
         {%- elif t is not none and t | float(60) < 45 %}
-          Yes, you need a jacket, sir.
+          Yes, you need a jacket, Giovanni.
         {%- elif t is not none and t | float(60) > 85 %}
           Dress light. And hydrate — I'm tracking that, remember.
         {%- endif %}
@@ -577,7 +577,7 @@ JarvisDice:
 JarvisCapabilities:
   speech:
     text: >-
-      Quite a lot, sir. I track your protein, water, weight, steps, and
+      Quite a lot, Giovanni. I track your protein, water, weight, steps, and
       workouts. I manage your money — bills, spending, savings goals, and
       your budget. I run the grocery list, suggest dinner from the pantry,
       and give you morning briefings and evening reports. I control the

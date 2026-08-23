@@ -86,7 +86,7 @@
           Check ventilation — is something blocking the vents?
     - service: script.jarvis_say
       data:
-        message: "I'm running a little hot, sir. Some airflow would be appreciated."
+        message: "I'm running a little hot, Giovanni. Some airflow would be appreciated."
 
 # Disk-space guard: nightly backups quietly stop working if the disk fills.
 # Warn well before that point so old backups/media can be pruned in time.
@@ -115,5 +115,5 @@
     - service: script.jarvis_say
       data:
         message: >-
-          Storage is getting tight, sir — the disk is at
+          Storage is getting tight, Giovanni — the disk is at
           {{ states('sensor.system_monitor_disk_usage') | round(0) }} percent.

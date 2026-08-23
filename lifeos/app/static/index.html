@@ -21,8 +21,7 @@
       <button class="tab" data-tab="command">Command</button>
       <button class="tab active" data-tab="today">Today</button>
       <button class="tab" data-tab="body">Body Ops</button>
-      <button class="tab" data-tab="budget">Budget</button>
-      <button class="tab" data-tab="vault">Vault Flow</button>
+      <button class="tab" data-tab="budget">Budget &amp; Vault</button>
       <button class="tab" data-tab="review">Review</button>
     </nav>
     <span class="nav-more" aria-hidden="true">›</span>
@@ -162,7 +161,11 @@
     <div class="card briefing-card">
       <h2>Morning briefing</h2>
       <div id="briefing" class="muted">–</div>
-      <button id="briefing-btn" class="pill">Brief me</button>
+      <div class="briefing-controls">
+        <button id="briefing-btn" class="pill">Brief me</button>
+        <button id="briefing-stop-btn" class="secondary" disabled>Stop</button>
+      </div>
+      <div id="briefing-status" class="muted" role="status" aria-live="polite">Ready for Giovanni.</div>
     </div>
 
     <div class="card progress-card" id="progress-card">
@@ -199,7 +202,7 @@
     </div>
 
     <div class="card vault-card">
-      <h2>Vault snapshot</h2>
+      <h2>Budget &amp; Vault snapshot</h2>
       <div id="vault-snapshot">–</div>
     </div>
     </div>
@@ -217,6 +220,7 @@
       </div>
       <div id="weight-msg" class="muted"></div>
       <div id="weight-history" class="muted"></div>
+      <div id="scale-readiness" class="scale-readiness muted" role="status">Checking scale bridge…</div>
     </div>
     <div class="card">
       <h2>Steps (manual)</h2>
@@ -259,8 +263,17 @@
     </div>
     <div class="card">
       <h2>Pantry</h2>
-      <div id="pantry" class="muted">–</div>
-      <div class="row">
+      <p class="card-note">Local inventory used for meal planning. Add an item here or sync a commissioned Grocy node.</p>
+      <div class="pantry-composer" aria-label="Add pantry item">
+        <label>Item<input id="pantry-item" autocomplete="off" placeholder="Chicken breast"></label>
+        <label>Quantity<input id="pantry-qty" type="number" min="0" step="0.1" value="1"></label>
+        <label>Unit<input id="pantry-unit" autocomplete="off" placeholder="lb, cans, servings"></label>
+        <label>Protein / serving<input id="pantry-protein" type="number" min="0" step="0.1" placeholder="grams"></label>
+        <button id="pantry-add-btn">Add to pantry</button>
+      </div>
+      <div id="pantry-status" class="inline-status muted" role="status" aria-live="polite"></div>
+      <div id="pantry" class="inventory-list muted">Loading inventory…</div>
+      <div class="row pantry-tools">
         <button id="pantry-sync-btn" class="secondary">Sync from Grocy</button>
       </div>
       <h2>Grocery suggestions</h2>
@@ -269,9 +282,30 @@
     </div>
   </section>
 
-  <!-- ============ BUDGET ============ -->
+  <!-- ============ BUDGET & VAULT ============ -->
   <section id="budget" class="panel">
-    <div class="card">
+    <div class="section-intro"><div><span class="section-index">CAPITAL / 03</span><h2>Budget &amp; Vault</h2><p>Two-check runway, daily spending, obligations, and protected capital.</p></div><span class="section-date">LEDGER PROTECTED</span></div>
+    <div id="finance-status" class="inline-status muted" role="status" aria-live="polite"></div>
+    <div class="lifeos-page-grid finance-grid">
+    <div class="card paycheck-card">
+      <div class="finance-card-heading"><div><span class="finance-index">RUNWAY / 01</span><h2>Payroll runway</h2></div><span class="finance-state">$2,064.24 / CHECK</span></div>
+      <div id="paycheck-runway" class="paycheck-runway" aria-live="polite"><div class="empty-state">Loading paycheck calendar…</div></div>
+    </div>
+
+    <div class="card spending-card">
+      <div class="finance-card-heading"><div><span class="finance-index">CAPTURE / 02</span><h2>Log spending</h2></div><span class="finance-state">ONEPAY LEDGER</span></div>
+      <p class="card-note">Recorded in the LifeOS spending ledger for weekly and monthly runway analysis.</p>
+      <div class="spending-composer">
+        <label>Amount<input id="spending-amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="$0.00"></label>
+        <label>Merchant / purpose<input id="spending-merchant" autocomplete="off" placeholder="Groceries, fuel, lunch…"></label>
+        <button id="spending-btn">Record spending</button>
+      </div>
+      <div id="spending-status" class="inline-status muted" role="status" aria-live="polite"></div>
+      <div class="spending-totals"><div><span>Last 7 days</span><strong id="spending-week">—</strong></div><div><span>This month</span><strong id="spending-month">—</strong></div></div>
+      <div id="spending-list" class="transaction-list muted">Loading recent entries…</div>
+    </div>
+
+    <div class="card runway-card">
       <h2 id="budget-period">Paycheck</h2>
       <div class="safe-to-spend">
         <div class="sts-amount" id="sts-amount">–</div>
@@ -281,24 +315,48 @@
       <div id="audit-badge"></div>
     </div>
 
-    <div class="card">
-      <h2>This paycheck's bills</h2>
-      <div id="budget-bills" class="muted">–</div>
+    <div class="card bills-card">
+      <div class="finance-card-heading"><div><span class="finance-index">OBLIGATIONS / 03</span><h2>Bill stacks</h2></div><span class="finance-state">P1 → P2</span></div>
+      <div id="budget-bills" class="bill-stacks muted">Loading both paycheck stacks…</div>
+      <details class="subordinate-tools"><summary>Add a bill</summary><div class="row">
+        <input id="bill-name" placeholder="bill">
+        <input id="bill-amount" type="number" step="0.01" placeholder="$">
+        <input id="bill-day" type="number" min="1" max="31" placeholder="due day">
+        <select id="bill-paycheck" aria-label="Bill paycheck stack">
+          <option value="1" selected>Paycheck 1</option>
+          <option value="2">Paycheck 2</option>
+        </select>
+        <button id="bill-btn">Add</button>
+      </div><div id="bill-status" class="inline-status muted" role="status" aria-live="polite"></div></details>
     </div>
 
-    <div class="card">
-      <h2>Accounts <span class="muted">(OnePay · Truliant · Relay)</span></h2>
+    <div class="card accounts-card">
+      <h2>Cash position <span class="muted">(OnePay · Truliant · Relay)</span></h2>
+      <div id="accounts-status" class="inline-status muted" role="status" aria-live="polite"></div>
       <div id="budget-accounts"></div>
-      <div class="row">
+      <div id="accounts" hidden></div>
+      <details class="subordinate-tools"><summary>Reconcile actual balance</summary><div class="row">
         <select id="bal-account"></select>
         <input id="bal-amount" type="number" step="0.01" placeholder="actual balance $">
         <button id="bal-btn">Update</button>
-      </div>
+      </div></details>
+      <details class="subordinate-tools"><summary>Add a deposit</summary><div class="row">
+        <select id="dep-account"></select>
+        <input id="dep-amount" type="number" step="0.01" placeholder="$">
+        <button id="dep-btn">Add deposit</button>
+      </div></details>
+      <div id="plan" class="vault-plan muted"></div>
     </div>
 
-    <div class="card">
-      <h2>Sinking buckets <span class="muted">(Relay)</span></h2>
+    <div class="card goals-card">
+      <h2>Goals &amp; sinking buckets <span class="muted">(Relay)</span></h2>
+      <div id="goals-status" class="inline-status muted" role="status" aria-live="polite"></div>
       <div id="budget-funds" class="muted">–</div>
+      <div id="goals" class="muted" hidden></div>
+      <details class="subordinate-tools"><summary>Manage a goal</summary>
+        <div class="row"><input id="goal-name" placeholder="goal (e.g. vacation)"><input id="goal-target" type="number" step="0.01" placeholder="target $"><button id="goal-btn">Add goal</button></div>
+        <div class="row"><select id="goal-select"></select><input id="goal-amount" type="number" step="0.01" placeholder="$"><button id="goal-add-btn">Save to goal</button></div>
+      </details>
     </div>
 
     <div class="card">
@@ -325,53 +383,6 @@
     <div class="card">
       <h2>Cash flow forecast <span class="muted">(next 6 paychecks)</span></h2>
       <div id="budget-forecast" class="muted">–</div>
-    </div>
-  </section>
-
-  <!-- ============ VAULT FLOW ============ -->
-  <section id="vault" class="panel">
-    <div class="section-intro"><div><span class="section-index">CAPITAL / 03</span><h2>Vault flow</h2><p>Cash position, obligations, and protected goals.</p></div></div>
-    <div class="lifeos-page-grid vault-grid">
-    <div class="card">
-      <h2>Accounts</h2>
-      <div id="accounts"></div>
-    </div>
-    <div class="card">
-      <h2>Add deposit</h2>
-      <div class="row">
-        <select id="dep-account"></select>
-        <input id="dep-amount" type="number" step="0.01" placeholder="$">
-        <button id="dep-btn">Add</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Bills</h2>
-      <div id="bills"></div>
-      <div class="row">
-        <input id="bill-name" placeholder="bill">
-        <input id="bill-amount" type="number" step="0.01" placeholder="$">
-        <input id="bill-day" type="number" min="1" max="31" placeholder="due day">
-        <button id="bill-btn">Add</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Savings goals</h2>
-      <div id="goals" class="muted">–</div>
-      <div class="row">
-        <input id="goal-name" placeholder="goal (e.g. vacation)">
-        <input id="goal-target" type="number" step="0.01" placeholder="target $">
-        <button id="goal-btn">Add</button>
-      </div>
-      <div class="row">
-        <select id="goal-select"></select>
-        <input id="goal-amount" type="number" step="0.01" placeholder="$">
-        <button id="goal-add-btn">Save to goal</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>This week's plan</h2>
-      <div id="plan"></div>
     </div>
     </div>
   </section>

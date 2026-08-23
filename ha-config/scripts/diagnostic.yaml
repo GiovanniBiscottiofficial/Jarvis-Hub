@@ -16,7 +16,7 @@ jarvis_diagnostic:
                     else 'on battery at ' ~ states('sensor.x1_battery') ~ ' percent' }}.
           {% set cpu = states('sensor.processor_use') | int(0) %}
           {% if cpu < 50 %}
-            I am functioning at peak efficiency, sir.
+            I am functioning at peak efficiency, Giovanni.
           {% elif cpu < 80 %}
             Operating within normal parameters.
           {% else %}

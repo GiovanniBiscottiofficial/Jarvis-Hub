@@ -356,7 +356,7 @@ Every PC/laptop becomes a device Jarvis can see, wake, control, and use as a pre
 
 ---
 
-## Phase 18 — LifeOS: Vault Flow + Body Ops
+## Phase 18 — LifeOS: Budget & Vault + Body Ops
 
 A custom app in the same stack (its own container, port 8090, mobile-friendly web UI)
 — things no HA dashboard can do.
@@ -374,7 +374,7 @@ A custom app in the same stack (its own container, port 8090, mobile-friendly we
 - **Apple Watch / smart scale**: the iPhone "Health Auto Export" app posts steps and
   weigh-ins to `POST /api/webhooks/health` automatically.
 
-### Vault Flow — the finance spine
+### Budget & Vault — the finance spine
 - Tracks **True Lion, OnePay, FreePlay, Relay**: balances, deposits, bills with due days.
 - **Plan view**: lines deposits against unpaid bills, recommends what to pay now vs hold,
   shows the leftover after bills.

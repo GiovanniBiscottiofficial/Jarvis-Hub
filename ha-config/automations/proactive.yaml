@@ -1,7 +1,6 @@
 # Proactive intelligence: Jarvis speaks up before you ask.
 
-# Workday wake-up: a fuller good-morning than the 7:30 briefing — fires
-# earlier, only on weekdays, and only if you're home. Once your work
+# Workday Sunrise start: a short cue before the full 7:00 briefing. Once your work
 # calendar is integrated (Settings -> Add Integration -> Google Calendar),
 # uncomment the calendar condition to make it schedule-aware.
 - id: jarvis_morning_prediction
@@ -22,29 +21,31 @@
     - service: script.jarvis_say
       data:
         message: >-
-          Good morning, sir. It's a workday.
-          {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
-             or 'Your briefing will be ready shortly.' }}
+          Good morning, Giovanni. Sunrise mode is underway. Your full briefing
+          follows at seven.
 
-# Out-the-door nudge: Giovanni leaves at 7:35 on workdays. A gentle heads-up
-# five minutes before, so mornings don't slip.
+# Out-the-door nudge follows Giovanni's actual presence instead of assuming
+# he is still home at 7:30.
 - id: jarvis_leave_for_work
   alias: "Proactive: time to leave for work"
   trigger:
     - platform: time
-      at: "07:30:00"
+      at: "07:10:00"
   condition:
     - condition: time
       weekday: [mon, tue, wed, thu, fri]
     - condition: state
       entity_id: input_boolean.vacation_mode
       state: "off"
+    - condition: state
+      entity_id: person.giovanni_biscotti
+      state: home
   action:
     - service: script.jarvis_say
       data:
         message: >-
-          Five minutes, sir. Out the door by seven thirty-five keeps you
-          comfortably ahead of the eight o'clock start.
+          Giovanni, your morning launch window is open. Take your vitamins,
+          grab what you need, and head out when you're ready.
 
 # Evening workout nudge: Giovanni is building the evening-workout habit.
 # Weekdays at 6:30 PM — home from work, fed or about to be. Encouraging,
@@ -64,27 +65,26 @@
     - service: notify.jarvis_phone
       data:
         title: "Workout"
-        message: "Evening session, sir? Even 15 minutes keeps the habit alive."
+        message: "Evening session, Giovanni? Even 15 minutes keeps the habit alive."
         data:
           channel: health
 
-# Payday heads-up: paid on the 15th and the last day of the month, landing
-# 2 days early — so the 13th, and 2 days before month-end (day + 3 rolls
-# into the 1st exactly on that day).
+# Payday heads-up uses LifeOS's weekend-aware payroll calendar.
 - id: jarvis_payday
   alias: "Proactive: payday heads-up"
   trigger:
     - platform: time
-      at: "07:05:00"
+      at: "07:02:00"
   condition:
     - condition: template
       value_template: >-
-        {{ now().day == 13 or (now() + timedelta(days=3)).day == 1 }}
+        {% set checks = state_attr('sensor.lifeos_morning_briefing', 'paydays') or [] %}
+        {{ checks | count > 0 and checks[0].date == now().date().isoformat() }}
   action:
     - service: script.jarvis_say
       data:
         message: >-
-          Payday, sir.
+          Payday, Giovanni.
           {{ state_attr('sensor.lifeos_answers', 'bills')
              or 'A fine day to check Vault Flow before the money gets ideas.' }}
     - service: notify.jarvis_phone

@@ -26,11 +26,11 @@ views:
             content: >
               {% set hour = now().hour %}
               {% if hour < 12 %}
-              <font color="#00e5ff">**Good morning, sir.** Coffee?</font>
+              <font color="#00e5ff">**Good morning, Giovanni.** Coffee?</font>
               {% elif hour < 18 %}
-              <font color="#00e5ff">**Good afternoon, sir.** At your service.</font>
+              <font color="#00e5ff">**Good afternoon, Giovanni.** At your service.</font>
               {% else %}
-              <font color="#00e5ff">**Good evening, sir.** Shall I prepare for movie night?</font>
+              <font color="#00e5ff">**Good evening, Giovanni.** Shall I prepare for movie night?</font>
               {% endif %}
           - type: markdown
             title: Briefing

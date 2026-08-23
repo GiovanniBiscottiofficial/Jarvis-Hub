@@ -41,7 +41,7 @@
   action:
     - service: script.jarvis_say
       data:
-        message: "Rain is expected today — take a jacket, sir."
+        message: "Rain is expected today — take a jacket, Giovanni."
 
 # Air quality: PM2.5 spikes -> purifier on + alert. Scaffold — uncomment once
 # a PM2.5 sensor (any cheap Zigbee one, or an AQI integration like AirNow)

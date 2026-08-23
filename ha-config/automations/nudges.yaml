@@ -46,11 +46,11 @@
         message: >-
           You've spent ${{ states('sensor.lifeos_monthly_spending') }} this
           month — past your ${{ states('input_number.monthly_budget') | int }}
-          budget, sir.
+          budget, Giovanni.
     - service: script.jarvis_say
       data:
         message: >-
-          A word, sir — this month's spending just crossed your
+          A word, Giovanni — this month's spending just crossed your
           {{ states('input_number.monthly_budget') | int }} dollar budget.
 
 # Zero-leakage guard: fires when the budget audit flips to "action needed"
@@ -71,5 +71,5 @@
     - service: script.jarvis_say
       data:
         message: >-
-          Sir, the budget audit flagged a shortfall.
+          Giovanni, the budget audit flagged a shortfall.
           {{ state_attr('sensor.lifeos_safe_to_spend', 'audit_note') }}

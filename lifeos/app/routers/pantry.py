@@ -2,7 +2,7 @@
 protein deficits."""
 from datetime import date, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from .. import grocy
@@ -87,14 +87,28 @@ def list_pantry():
 
 @router.post("/items")
 def add_item(body: PantryItemIn):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "item name is required")
+    if body.qty < 0 or body.protein_g_per_serving < 0:
+        raise HTTPException(400, "quantity and protein cannot be negative")
     with conn() as c:
         c.execute(
             "INSERT INTO pantry(name,qty,unit,protein_g_per_serving)"
             " VALUES(?,?,?,?)"
             " ON CONFLICT(name) DO UPDATE SET qty=excluded.qty,"
             " unit=excluded.unit",
-            (body.name, body.qty, body.unit, body.protein_g_per_serving),
+            (name, body.qty, body.unit.strip(), body.protein_g_per_serving),
         )
+        return {"ok": True, "item": name}
+
+
+@router.delete("/items/{item_id}")
+def remove_item(item_id: int):
+    with conn() as c:
+        cur = c.execute("DELETE FROM pantry WHERE id=?", (item_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "pantry item not found")
         return {"ok": True}
 
 

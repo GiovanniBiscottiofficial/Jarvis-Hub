@@ -6,21 +6,24 @@
   alias: "LifeOS: morning briefing"
   trigger:
     - platform: time
-      at: "07:30:00"
+      at: "07:00:10"
   condition:
     - condition: state
-      entity_id: zone.home
-      state: "1"
-      # only speak when someone is home
+      entity_id: person.giovanni_biscotti
+      state: home
+      # only speak when Giovanni is still home
     - condition: state
       entity_id: input_boolean.guest_mode
+      state: "off"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
       state: "off"
   action:
     - service: script.jarvis_say
       data:
         message: >-
           {{ state_attr('sensor.lifeos_morning_briefing', 'speech')
-             or 'Good morning. LifeOS is not reachable right now.' }}
+             or 'Good morning, Giovanni. LifeOS is not reachable right now. Take your vitamins, choose something to thaw for dinner, and begin with confidence.' }}
 
 - id: lifeos_weekly_review
   alias: "LifeOS: Sunday weekly review"

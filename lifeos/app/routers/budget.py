@@ -6,11 +6,13 @@ split), Relay (earmarked sinking buckets). Paycheck #1 covers days 1–14,
 Paycheck #2 covers the 15th onward.
 """
 from datetime import date
+import re
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..db import conn, get_setting
+from ..paydays import NET_PAY, payday_schedule, upcoming_period
 
 router = APIRouter(prefix="/api/budget", tags=["budget"])
 
@@ -42,10 +44,7 @@ class FundContributionIn(BaseModel):
 
 
 def current_period(today: date | None = None) -> dict:
-    today = today or date.today()
-    n = 1 if today.day < 15 else 2
-    return {"month": today.strftime("%Y-%m"), "paycheck": n,
-            "key": f"{today:%Y-%m}-P{n}"}
+    return upcoming_period(today)
 
 
 def _cfg(key: str, default: float = 0) -> float:
@@ -155,18 +154,11 @@ def _debt_free_estimate(c) -> dict | None:
     if per_check <= 0:
         return {"total": round(total, 2), "checks": None, "period": None}
     checks = -(-total // per_check)  # ceil
-    month, n = current_period()["month"], current_period()["paycheck"]
-    y, m = (int(x) for x in month.split("-"))
-    for _ in range(int(checks)):
-        n += 1
-        if n > 2:
-            n, m = 1, m + 1
-            if m > 12:
-                y, m = y + 1, 1
+    horizon = payday_schedule(count=int(checks))[-1]
     return {
         "total": round(total, 2),
         "checks": int(checks),
-        "period": f"{y:04d}-{m:02d}-P{n}",
+        "period": horizon["period"],
     }
 
 
@@ -190,7 +182,7 @@ def _overview(c) -> dict:
         dict(r) for r in c.execute("SELECT * FROM assets ORDER BY name").fetchall()
     ]
 
-    onepay_in = _cfg("split_onepay", 1754.61)
+    onepay_in = _cfg("split_onepay", 1754.60)
     truliant_in = _cfg("split_truliant", 309.64)
     allocated = sum(b["amount"] for b in bills)
     fund_half = _fund_monthly_total(c) / 2  # buckets funded across both checks
@@ -235,7 +227,7 @@ def _overview(c) -> dict:
     return {
         "period": period,
         "paycheck_in": {
-            "net": _cfg("net_per_paycheck", 2064.25),
+            "net": _cfg("net_per_paycheck", NET_PAY),
             "onepay": onepay_in,
             "truliant": truliant_in,
         },
@@ -257,6 +249,7 @@ def _overview(c) -> dict:
         "total_debt": round(total_debt, 2),
         "assets": assets,
         "net_worth": net_worth,
+        "paydays": payday_schedule(count=4),
     }
 
 
@@ -272,7 +265,7 @@ def forecast(periods: int = 6):
     and bucket contributions = expected surplus (or squeeze)."""
     periods = max(1, min(periods, 12))
     with conn() as c:
-        onepay_in = _cfg("split_onepay", 1754.61)
+        onepay_in = _cfg("split_onepay", 1754.60)
         truliant_in = _cfg("split_truliant", 309.64)
         fund_half = _fund_monthly_total(c) / 2
         by_check = {}
@@ -282,24 +275,16 @@ def forecast(periods: int = 6):
                 (n,),
             ).fetchone()
             by_check[n] = row["s"]
-        cur = current_period()
-        month, n = cur["month"], cur["paycheck"]
         running = 0.0
         out = []
-        for _ in range(periods):
-            n += 1
-            if n > 2:
-                n = 1
-                y, m = (int(x) for x in month.split("-"))
-                m += 1
-                if m > 12:
-                    y, m = y + 1, 1
-                month = f"{y:04d}-{m:02d}"
+        for payday in payday_schedule(count=periods):
+            n = payday["paycheck"]
             surplus = round(onepay_in - by_check[n] - fund_half, 2)
             running = round(running + surplus + truliant_in, 2)
             out.append(
                 {
-                    "period": f"{month}-P{n}",
+                    "period": payday["period"],
+                    "payday": payday["date"],
                     "bills": round(by_check[n], 2),
                     "surplus": surplus,
                     "savings_split": truliant_in,
@@ -309,14 +294,26 @@ def forecast(periods: int = 6):
         return {"forecast": out}
 
 
+def _payment_period(row, requested: str | None) -> dict:
+    if requested is None:
+        return current_period()
+    match = re.fullmatch(r"(\d{4}-\d{2})-P([12])", requested)
+    if match is None:
+        raise HTTPException(400, "period must use YYYY-MM-P1 or YYYY-MM-P2")
+    paycheck = int(match.group(2))
+    if row["paycheck"] in (1, 2) and row["paycheck"] != paycheck:
+        raise HTTPException(409, "bill is assigned to a different paycheck")
+    return {"month": match.group(1), "paycheck": paycheck, "key": requested}
+
+
 @router.post("/bills/{bill_id}/paid")
-def mark_bill_paid(bill_id: int):
+def mark_bill_paid(bill_id: int, period: str | None = None):
     """Mark a bill paid for the current month and sync its account balance."""
-    period = current_period()
     with conn() as c:
         row = c.execute("SELECT * FROM bills WHERE id=?", (bill_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "bill not found")
+        period = _payment_period(row, period)
         if row["paid_period"] == period["key"] or row["paid_month"] == period["month"]:
             return {"ok": True, "period": row["paid_period"] or period["key"], "already_paid": True}
         c.execute(
@@ -332,12 +329,12 @@ def mark_bill_paid(bill_id: int):
 
 
 @router.post("/bills/{bill_id}/unpaid")
-def mark_bill_unpaid(bill_id: int):
-    period = current_period()
+def mark_bill_unpaid(bill_id: int, period: str | None = None):
     with conn() as c:
         row = c.execute("SELECT * FROM bills WHERE id=?", (bill_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "bill not found")
+        period = _payment_period(row, period)
         is_current_payment = (
             row["paid_period"] == period["key"]
             or row["paid_month"] == period["month"]
@@ -514,7 +511,7 @@ def budget_speech(c) -> dict:
             f" — ${o['unpaid_total']:.0f} total."
         )
     else:
-        paycheck = f"Everything on paycheck {p['paycheck']} is paid, sir."
+        paycheck = f"Everything on paycheck {p['paycheck']} is paid, Giovanni."
     networth = (
         f"Ecosystem cash is ${o['ecosystem_cash']:.0f}; net worth including"
         f" retirement is ${o['net_worth']:.0f}; total debt remaining is"

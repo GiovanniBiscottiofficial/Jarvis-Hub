@@ -135,7 +135,7 @@ The core stack (Home Assistant + LifeOS) needs no profile — `docker compose up
 | `ha-config/automations/` | Starter automations: movie mode, presence, vacuum-stuck alert, shopping reminder |
 | `ha-config/scripts/` | Voice-callable scenes: "movie night", "goodnight" |
 | `ha-config/dashboards/jarvis.yaml` | "Jarvis" command-center dashboard (Home / Vacuum / Media / Kitchen / System tabs) |
-| `lifeos/` | Jarvis's operating layer: Command Center + context engine + Vault Flow + Body Ops, on port 8090 |
+| `lifeos/` | Jarvis's operating layer: Command Center + context engine + Budget & Vault + Body Ops, on port 8090 |
 | `docs/PLAN.md` | The full build plan |
 
 ## Jarvis context engine and Command Center
@@ -237,7 +237,7 @@ Tick them off as you go.
 - [ ] **Phase 3 — Voice**: `docker compose --profile voice up -d`, then HA → Add Integration → **Wyoming** three times (ports 10300 Whisper, 10200 Piper, 10400 openWakeWord); build the Assist pipeline with wake word "hey Jarvis"; `bash bootstrap/setup-satellite.sh` to make the X1's own mic listen room-wide
 - [ ] **Phase 8 — The LLM brain**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant", and paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) (already loaded with Giovanni's schedule, people, tastes) into its Instructions. (Or the Anthropic/OpenAI integration for a smarter cloud agent.)
 - [ ] **Remote access**: `bash bootstrap/setup-remote-access.sh` once at home — Tailscale tunnel for controlling everything from work/cellular
-- [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Vault Flow / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), speak in your bills ("add a bill called rent…") and usual meals, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync; configure its authentication headers to match the signed webhook contract described above
+- [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Budget & Vault / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), confirm bills and pantry inventory, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync; configure its authentication headers to match the signed webhook contract described above. A scale works through this bridge only when its companion app writes Weight into Apple Health.
 - [ ] **Backups**: `bash bootstrap/setup-backups.sh` — nightly 3 AM backup of the LifeOS DB + HA config
 
 **Devices — pair as you go:**
@@ -300,7 +300,7 @@ Log (Jarvis writes straight into LifeOS):
 - "set my usual breakfast to sweet potato and eggs", then "log my usual
   breakfast" — one-phrase meal logging with real macros
 
-Vault Flow by voice:
+Budget & Vault by voice:
 - "log a deposit of 500 to OnePay" · "add 200 to True Lion"
 - "mark rent paid" · "I paid the electric bill"
 - "add a bill called internet for 80 dollars due on the 15th"

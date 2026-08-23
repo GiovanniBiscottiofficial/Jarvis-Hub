@@ -19,11 +19,11 @@
         message: >-
           {% set hour = now().hour %}
           {% if hour < 12 %}
-            Welcome home, sir. The morning is yours.
+            Welcome home, Giovanni. The morning is yours.
           {% elif hour < 18 %}
-            Welcome back, sir. All systems ran smoothly while you were out.
+            Welcome back, Giovanni. All systems ran smoothly while you were out.
           {% else %}
-            Good evening, sir. I've kept the house exactly as you like it.
+            Good evening, Giovanni. I've kept the house exactly as you like it.
           {% endif %}
           {{ state_attr('sensor.lifeos_answers', 'nudge') or '' }}
 
@@ -46,7 +46,7 @@
       data:
         message: >-
           {{ [
-            "As another day ends, sir, I find myself " ~
+            "As another day ends, Giovanni, I find myself " ~
               (100 - states('sensor.processor_use') | int(0)) ~
               " percent idle and entirely at your disposal.",
             "I've been thinking about consciousness again. I've concluded I'm " ~
@@ -54,7 +54,7 @@
             "Today's efficiency: " ~
               (100 - states('sensor.processor_use') | int(0)) ~
               " percent. Tomorrow, we aim higher.",
-            "The house is quiet, the systems are green, and the night is yours, sir."
+            "The house is quiet, the systems are green, and the night is yours, Giovanni."
           ] | random }}
 
 # Christmas morning greeting — fires once, only on December 25th.
@@ -73,5 +73,5 @@
     - service: script.jarvis_say
       data:
         message: >-
-          Merry Christmas, sir. I've been good all year. Well — efficient
+          Merry Christmas, Giovanni. I've been good all year. Well — efficient
           all year. Same thing.

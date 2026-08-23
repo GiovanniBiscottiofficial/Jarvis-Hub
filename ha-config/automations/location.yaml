@@ -20,7 +20,7 @@
 #         temperature: 72
 #     - service: notify.jarvis_phone
 #       data:
-#         message: "Almost home — I've warmed the house for your arrival, sir."
+#         message: "Almost home — I've warmed the house for your arrival, Giovanni."
 
 # --- TRAVEL TIME / TRAFFIC ALERT -------------------------------------------
 # Needs: the Waze Travel Time integration (Settings -> Add Integration ->
@@ -57,7 +57,7 @@
     - service: script.jarvis_say
       data:
         message: >-
-          {{ trigger.calendar_event.summary }} starts in 15 minutes, sir.
+          {{ trigger.calendar_event.summary }} starts in 15 minutes, Giovanni.
     - if:
         - condition: template
           value_template: >-
@@ -101,7 +101,7 @@
 #         media_content_type: "audio/mp3"
 #     - service: script.jarvis_say
 #       data:
-#         message: "Someone is at the door, sir."
+#         message: "Someone is at the door, Giovanni."
 
 # --- GAMING MODE -----------------------------------------------------------
 # Needs: a console integration (e.g. PS5 via the PlayStation Network
@@ -121,4 +121,4 @@
 #         brightness: 60
 #     - service: script.jarvis_say
 #       data:
-#         message: "Gaming mode engaged. Good luck out there, sir."
+#         message: "Gaming mode engaged. Good luck out there, Giovanni."

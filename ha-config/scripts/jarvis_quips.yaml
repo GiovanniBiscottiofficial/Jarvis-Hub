@@ -8,11 +8,11 @@ jarvis_quip:
       data:
         message: >-
           {{ [
-            "Consider it done, sir.",
+            "Consider it done, Giovanni.",
             "Already on it.",
             "As you wish.",
             "A trivial task for someone of my capabilities.",
             "Done. Anything else while I'm being brilliant?",
             "Handled, with my usual efficiency.",
-            "Of course, sir."
+            "Of course, Giovanni."
           ] | random }}

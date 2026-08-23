@@ -148,6 +148,29 @@ def get_suggestions(max_minutes: int = 15):
     return suggest_meals(max_minutes=max_minutes)
 
 
+@router.get("/scale/readiness")
+def scale_readiness():
+    """Report the supported smart-scale bridge and latest imported weight."""
+    with conn() as c:
+        profile = active_profile(c)
+        latest = c.execute(
+            "SELECT ts, weight_lb FROM weighins WHERE profile_id=?"
+            " ORDER BY ts DESC LIMIT 1",
+            (profile["id"],),
+        ).fetchone()
+    return {
+        "configured": bool(os.environ.get("LIFEOS_HEALTH_WEBHOOK_SECRET", "").strip()),
+        "bridge": "Apple Health → Health Auto Export → LifeOS",
+        "direct_ihome_integration": False,
+        "guidance": (
+            "If the iHome scale app exposes Weight in Apple Health, allow that access, "
+            "then enable Weight in Health Auto Export. LifeOS will update Body Ops "
+            "automatically. Otherwise keep using the manual weight entry."
+        ),
+        "latest": dict(latest) if latest else None,
+    }
+
+
 @router.post("/meals/log")
 def log_meal(body: MealLogIn):
     with conn() as c:

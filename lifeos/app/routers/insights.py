@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..db import active_profile, conn, get_setting
+from ..paydays import payday_schedule
 from ..suggestions import suggest_meals
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
@@ -107,7 +108,17 @@ def morning_briefing():
     meals = suggest_meals(limit=2)
     weather = _weather()
 
-    parts = [f"Good morning, {prof['name']}."]
+    paydays = payday_schedule(count=2)
+    next_pay = paydays[0]
+    affirmations = (
+        "You are capable, prepared, and allowed to move through today with confidence.",
+        "You have handled hard days before; today gets your focus, not your fear.",
+        "Your consistency is building the life you want, one deliberate choice at a time.",
+        "You do not need a perfect day—only a purposeful next step.",
+    )
+    affirmation = affirmations[date.today().toordinal() % len(affirmations)]
+
+    parts = [f"Good morning, {prof['name']}.", affirmation]
     if weather:
         parts.append(
             f"Today is {weather['conditions']}, high of "
@@ -119,6 +130,11 @@ def morning_briefing():
     )
     if not (vit_row and vit_row["taken"]):
         parts.append(f"Vitamins are pending — streak is {vitamin_streak} days.")
+    if meals:
+        parts.append(
+            f"Before you leave, take out what you need for dinner. "
+            f"A good pantry match is {meals[0]['name']}."
+        )
     if bills:
         parts.append(
             f"{len(bills)} bill{'s' if len(bills) != 1 else ''} due this week "
@@ -135,6 +151,18 @@ def morning_briefing():
         parts.append(f"On the plan: {workouts[0]['kind']}.")
     if meals:
         parts.append(f"Breakfast pick: {meals[0]['name']}.")
+    if next_pay["days_away"] == 0:
+        parts.append(
+            f"Today is {next_pay['label']}, ${next_pay['amount']:.2f}. "
+            "Your budget is ready for the deposit."
+        )
+    else:
+        unit = "day" if next_pay["days_away"] == 1 else "days"
+        parts.append(
+            f"{next_pay['label']} is in {next_pay['days_away']} {unit}, "
+            f"on {date.fromisoformat(next_pay['date']).strftime('%A, %B')} "
+            f"{date.fromisoformat(next_pay['date']).day}."
+        )
 
     return {
         "date": today_iso,
@@ -149,6 +177,12 @@ def morning_briefing():
         "meal_picks": meals,
         "safe_to_spend": budget["safe_to_spend"],
         "audit_health": budget["audit_health"],
+        "affirmation": affirmation,
+        "dinner_prep": (
+            f"Take out ingredients for {meals[0]['name']}." if meals
+            else "Choose and thaw something for dinner before leaving."
+        ),
+        "paydays": paydays,
         "speech": " ".join(parts),
     }
 

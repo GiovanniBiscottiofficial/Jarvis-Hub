@@ -8,7 +8,7 @@
   alias: "Health: morning vitamins reminder"
   trigger:
     - platform: time
-      at: "07:00:00"
+      at: "07:10:00"
   condition:
     - condition: state
       entity_id: input_boolean.medication_taken
@@ -20,9 +20,6 @@
       value_template: >-
         {{ not state_attr('sensor.lifeos_morning_briefing', 'vitamins_taken') }}
   action:
-    - service: script.jarvis_say
-      data:
-        message: "Vitamins before you head out, sir."
     - service: notify.jarvis_phone
       data:
         title: "Vitamins"

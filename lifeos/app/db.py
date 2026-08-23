@@ -275,8 +275,8 @@ DEFAULT_SETTINGS = {
     "active_profile": "1",
     # Semi-monthly paycheck profile (per paycheck, two checks a month)
     "gross_annual_salary": "58992.00",
-    "net_per_paycheck": "2064.25",
-    "split_onepay": "1754.61",
+    "net_per_paycheck": "2064.24",
+    "split_onepay": "1754.60",
     "split_truliant": "309.64",
     "deduct_roth": "24.59",
     "deduct_401k": "24.59",
@@ -308,7 +308,7 @@ SEED_ACCOUNTS = [
     ("Relay", "buckets", 311.68),
 ]
 
-# name, amount, due_day, paycheck (1 = 1st-of-month check, 2 = mid-month),
+# name, amount, due_day, paycheck (1 = month-end check, 2 = mid-month),
 # note, already paid this cycle
 SEED_BILLS = [
     ("Flex Pay Rent (1st half)", 360.24, 1, 1, "includes Flex fee", 0),
@@ -319,7 +319,8 @@ SEED_BILLS = [
     ("Gas / Fuel (check 2)", 80.00, 15, 2, "fill-up budget", 0),
     ("Car Insurance Catchup", 213.00, 1, 1, "late catchup payment", 1),
     ("Car Insurance (monthly)", 105.00, 15, 2, "regular monthly bill", 0),
-    ("Spectrum Internet", 100.00, 15, 2, "$100 with activation, $80/mo after", 0),
+    ("Spectrum Internet", 80.00, 15, 2,
+     "August $100 activation payment already paid; $80 recurring", 1),
     ("Phone Reconnection", 216.75, 1, 1, "restores service ($480.84 balance)", 1),
     ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
     ("Klarna Statement", 61.77, 1, 1, "statement paydown", 1),
@@ -435,6 +436,16 @@ def init_db() -> None:
         c.executescript(SCHEMA)
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
+        # Correct the legacy one-cent payroll default without overwriting a
+        # future user-customized value.
+        c.execute(
+            "UPDATE settings SET value='2064.24'"
+            " WHERE key='net_per_paycheck' AND value='2064.25'"
+        )
+        c.execute(
+            "UPDATE settings SET value='1754.60'"
+            " WHERE key='split_onepay' AND value='1754.61'"
+        )
         for m in SEED_MEALS:
             c.execute(
                 "INSERT OR IGNORE INTO meals(name,minutes,protein_g,calories,tags,avoided)"
@@ -455,10 +466,9 @@ def init_db() -> None:
         # ledger data, so a row the user deleted must stay deleted across
         # restarts instead of being resurrected by the seed list.
         _today = date.today()
-        _period = f"{_today:%Y-%m}-P{1 if _today.day < 15 else 2}"
         if c.execute("SELECT COUNT(*) AS n FROM bills").fetchone()["n"] == 0:
             for name, amount, due_day, paycheck, note, paid in SEED_BILLS:
-                paid_period = _period if paid and paycheck == 1 else None
+                paid_period = f"{_today:%Y-%m}-P{paycheck}" if paid else None
                 c.execute(
                     "INSERT INTO bills(name,amount,due_day,paycheck,note,"
                     "paid_period) VALUES(?,?,?,?,?,?)",

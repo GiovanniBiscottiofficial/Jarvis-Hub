@@ -15,7 +15,7 @@ full_jarvis_awakening:
     - service: script.jarvis_say
       data:
         message: >-
-          All systems initialized. Welcome back, sir.
+          All systems initialized. Welcome back, Giovanni.
           {{ state_attr('sensor.lifeos_answers', 'nudge')
              or 'Everything is running smoothly.' }}
     # Status report to the phone

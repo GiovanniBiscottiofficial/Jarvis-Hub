@@ -92,8 +92,7 @@ document.querySelectorAll(".tab").forEach((btn) =>
     document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
     btn.classList.add("active");
     $(btn.dataset.tab).classList.add("active");
-    if (btn.dataset.tab === "vault") loadVault();
-    if (btn.dataset.tab === "budget") loadBudget();
+    if (btn.dataset.tab === "budget") loadFinance();
     if (btn.dataset.tab === "body") loadBody();
     if (btn.dataset.tab === "review") loadReview();
     if (btn.dataset.tab === "command") loadCommandCenter();
@@ -196,7 +195,7 @@ async function loadToday() {
     });
   }
   $("vault-snapshot").textContent =
-    `$${t.vault_total.toFixed(2)} across accounts — see Vault Flow tab for the plan.`;
+    `$${t.vault_total.toFixed(2)} across accounts — open Budget & Vault for the two-check plan.`;
 }
 
 async function override(meal, kind) {
@@ -209,9 +208,125 @@ $("vitamins-btn").onclick = async () => { await api("/api/body/vitamins/take", "
 
 $("water-btn").onclick = async () => { await api("/api/body/water", "POST", { glasses: 1 }); loadToday(); };
 
+let activeBriefingUtterance = null;
+let briefingRunId = 0;
+let briefingStartWatchdog = null;
+let briefingCompletionWatchdog = null;
+function clearBriefingWatchdogs() {
+  window.clearTimeout(briefingStartWatchdog);
+  window.clearTimeout(briefingCompletionWatchdog);
+  briefingStartWatchdog = null;
+  briefingCompletionWatchdog = null;
+}
+function stopBriefing() {
+  briefingRunId += 1;
+  clearBriefingWatchdogs();
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  activeBriefingUtterance = null;
+  $("briefing-stop-btn").disabled = true;
+  $("briefing-btn").disabled = false;
+  $("briefing-status").textContent = "Briefing stopped. Full text remains visible.";
+}
+
+function briefingChunks(speech, limit = 240) {
+  const sentences = speech.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [speech];
+  const chunks = [];
+  let current = "";
+  sentences.forEach((sentence) => {
+    const next = `${current} ${sentence}`.trim();
+    if (current && next.length > limit) { chunks.push(current); current = sentence.trim(); }
+    else current = next;
+  });
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+async function withTimeout(promise, milliseconds, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => { timer = window.setTimeout(() => reject(new Error(message)), milliseconds); }),
+    ]);
+  } finally { window.clearTimeout(timer); }
+}
+
+function speakFullBriefing(speech, trigger) {
+  const run = ++briefingRunId;
+  const chunks = briefingChunks(speech);
+  const voices = window.speechSynthesis.getVoices();
+  const voice = voices.find((item) => /^en-US/i.test(item.lang)) || voices.find((item) => /^en/i.test(item.lang)) || null;
+  let index = 0;
+  const failSpeech = (message) => {
+    if (run !== briefingRunId) return;
+    clearBriefingWatchdogs();
+    briefingRunId += 1;
+    window.speechSynthesis.cancel();
+    activeBriefingUtterance = null;
+    $("briefing-stop-btn").disabled = true;
+    trigger.disabled = false;
+    $("briefing-status").textContent = `${message} The complete briefing text remains visible.`;
+  };
+  const speakNext = () => {
+    if (run !== briefingRunId) return;
+    if (index >= chunks.length) {
+      activeBriefingUtterance = null;
+      clearBriefingWatchdogs();
+      $("briefing-stop-btn").disabled = true;
+      trigger.disabled = false;
+      $("briefing-status").textContent = "Briefing complete.";
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(chunks[index]);
+    activeBriefingUtterance = utterance;
+    $("briefing-stop-btn").disabled = false;
+    $("briefing-status").textContent = `Speech queued · section ${index + 1} of ${chunks.length}. Stop is available.`;
+    utterance.voice = voice;
+    utterance.rate = 0.92;
+    utterance.pitch = 0.96;
+    utterance.onstart = () => {
+      if (run !== briefingRunId) return;
+      window.clearTimeout(briefingStartWatchdog);
+      briefingStartWatchdog = null;
+      const completionLimit = Math.max(10000, Math.min(30000, chunks[index].length * 110));
+      briefingCompletionWatchdog = window.setTimeout(() => failSpeech("Speech playback did not complete."), completionLimit);
+      $("briefing-status").textContent = `Speaking the complete briefing · section ${index + 1} of ${chunks.length}.`;
+    };
+    utterance.onend = () => { if (run !== briefingRunId) return; clearBriefingWatchdogs(); index += 1; speakNext(); };
+    utterance.onerror = () => {
+      if (run !== briefingRunId) return;
+      failSpeech("Speech was blocked or interrupted.");
+    };
+    briefingStartWatchdog = window.setTimeout(() => failSpeech("Speech did not start in this browser."), 3000);
+    window.speechSynthesis.speak(utterance);
+  };
+  window.speechSynthesis.cancel();
+  speakNext();
+}
+
+$("briefing-stop-btn").onclick = stopBriefing;
 $("briefing-btn").onclick = async () => {
-  const b = await api("/api/briefing");
-  $("briefing").textContent = b.speech;
+  const trigger = $("briefing-btn");
+  trigger.disabled = true;
+  $("briefing-status").textContent = "Preparing Giovanni’s full briefing…";
+  try {
+    const b = await withTimeout(api("/api/briefing"), 12000, "Briefing request timed out");
+    const speech = String(b.speech || "");
+    $("briefing").textContent = speech || "No briefing text was returned.";
+    if (!speech) {
+      $("briefing-status").textContent = "Briefing is empty. Try again after LifeOS finishes syncing.";
+      return;
+    }
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+      $("briefing-status").textContent = "Speech is unavailable in this browser. The complete briefing is shown above.";
+      return;
+    }
+    speakFullBriefing(speech, trigger);
+  } catch (error) {
+    $("briefing-status").textContent = `Briefing unavailable: ${error.message}`;
+  } finally {
+    if (!activeBriefingUtterance) trigger.disabled = false;
+  }
 };
 
 // ---------- Body Ops ----------
@@ -240,38 +355,66 @@ async function loadWorkouts() {
 }
 
 async function loadPantry() {
-  const p = await api("/api/pantry");
   const pantryEl = $("pantry");
-  if (!p.items.length) {
-    pantryEl.textContent = p.grocy_configured
-      ? "Empty — hit Sync from Grocy."
-      : "Empty. Set GROCY_URL + GROCY_API_KEY on the lifeos container to sync.";
-  } else {
+  pantryEl.textContent = "Loading inventory…";
+  try {
+    const [p, g] = await Promise.all([api("/api/pantry"), api("/api/pantry/grocery-suggestions")]);
     pantryEl.replaceChildren();
-    p.items.forEach((item) => {
+    if (!p.items.length) {
+      pantryEl.appendChild(el("div", "empty-state", p.grocy_configured
+        ? "Inventory empty · add an item or sync Grocy"
+        : "Inventory empty · local items can be added now; Grocy is not configured"));
+    } else {
+      p.items.forEach((item) => {
+        const line = document.createElement("div");
+        line.className = "inventory-row";
+        const identity = el("span", "", item.name);
+        identity.appendChild(el("small", "muted", `${item.qty} ${item.unit || "units"} · ${item.protein_g_per_serving || 0}g protein/serving`));
+        const remove = el("button", "secondary", "Remove");
+        remove.onclick = async () => {
+          remove.disabled = true;
+          try {
+            await api(`/api/pantry/items/${item.id}`, "DELETE");
+            $("pantry-status").textContent = `${item.name} removed from local inventory.`;
+            loadPantry();
+          } catch (error) { $("pantry-status").textContent = error.message; remove.disabled = false; }
+        };
+        line.append(identity, remove);
+        pantryEl.appendChild(line);
+      });
+    }
+    const grocery = $("grocery");
+    grocery.replaceChildren(el("div", "muted", `Avg ${g.avg_daily_protein_g}g/day vs ${g.target_g}g target`));
+    if (!g.suggestions.length) grocery.appendChild(el("div", "empty-state", "No grocery additions suggested"));
+    g.suggestions.forEach((suggestion) => {
       const line = document.createElement("div");
       line.className = "line";
-      line.append(el("span", "", item.name), el("span", "", `${item.qty} ${item.unit}`));
-      pantryEl.appendChild(line);
+      line.append(el("span", "", suggestion.name), el("span", "muted", `${suggestion.protein_g_per_serving}g/serving`));
+      grocery.appendChild(line);
     });
+  } catch (error) {
+    pantryEl.replaceChildren(el("div", "empty-state error-state", `Pantry unavailable · ${error.message}`));
   }
-  const g = await api("/api/pantry/grocery-suggestions");
-  const grocery = $("grocery");
-  grocery.replaceChildren(el("div", "muted", `Avg ${g.avg_daily_protein_g}g/day vs ${g.target_g}g target`));
-  g.suggestions.forEach((suggestion) => {
-    const line = document.createElement("div");
-    line.className = "line";
-    line.append(el("span", "", suggestion.name), el("span", "muted", `${suggestion.protein_g_per_serving}g/serving`));
-    grocery.appendChild(line);
-  });
 }
 
 async function loadBody() {
   loadWorkouts();
   loadPantry();
-  const s = await api("/api/body/summary");
+  const [s, readiness] = await Promise.all([api("/api/body/summary"), api("/api/body/scale/readiness").catch(() => null)]);
   const hist = s.weighins.map((w) => `${w.ts.slice(0, 10)}: ${w.weight_lb} lb`).join(" · ");
   $("weight-history").textContent = hist || "No weigh-ins yet.";
+  const scale = $("scale-readiness");
+  scale.replaceChildren();
+  if (!readiness) scale.textContent = "Scale bridge status unavailable. Manual weigh-ins remain available.";
+  else {
+    scale.className = `scale-readiness ${readiness.configured ? "is-configured" : "is-unconfigured"}`;
+    scale.append(
+      el("strong", "", readiness.configured ? "HEALTH BRIDGE CONFIGURED" : "HEALTH BRIDGE NOT CONFIGURED"),
+      el("span", "", "iHome app → Apple Health → Health Auto Export → LifeOS"),
+      el("small", "", readiness.latest ? `Latest synced reading: ${readiness.latest.weight_lb} lb · ${String(readiness.latest.ts).slice(0, 16)}` : "No synced reading yet. This is not a direct iHome integration."),
+      el("small", "", readiness.guidance)
+    );
+  }
   if (s.snack_suggestions.length) {
     $("snack-card").hidden = false;
     $("snacks").replaceChildren();
@@ -382,9 +525,35 @@ $("photo-btn").onclick = async () => {
 };
 
 $("pantry-sync-btn").onclick = async () => {
-  const r = await api("/api/pantry/sync", "POST");
-  if (r.message) $("pantry").textContent = r.message;
-  else loadPantry();
+  const button = $("pantry-sync-btn");
+  button.disabled = true;
+  $("pantry-status").textContent = "Syncing commissioned Grocy inventory…";
+  try {
+    const r = await api("/api/pantry/sync", "POST");
+    $("pantry-status").textContent = r.message || `${r.synced || 0} Grocy items synchronized.`;
+    if (r.ok) loadPantry();
+  } catch (error) { $("pantry-status").textContent = `Grocy sync failed: ${error.message}`; }
+  finally { button.disabled = false; }
+};
+
+$("pantry-add-btn").onclick = async () => {
+  const name = $("pantry-item").value.trim();
+  const qty = Number($("pantry-qty").value);
+  const protein = Number($("pantry-protein").value || 0);
+  if (!name || !Number.isFinite(qty) || qty < 0 || !Number.isFinite(protein) || protein < 0) {
+    $("pantry-status").textContent = "Enter an item name and non-negative quantity/protein values.";
+    return;
+  }
+  const button = $("pantry-add-btn");
+  button.disabled = true;
+  $("pantry-status").textContent = `Adding ${name}…`;
+  try {
+    await api("/api/pantry/items", "POST", { name, qty, unit: $("pantry-unit").value.trim(), protein_g_per_serving: protein });
+    $("pantry-status").textContent = `${name} saved to local pantry inventory.`;
+    $("pantry-item").value = ""; $("pantry-qty").value = "1"; $("pantry-unit").value = ""; $("pantry-protein").value = "";
+    loadPantry();
+  } catch (error) { $("pantry-status").textContent = `Pantry item not saved: ${error.message}`; }
+  finally { button.disabled = false; }
 };
 
 $("meal-btn").onclick = async () => {
@@ -398,8 +567,49 @@ $("meal-btn").onclick = async () => {
 };
 
 // ---------- Budget ----------
-async function loadBudget() {
-  const o = await api("/api/budget/overview");
+function money(value) {
+  return Number(value || 0).toLocaleString([], { style: "currency", currency: "USD" });
+}
+
+function countdown(days) {
+  const count = Number(days);
+  if (count === 0) return "TODAY";
+  return `${count} ${count === 1 ? "DAY" : "DAYS"}`;
+}
+
+function billPaid(bill, payday) {
+  const period = payday && payday.period;
+  const month = payday && String(payday.nominal_date || "").slice(0, 7);
+  return Boolean((bill.paid_period && (!period || bill.paid_period === period)) || (bill.paid_month && (!month || bill.paid_month === month)));
+}
+
+function assignedPaycheck(bill) {
+  const explicit = Number(bill.paycheck);
+  if (explicit === 1 || explicit === 2) return explicit;
+  return Number(bill.due_day) <= 14 ? 1 : 2;
+}
+
+async function loadBudgetData() {
+  const [o, allBills] = await Promise.all([api("/api/budget/overview"), api("/api/vault/bills")]);
+  const runway = $("paycheck-runway");
+  runway.replaceChildren();
+  const upcoming = [1, 2].map((number) => (o.paydays || []).find((payday) => Number(payday.paycheck) === number)).filter(Boolean);
+  if (!upcoming.length) runway.appendChild(el("div", "empty-state error-state", "Payday calendar unavailable"));
+  upcoming.forEach((payday) => {
+    const instrument = el("article", `paycheck-instrument paycheck-${payday.paycheck}`);
+    const head = el("div", "paycheck-head");
+    head.append(el("span", "paycheck-label", `${payday.label || `Paycheck ${payday.paycheck}`} · ${Number(payday.paycheck) === 1 ? "MONTH-END" : "15TH"}`), el("strong", "paycheck-countdown", countdown(payday.days_away)));
+    const date = new Date(`${payday.date}T12:00:00`);
+    const dateText = Number.isNaN(date.valueOf()) ? payday.date : date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    const stack = allBills.filter((bill) => assignedPaycheck(bill) === Number(payday.paycheck));
+    instrument.append(
+      head,
+      el("div", "paycheck-amount", money(payday.amount || 2064.24)),
+      el("div", "paycheck-date", `ARRIVES ${dateText.toUpperCase()}`),
+      el("div", "paycheck-funds", `${stack.length} BILL${stack.length === 1 ? "" : "S"} · ${money(stack.reduce((sum, bill) => sum + Number(bill.amount || 0), 0))} STACK`)
+    );
+    runway.appendChild(instrument);
+  });
   $("budget-period").textContent =
     `Paycheck #${o.period.paycheck} · ${o.period.month}`;
   $("sts-amount").textContent = `$${o.safe_to_spend.toFixed(2)}`;
@@ -424,24 +634,36 @@ async function loadBudget() {
   $("audit-badge").innerHTML = auditHtml;
 
   const bl = $("budget-bills");
-  bl.innerHTML = "";
-  o.bills.forEach((b) => {
-    const line = document.createElement("div");
-    line.className = "line";
-    line.innerHTML = `<span>${b.name} <span class="muted">(due ${b.due_day}${b.note ? " · " + b.note : ""})</span></span>
-      <span>$${b.amount.toFixed(2)}</span>`;
-    const btn = document.createElement("button");
-    btn.className = "secondary";
-    if (b.paid) {
-      line.innerHTML += '<span class="tag good">paid</span>';
-      btn.textContent = "Undo";
-      btn.onclick = async () => { await api(`/api/budget/bills/${b.id}/unpaid`, "POST"); loadBudget(); };
-    } else {
-      btn.textContent = "Paid";
-      btn.onclick = async () => { await api(`/api/budget/bills/${b.id}/paid`, "POST"); loadBudget(); };
-    }
-    line.appendChild(btn);
-    bl.appendChild(line);
+  bl.replaceChildren();
+  if (!allBills.length) bl.appendChild(el("div", "empty-state", "No bills configured"));
+  [1, 2].forEach((paycheck) => {
+    const bills = allBills.filter((bill) => assignedPaycheck(bill) === paycheck);
+    const stackPayday = upcoming.find((payday) => Number(payday.paycheck) === paycheck);
+    const stack = el("section", "bill-stack");
+    const stackHead = el("header", "bill-stack-head");
+    stackHead.append(el("strong", "", `PAYCHECK ${paycheck}`), el("span", "", `${bills.length} ITEMS · ${money(bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0))}`));
+    stack.appendChild(stackHead);
+    if (!bills.length) stack.appendChild(el("div", "empty-state", `No Paycheck ${paycheck} obligations`));
+    bills.sort((a, b) => Number(a.due_day) - Number(b.due_day)).forEach((bill) => {
+      const paid = billPaid(bill, stackPayday);
+      const row = el("div", `bill-row ${paid ? "is-paid" : ""}`);
+      const identity = el("span", "bill-identity", bill.name);
+      identity.appendChild(el("small", "", `DUE ${bill.due_day}${bill.note ? ` · ${bill.note}` : ""}`));
+      const amount = el("strong", "", money(bill.amount));
+      const action = el("button", "secondary", paid ? "Undo paid" : "Mark paid");
+      const rowStatus = el("span", "bill-row-status", "");
+      action.disabled = !stackPayday || !stackPayday.period;
+      if (action.disabled) action.title = "Paycheck period unavailable; refresh finance telemetry.";
+      action.onclick = async () => {
+        action.disabled = true;
+        const periodQuery = stackPayday && stackPayday.period ? `?period=${encodeURIComponent(stackPayday.period)}` : "";
+        try { await api(`/api/budget/bills/${bill.id}/${paid ? "unpaid" : "paid"}${periodQuery}`, "POST"); await loadFinance(); }
+        catch (error) { action.disabled = false; rowStatus.textContent = error.message; }
+      };
+      row.append(identity, amount, paid ? el("span", "tag good", "PAID") : el("span", "tag", "OPEN"), action, rowStatus);
+      stack.appendChild(row);
+    });
+    bl.appendChild(stack);
   });
 
   const acc = $("budget-accounts");
@@ -481,7 +703,7 @@ async function loadBudget() {
       add.textContent = `+$${(g.monthly / 2).toFixed(0)}`;
       add.onclick = async () => {
         await api(`/api/budget/funds/${g.id}/contribute`, "POST", { amount: g.monthly / 2 });
-        loadBudget();
+        loadFinance();
       };
       div.appendChild(add);
     }
@@ -502,7 +724,7 @@ async function loadBudget() {
     pay.textContent = `Pay $${d.installment.toFixed(0)}`;
     pay.onclick = async () => {
       await api(`/api/budget/debts/${d.id}/payment`, "POST", { amount: d.installment });
-      loadBudget();
+      loadFinance();
     };
     div.appendChild(pay);
     dl.appendChild(div);
@@ -533,6 +755,32 @@ async function loadBudget() {
       : "");
 }
 
+function renderFinanceLoadError(targetId, label, error) {
+  const target = $(targetId);
+  target.replaceChildren();
+  const state = el("div", "empty-state error-state");
+  state.appendChild(el("span", "", `${label} unavailable · ${error.message}`));
+  const retry = el("button", "secondary", "Retry");
+  retry.onclick = loadFinance;
+  state.appendChild(retry);
+  target.appendChild(state);
+}
+
+async function loadBudget() {
+  try {
+    await loadBudgetData();
+    return { ok: true, name: "payroll and budget" };
+  } catch (error) {
+    [
+      ["paycheck-runway", "Payday runway"], ["budget-breakdown", "Current allocation"],
+      ["budget-bills", "Bill stacks"], ["budget-accounts", "Account position"],
+      ["budget-funds", "Sinking buckets"], ["budget-debts", "Debt plan"],
+      ["budget-networth", "Net worth"], ["budget-forecast", "Cash-flow forecast"],
+    ].forEach(([id, label]) => renderFinanceLoadError(id, label, error));
+    return { ok: false, name: "payroll and budget", error };
+  }
+}
+
 async function dispatchWindfall(route) {
   const amount = parseFloat($("wf-amount").value);
   if (isNaN(amount) || amount <= 0) return;
@@ -542,7 +790,7 @@ async function dispatchWindfall(route) {
   if (r.to_buckets > 0) parts.push(`buckets +$${r.to_buckets.toFixed(2)}`);
   if (r.kept_in_onepay > 0) parts.push(`OnePay buffer +$${r.kept_in_onepay.toFixed(2)}`);
   $("wf-result").textContent = "Routed: " + parts.join(", ");
-  loadBudget();
+  loadFinance();
 }
 $("wf-debt").onclick = () => dispatchWindfall("debt");
 $("wf-split").onclick = () => dispatchWindfall("split");
@@ -553,11 +801,11 @@ $("bal-btn").onclick = async () => {
   if (isNaN(balance)) return;
   await api(`/api/vault/accounts/${$("bal-account").value}/balance`, "PUT", { balance });
   $("bal-amount").value = "";
-  loadBudget();
+  loadFinance();
 };
 
-// ---------- Vault Flow ----------
-async function loadVault() {
+// ---------- Consolidated Budget & Vault support ----------
+async function loadVaultData() {
   const accounts = await api("/api/vault/accounts");
   const acc = $("accounts");
   acc.replaceChildren();
@@ -573,23 +821,6 @@ async function loadVault() {
     const opt = document.createElement("option");
     opt.value = a.id; opt.textContent = a.name;
     sel.appendChild(opt);
-  });
-
-  const bills = await api("/api/vault/bills");
-  const bl = $("bills");
-  bl.replaceChildren();
-  if (!bills.length) bl.appendChild(el("div", "muted", "No bills yet."));
-  bills.forEach((b) => {
-    const line = document.createElement("div");
-    line.className = "line";
-    const name = el("span", "", b.name);
-    name.append(" ", el("span", "muted", `(due ${b.due_day})`));
-    line.append(name, el("span", "", `$${b.amount.toFixed(2)}`));
-    const paid = document.createElement("button");
-    paid.className = "secondary"; paid.textContent = "Paid";
-    paid.onclick = async () => { await api(`/api/vault/bills/${b.id}/paid`, "POST"); loadVault(); };
-    line.appendChild(paid);
-    bl.appendChild(line);
   });
 
   const goals = await api("/api/vault/goals");
@@ -656,6 +887,79 @@ async function loadVault() {
   }
 }
 
+async function loadVault() {
+  try {
+    await loadVaultData();
+    $("accounts-status").textContent = "";
+    $("accounts-status").className = "inline-status muted";
+    $("goals-status").textContent = "";
+    $("goals-status").className = "inline-status muted";
+    return { ok: true, name: "accounts and goals" };
+  } catch (error) {
+    $("accounts-status").textContent = `Deposit and reconciliation tools unavailable: ${error.message}`;
+    $("accounts-status").className = "inline-status error-state";
+    $("goals-status").textContent = `Goal controls unavailable: ${error.message}`;
+    $("goals-status").className = "inline-status error-state";
+    renderFinanceLoadError("plan", "Vault plan", error);
+    return { ok: false, name: "accounts and goals", error };
+  }
+}
+
+async function loadSpending() {
+  const list = $("spending-list");
+  list.textContent = "Loading recent entries…";
+  try {
+    const spending = await api("/api/vault/spending");
+    $("spending-week").textContent = money(spending.week_total);
+    $("spending-month").textContent = money(spending.month_total);
+    list.replaceChildren();
+    if (!spending.entries.length) {
+      list.appendChild(el("div", "empty-state", "No spending recorded in the last seven days"));
+      return { ok: true, name: "spending ledger" };
+    }
+    spending.entries.forEach((entry) => {
+      const row = el("div", "transaction-row");
+      const identity = el("span", "", entry.merchant || "Uncategorized spending");
+      identity.appendChild(el("small", "", String(entry.ts || "").replace("T", " ").slice(0, 16)));
+      row.append(identity, el("strong", "", money(entry.amount)));
+      list.appendChild(row);
+    });
+    return { ok: true, name: "spending ledger" };
+  } catch (error) {
+    renderFinanceLoadError("spending-list", "Spending ledger", error);
+    return { ok: false, name: "spending ledger", error };
+  }
+}
+
+async function loadFinance() {
+  $("finance-status").textContent = "Synchronizing finance telemetry…";
+  const results = await Promise.all([loadBudget(), loadVault(), loadSpending()]);
+  const failed = results.filter((result) => !result.ok);
+  $("finance-status").textContent = failed.length
+    ? `Degraded · retry the affected ${failed.map((item) => item.name).join(", ")} sections below.`
+    : "All finance ledgers synchronized.";
+  $("finance-status").className = `inline-status ${failed.length ? "error-state" : "muted"}`;
+}
+
+$("spending-btn").onclick = async () => {
+  const amount = Number($("spending-amount").value);
+  const merchant = $("spending-merchant").value.trim();
+  if (!Number.isFinite(amount) || amount <= 0 || !merchant) {
+    $("spending-status").textContent = "Enter a positive amount and a merchant or purpose.";
+    return;
+  }
+  const button = $("spending-btn");
+  button.disabled = true;
+  $("spending-status").textContent = `Recording ${money(amount)} for ${merchant}…`;
+  try {
+    await api("/api/vault/spending", "POST", { amount, merchant });
+    $("spending-amount").value = ""; $("spending-merchant").value = "";
+    $("spending-status").textContent = `${money(amount)} recorded in the LifeOS spending ledger.`;
+    await loadSpending();
+  } catch (error) { $("spending-status").textContent = `Spending was not recorded: ${error.message}`; }
+  finally { button.disabled = false; }
+};
+
 $("dep-btn").onclick = async () => {
   const amount = parseFloat($("dep-amount").value);
   if (!amount) return;
@@ -663,7 +967,7 @@ $("dep-btn").onclick = async () => {
     amount, account_id: parseInt($("dep-account").value, 10), source: "manual",
   });
   $("dep-amount").value = "";
-  loadVault();
+  loadFinance();
 };
 
 $("goal-btn").onclick = async () => {
@@ -673,7 +977,7 @@ $("goal-btn").onclick = async () => {
     name, target: parseFloat($("goal-target").value) || 0,
   });
   $("goal-name").value = ""; $("goal-target").value = "";
-  loadVault();
+  loadFinance();
 };
 
 $("goal-add-btn").onclick = async () => {
@@ -682,17 +986,28 @@ $("goal-add-btn").onclick = async () => {
   if (!name || !amount) return;
   await api("/api/vault/goals/contribute", "POST", { name, amount });
   $("goal-amount").value = "";
-  loadVault();
+  loadFinance();
 };
 
 $("bill-btn").onclick = async () => {
   const name = $("bill-name").value.trim();
   const amount = parseFloat($("bill-amount").value);
   const due_day = parseInt($("bill-day").value, 10);
-  if (!name || !amount || !due_day) return;
-  await api("/api/vault/bills", "POST", { name, amount, due_day });
-  $("bill-name").value = ""; $("bill-amount").value = ""; $("bill-day").value = "";
-  loadVault();
+  const paycheck = parseInt($("bill-paycheck").value, 10);
+  if (!name || !Number.isFinite(amount) || amount <= 0 || !Number.isInteger(due_day) || due_day < 1 || due_day > 31 || ![1, 2].includes(paycheck)) {
+    $("bill-status").textContent = "Enter a bill name, positive amount, valid due day, and paycheck stack.";
+    return;
+  }
+  const button = $("bill-btn");
+  button.disabled = true;
+  $("bill-status").textContent = `Adding ${name} to Paycheck ${paycheck}…`;
+  try {
+    await api("/api/vault/bills", "POST", { name, amount, due_day, paycheck });
+    $("bill-name").value = ""; $("bill-amount").value = ""; $("bill-day").value = ""; $("bill-paycheck").value = "1";
+    $("bill-status").textContent = `${name} assigned to Paycheck ${paycheck}.`;
+    await loadFinance();
+  } catch (error) { $("bill-status").textContent = `Bill was not added: ${error.message}`; }
+  finally { button.disabled = false; }
 };
 
 // ---------- Review + profiles ----------

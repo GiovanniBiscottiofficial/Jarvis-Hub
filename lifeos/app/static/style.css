@@ -568,3 +568,108 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   .hardware-item strong { font-size: .76rem; }
   .simulation-trigger { min-height: 52px; }
 }
+
+/* Budget & Vault: a single protected capital workspace. */
+main #budget.panel { max-width: 1480px; }
+body:has(#budget.active) main { max-width: 1540px; }
+.finance-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: start; }
+.paycheck-card { grid-column: span 8; border-color: rgba(74, 216, 245, .3) !important; }
+.spending-card { grid-column: span 4; border-color: rgba(77, 226, 151, .32) !important; }
+.runway-card { grid-column: span 4; }
+.bills-card { grid-column: span 8; }
+.accounts-card, .goals-card { grid-column: span 6; }
+.finance-grid > .card:not(.paycheck-card):not(.spending-card):not(.runway-card):not(.bills-card):not(.accounts-card):not(.goals-card) { grid-column: span 4; }
+.finance-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border-bottom: 1px solid rgba(65,196,226,.12); padding-bottom: 10px; }
+.finance-card-heading h2 { border: 0 !important; padding: 0 !important; margin: 5px 0 0 !important; }
+.finance-index, .finance-state { color: #587b8f; font: 600 .55rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .15em; }
+.finance-state { color: #5cdec6; text-align: right; }
+.card-note { color: #8499a9; font-size: .75rem; line-height: 1.45; margin: 11px 0; }
+.paycheck-runway { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 12px; background: rgba(63,205,236,.12); }
+.paycheck-instrument { position: relative; min-width: 0; min-height: 210px; padding: 19px 20px 17px; background: linear-gradient(145deg,#091a29,#050e18); border-left: 3px solid #48d6f5; overflow: hidden; }
+.paycheck-instrument::after { content: ""; position: absolute; width: 170px; height: 170px; right: -72px; bottom: -105px; border: 1px solid rgba(74,220,250,.18); border-radius: 50%; box-shadow: 0 0 0 18px rgba(74,220,250,.025),0 0 0 38px rgba(74,220,250,.02); }
+.paycheck-2 { border-left-color: #7d99f4; }
+.paycheck-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.paycheck-label { color: #8da9ba; font: 600 .62rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .14em; text-transform: uppercase; }
+.paycheck-countdown { color: #70e9ff; font: 650 clamp(1.2rem,2.2vw,2rem) ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .06em; text-align: right; }
+.paycheck-amount { color: #edf9fc; font: 300 clamp(2rem,4vw,3.6rem)/1 ui-monospace,SFMono-Regular,Consolas,monospace; margin: 34px 0 11px; letter-spacing: -.045em; }
+.paycheck-date,.paycheck-funds { color: #6e899b; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
+.paycheck-funds { color: #7eddb8; margin-top: 8px; }
+.spending-composer { display: grid; grid-template-columns: minmax(105px,.55fr) minmax(150px,1fr); gap: 8px; }
+.spending-composer label,.pantry-composer label { min-width: 0; color: #7790a3; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; text-transform: uppercase; }
+.spending-composer input,.pantry-composer input { display: block; width: 100%; margin-top: 6px; }
+.spending-composer button { grid-column: 1/-1; min-height: 50px; }
+.inline-status { min-height: 30px; padding: 8px 0 4px; line-height: 1.4; }
+.spending-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 6px; background: rgba(70,210,236,.1); }
+.spending-totals > div { min-height: 68px; padding: 11px; background: #081521; }
+.spending-totals span { display: block; color: #a9becb; font: .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; text-transform: uppercase; }
+.spending-totals strong { display: block; color: #76e5ae; font: 600 1.15rem ui-monospace,SFMono-Regular,Consolas,monospace; margin-top: 9px; }
+.transaction-list { max-height: 212px; overflow-y: auto; margin-top: 8px; }
+.transaction-row,.inventory-row { min-width: 0; min-height: 50px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 2px; border-bottom: 1px solid rgba(75,205,234,.09); }
+.transaction-row span,.inventory-row > span { min-width: 0; overflow-wrap: anywhere; color: #d8e7ee; }
+.transaction-row small,.inventory-row small,.scale-readiness small { display: block; color: #6e8596; font-size: .64rem; margin-top: 3px; }
+.transaction-row strong { color: #dceaf0; font-family: ui-monospace,SFMono-Regular,Consolas,monospace; }
+.bill-stacks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bill-stack { min-width: 0; border: 1px solid rgba(62,193,222,.13); background: rgba(2,10,18,.35); }
+.bill-stack-head { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(62,193,222,.14); }
+.bill-stack-head strong { color: #9ee9f8; font: 600 .65rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; }
+.bill-stack-head span { color: #668498; font: .56rem ui-monospace,SFMono-Regular,Consolas,monospace; text-align: right; }
+.bill-row { min-width: 0; display: grid; grid-template-columns: minmax(110px,1fr) auto auto auto; align-items: center; gap: 8px; min-height: 58px; padding: 7px 10px; border-bottom: 1px solid rgba(62,193,222,.07); }
+.bill-row:last-child { border-bottom: 0; }
+.bill-identity { min-width: 0; overflow-wrap: anywhere; color: #d9e7ed; }
+.bill-identity small { display: block; color: #668194; font: .56rem ui-monospace,SFMono-Regular,Consolas,monospace; margin-top: 3px; }
+.bill-row > strong { color: #c7d8e1; font-family: ui-monospace,SFMono-Regular,Consolas,monospace; }
+.bill-row.is-paid { opacity: .64; }
+.bill-row-status { grid-column: 1/-1; color: #f3a3a3; font-size: .68rem; }
+.subordinate-tools { margin-top: 13px; border-top: 1px solid rgba(65,196,226,.1); }
+.subordinate-tools summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; color: #6e93a8; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; text-transform: uppercase; }
+.vault-plan { margin-top: 14px; border-top: 1px solid rgba(65,196,226,.1); padding-top: 10px; }
+.briefing-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.briefing-controls .pill { margin-top: 10px; }
+.briefing-controls .secondary { min-height: 44px; }
+.pantry-composer { display: grid; grid-template-columns: 1.2fr .55fr .75fr .9fr auto; gap: 8px; align-items: end; }
+.pantry-composer button { min-height: 44px; white-space: nowrap; }
+.inventory-list { margin-top: 8px; }
+.scale-readiness { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); }
+.scale-readiness strong { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
+.scale-readiness span { color: #c4d8e0; font-size: .76rem; }
+.scale-readiness.is-configured { border-left-color: var(--good); }
+.scale-readiness.is-configured strong { color: var(--good); }
+.scale-readiness.is-unconfigured { border-left-color: var(--warn); }
+.scale-readiness.is-unconfigured strong { color: var(--warn); }
+.error-state { color: #f3a3a3; border-color: rgba(248,113,113,.3); }
+
+@media (max-width: 1050px) {
+  .paycheck-card,.spending-card,.runway-card,.bills-card,.accounts-card,.goals-card { grid-column: span 12; }
+  .finance-grid > .card:not(.paycheck-card):not(.spending-card):not(.runway-card):not(.bills-card):not(.accounts-card):not(.goals-card) { grid-column: span 6; }
+  .pantry-composer { grid-template-columns: 1fr 1fr; }
+  .pantry-composer button { grid-column: 1/-1; }
+}
+@media (max-width: 650px) {
+  .finance-grid { display: flex; flex-direction: column; }
+  .finance-grid > .card { width: 100%; }
+  .paycheck-runway,.bill-stacks { grid-template-columns: 1fr; }
+  .paycheck-instrument { min-height: 185px; }
+  .paycheck-countdown { font-size: 1.25rem; }
+  .paycheck-amount { font-size: 2.2rem; margin-top: 27px; }
+  .spending-composer,.pantry-composer { grid-template-columns: 1fr; }
+  .spending-composer button,.pantry-composer button { grid-column: auto; }
+  .bill-row { grid-template-columns: minmax(0,1fr) auto; }
+  .bill-row .tag,.bill-row button { min-height: 44px; }
+  .bill-row button { grid-column: 1/-1; width: 100%; }
+  .finance-card-heading { align-items: flex-start; }
+  .finance-state { max-width: 130px; }
+  .briefing-controls { grid-template-columns: 1fr; }
+  .briefing-controls .secondary { width: 100%; }
+}
+@media (min-width: 2200px) and (min-height: 1400px) {
+  body:has(#budget.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }
+  main #budget.panel { max-width: 2800px; }
+  .finance-grid { gap: 16px; }
+  .finance-grid .card { padding: 25px; }
+  .paycheck-instrument { min-height: 300px; padding: 28px 30px; }
+  .paycheck-amount { font-size: 4.4rem; margin-top: 54px; }
+  .paycheck-countdown { font-size: 2.35rem; }
+  .bill-row { min-height: 72px; }
+  .spending-composer button,.pantry-composer button { min-height: 56px; }
+  .transaction-row,.inventory-row { min-height: 62px; }
+}

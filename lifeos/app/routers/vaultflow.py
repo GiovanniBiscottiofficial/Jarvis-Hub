@@ -23,6 +23,7 @@ class BillIn(BaseModel):
     name: str
     amount: float
     due_day: int
+    paycheck: int = 1
     account_id: int | None = None
 
 
@@ -110,7 +111,14 @@ def set_balance(account_id: int, body: BalanceIn):
 @router.get("/bills")
 def list_bills():
     with conn() as c:
-        return [dict(r) for r in c.execute("SELECT * FROM bills").fetchall()]
+        return [
+            dict(r)
+            for r in c.execute(
+                "SELECT * FROM bills ORDER BY"
+                " CASE paycheck WHEN 1 THEN 0 WHEN 2 THEN 1 ELSE 2 END,"
+                " due_day, name"
+            ).fetchall()
+        ]
 
 
 @router.post("/bills")
@@ -122,6 +130,8 @@ def add_bill(body: BillIn):
         raise HTTPException(400, "bill amount must be positive")
     if not 1 <= body.due_day <= 31:
         raise HTTPException(400, "due day must be between 1 and 31")
+    if body.paycheck not in (1, 2):
+        raise HTTPException(400, "paycheck must be 1 or 2")
     with conn() as c:
         if body.account_id is not None:
             account = c.execute(
@@ -130,8 +140,9 @@ def add_bill(body: BillIn):
             if account is None:
                 raise HTTPException(404, "account not found")
         c.execute(
-            "INSERT INTO bills(name,amount,due_day,account_id) VALUES(?,?,?,?)",
-            (name, body.amount, body.due_day, body.account_id),
+            "INSERT INTO bills(name,amount,due_day,paycheck,account_id)"
+            " VALUES(?,?,?,?,?)",
+            (name, body.amount, body.due_day, body.paycheck, body.account_id),
         )
         return {"ok": True}
 
