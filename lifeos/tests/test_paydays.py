@@ -1,6 +1,12 @@
 from datetime import date
 
-from app.paydays import NET_PAY, actual_payday, payday_schedule, upcoming_period
+from app.paydays import (
+    NET_PAY,
+    actual_payday,
+    payday_schedule,
+    scheduled_bill_due_date,
+    upcoming_period,
+)
 
 
 def test_saturday_fifteenth_moves_to_friday_then_two_days_early():
@@ -32,6 +38,27 @@ def test_coming_pay_is_paycheck_one_and_amount_is_exact():
 def test_upcoming_period_follows_payroll_order():
     assert upcoming_period(date(2026, 8, 23))["key"] == "2026-08-P1"
     assert upcoming_period(date(2026, 8, 29))["key"] == "2026-09-P2"
+
+
+def test_bill_due_dates_begin_with_the_upcoming_first_pay_cycle():
+    today = date(2026, 8, 23)
+    assert scheduled_bill_due_date(1, 1, today) == date(2026, 9, 1)
+    assert scheduled_bill_due_date(2, 15, today) == date(2026, 9, 15)
+
+
+def test_vault_plan_never_infers_overdue_from_day_of_month(fresh_db, monkeypatch):
+    from app.routers import vaultflow
+
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 8, 23)
+
+    monkeypatch.setattr(vaultflow, "date", FixedDate)
+    result = vaultflow.plan()
+    assert result["cycle_starts"] == "2026-08-28"
+    assert all("overdue" not in item["status"] for item in result["recommendations"])
+    assert all(item["due_date"] >= "2026-09-01" for item in result["recommendations"])
 
 
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):

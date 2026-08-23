@@ -326,7 +326,8 @@ SEED_BILLS = [
     ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
     ("Klarna Statement", 61.77, 1, 1, "statement paydown", 1),
     ("Old Spectrum Paydown", 39.00, 15, 2, "$39 per check", 0),
-    ("Duke Energy (past due)", 65.50, 15, 2, "queued — $65.50/paycheck planned", 0),
+    ("Duke Energy Payment Plan", 65.50, 15, 2,
+     "$65.50 installment · 4 scheduled payments", 0),
 ]
 
 # name, total, remaining, installment, cadence, note
@@ -447,6 +448,11 @@ def init_db() -> None:
         c.execute(
             "UPDATE settings SET value='1754.60'"
             " WHERE key='split_onepay' AND value='1754.61'"
+        )
+        c.execute(
+            "UPDATE bills SET name='Duke Energy Payment Plan',"
+            " note='$65.50 installment · 4 scheduled payments'"
+            " WHERE name='Duke Energy (past due)'"
         )
         for m in SEED_MEALS:
             c.execute(

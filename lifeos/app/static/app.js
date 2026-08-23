@@ -952,9 +952,9 @@ async function loadVaultData() {
   const pl = $("plan");
   pl.replaceChildren();
   [
-    ["Available", `$${plan.total_available.toFixed(2)}`, false],
-    ["Unpaid bills", `$${plan.unpaid_bills_total.toFixed(2)}`, false],
-    ["Leftover after bills", `$${plan.leftover_after_bills.toFixed(2)}`, true],
+    ["Available now", `$${plan.total_available.toFixed(2)}`, false],
+    ["Scheduled from Paycheck 1", `$${plan.unpaid_bills_total.toFixed(2)}`, false],
+    ["Current cash before first pay", `$${plan.leftover_after_bills.toFixed(2)}`, true],
   ].forEach(([label, value, strong]) => {
     const line = el("div", "line");
     line.append(el(strong ? "strong" : "span", "", label), el(strong ? "strong" : "span", "", value));
@@ -963,9 +963,10 @@ async function loadVaultData() {
   plan.recommendations.forEach((r) => {
     const line = document.createElement("div");
     line.className = "line";
-    const cls = r.recommend === "pay now" ? "good" : "warn";
+    const cls = "good";
     const bill = el("span", "", r.bill);
-    bill.append(" ", el("span", "muted", `(due ${r.due_day}, ${r.status})`));
+    const dueDate = r.due_date ? new Date(`${r.due_date}T12:00:00`).toLocaleDateString([], { month: "short", day: "numeric" }) : r.due_day;
+    bill.append(" ", el("span", "muted", `(due ${dueDate}, ${r.status})`));
     line.append(bill, el("span", `tag ${cls}`, r.recommend));
     pl.appendChild(line);
   });

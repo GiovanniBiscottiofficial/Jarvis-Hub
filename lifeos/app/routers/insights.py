@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from ..db import active_profile, conn, get_setting
-from ..paydays import payday_schedule
+from ..paydays import payday_schedule, scheduled_bill_due_date
 from ..suggestions import suggest_meals
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
@@ -57,7 +57,7 @@ def _weather() -> dict | None:
 
 
 def _bills_due_soon(c, days: int = 7) -> list[dict]:
-    today_day = date.today().day
+    today = date.today()
     month = date.today().strftime("%Y-%m")
     bills = [
         dict(r)
@@ -66,10 +66,9 @@ def _bills_due_soon(c, days: int = 7) -> list[dict]:
             (month,),
         ).fetchall()
     ]
-    return [
-        b for b in bills
-        if b["due_day"] < today_day or b["due_day"] <= today_day + days
-    ]
+    return [b for b in bills if 0 <= (
+        scheduled_bill_due_date(b["paycheck"] or 1, b["due_day"], today) - today
+    ).days <= days]
 
 
 @router.get("/briefing")

@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from .db import active_profile, conn, get_setting
+from .paydays import scheduled_bill_due_date
 
 
 ACTION_REGISTRY: dict[str, dict[str, Any]] = {
@@ -304,7 +305,7 @@ def lifeos_snapshot() -> dict[str, Any]:
         bills = [
             dict(row)
             for row in c.execute(
-                "SELECT id,name,amount,due_day FROM bills"
+                "SELECT id,name,amount,due_day,paycheck FROM bills"
                 " WHERE paid_month IS NULL OR paid_month<>? ORDER BY due_day",
                 (month,),
             ).fetchall()
@@ -320,9 +321,9 @@ def lifeos_snapshot() -> dict[str, Any]:
     water = water_row["glasses"] if water_row else 0
     vitamins = bool(vitamins_row and vitamins_row["taken"])
     water_target = int(get_setting("water_target_glasses") or 8)
-    due_soon = [
-        bill for bill in bills if bill["due_day"] < today.day or bill["due_day"] <= today.day + 7
-    ]
+    due_soon = [bill for bill in bills if 0 <= (
+        scheduled_bill_due_date(bill["paycheck"] or 1, bill["due_day"], today) - today
+    ).days <= 7]
     bills_total = sum(bill["amount"] for bill in due_soon)
     priorities: list[dict[str, str]] = []
     if not vitamins:

@@ -72,3 +72,26 @@ def upcoming_period(today: date | None = None) -> dict:
         "payday": payday["date"],
         "days_away": payday["days_away"],
     }
+
+
+def scheduled_bill_due_date(
+    paycheck: int, due_day: int, today: date | None = None
+) -> date:
+    """Return the due date funded by the next matching paycheck.
+
+    A month-end Paycheck 1 funds bills due in the following month. Paycheck 2
+    funds bills due in its nominal month. This avoids treating a recurring
+    bill due on the 1st as overdue before the upcoming month-end check arrives.
+    """
+    today = today or date.today()
+    payday = next(
+        item
+        for item in payday_schedule(today, 6)
+        if item["paycheck"] == paycheck
+    )
+    nominal = date.fromisoformat(payday["nominal_date"])
+    year, month = nominal.year, nominal.month
+    if paycheck == 1:
+        year, month = _month_offset(nominal, 1)
+    day = min(max(1, int(due_day)), monthrange(year, month)[1])
+    return date(year, month, day)

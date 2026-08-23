@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..db import conn
+from ..paydays import payday_schedule, scheduled_bill_due_date
 
 router = APIRouter(prefix="/api/vault", tags=["vaultflow"])
 
@@ -321,7 +322,12 @@ def contribute_goal(body: GoalContributeIn):
 def plan():
     """Line deposits/balances against unpaid bills; recommend payments;
     show leftover discretionary balance."""
-    today_day = date.today().day
+    today = date.today()
+    paydays = payday_schedule(today, 4)
+    next_by_paycheck = {
+        paycheck: next(item for item in paydays if item["paycheck"] == paycheck)
+        for paycheck in (1, 2)
+    }
     with conn() as c:
         accounts = [dict(r) for r in c.execute("SELECT * FROM accounts").fetchall()]
         bills = [
@@ -332,22 +338,23 @@ def plan():
             ).fetchall()
         ]
         total_available = sum(a["balance"] for a in accounts)
-        bills.sort(key=lambda b: (b["due_day"] < today_day, b["due_day"]))
-        recommendations, remaining = [], total_available
+        bills.sort(key=lambda b: (b["paycheck"], b["due_day"], b["name"]))
+        recommendations = []
         for b in bills:
-            status = "due soon" if b["due_day"] >= today_day else "overdue"
-            afford = remaining >= b["amount"]
+            paycheck = b["paycheck"] if b["paycheck"] in (1, 2) else 1
+            payday = next_by_paycheck[paycheck]
+            due_date = scheduled_bill_due_date(paycheck, b["due_day"], today)
             recommendations.append(
                 {
                     "bill": b["name"],
                     "amount": b["amount"],
                     "due_day": b["due_day"],
-                    "status": status,
-                    "recommend": "pay now" if afford else "hold — insufficient funds",
+                    "due_date": due_date.isoformat(),
+                    "status": f"scheduled from Paycheck {paycheck}",
+                    "recommend": f"Paycheck {paycheck}",
+                    "payday": payday["date"],
                 }
             )
-            if afford:
-                remaining -= b["amount"]
         food_nudges = [
             dict(r)
             for r in c.execute(
@@ -359,7 +366,8 @@ def plan():
             "total_available": total_available,
             "unpaid_bills_total": sum(b["amount"] for b in bills),
             "recommendations": recommendations,
-            "leftover_after_bills": remaining,
+            "leftover_after_bills": total_available,
+            "cycle_starts": next_by_paycheck[1]["date"],
             "food_nudges": food_nudges,
             "note": "Vaultborne accounts stay separate from discretionary flows.",
         }
