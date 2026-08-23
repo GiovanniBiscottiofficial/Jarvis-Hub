@@ -192,10 +192,13 @@ services:
       - GESTURE_DEVTOOLS_URL=http://127.0.0.1:9222
       - LIFEOS_URL=http://127.0.0.1:8090
       - LIFEOS_API_TOKEN=${LIFEOS_API_TOKEN:-}
+      - GESTURE_STATUS_PATH=/run/jarvis/perception.json
       - GESTURE_PRESENCE_CLEAR_S=${GESTURE_PRESENCE_CLEAR_S:-8}
       - GESTURE_PRESENCE_HEARTBEAT_S=${GESTURE_PRESENCE_HEARTBEAT_S:-300}
       # Tuning: GESTURE_COOLDOWN_S, GESTURE_X_TRAVEL, GESTURE_Y_TRAVEL,
       # GESTURE_WINDOW_S, and GESTURE_STATUS_INTERVAL_S
+    volumes:
+      - /run/jarvis:/run/jarvis
 
 volumes:
   plex-config:

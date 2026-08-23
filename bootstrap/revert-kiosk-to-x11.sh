@@ -27,6 +27,7 @@ import json
 import os
 import signal
 import subprocess
+import time
 import tkinter as tk
 import urllib.request
 from urllib.parse import quote
@@ -37,6 +38,14 @@ DASH_URL = os.environ.get(
     "http://localhost:8123/jarvis-hub/wall-plus?kiosk",
 )
 SETTINGS_URL = "http://localhost:8123/config"
+STATUS_PATH = "/run/jarvis/perception.json"
+STATUS_STALE_S = 45
+GESTURE_FEEDBACK_S = 3
+BG = "#0b1220"
+CYAN = "#38e1ff"
+GREEN = "#58f58a"
+GRAY = "#66758a"
+AMBER = "#ffbd59"
 
 
 def request(path, method="GET"):
@@ -83,13 +92,85 @@ def toggle_keyboard():
 root = tk.Tk()
 root.overrideredirect(True)
 root.attributes("-topmost", True)
-root.configure(bg="#0b1220")
+root.configure(bg=BG)
 style = {
-    "bg": "#0b1220", "fg": "#38e1ff", "activebackground": "#122036",
-    "activeforeground": "#38e1ff", "bd": 0, "highlightthickness": 0,
+    "bg": BG, "fg": CYAN, "activebackground": "#122036",
+    "activeforeground": CYAN, "bd": 0, "highlightthickness": 0,
     "font": ("DejaVu Sans", 30), "width": 2, "height": 1,
 }
 tk.Button(root, text="\u2302", command=go_home, **style).pack(side="left")
+
+# Fixed-footprint hardware annunciator: it is display-only and never takes focus.
+status_panel = tk.Frame(root, width=252, height=68, bg=BG, takefocus=0)
+status_panel.pack(side="left")
+status_panel.pack_propagate(False)
+eye = tk.Canvas(
+    status_panel, width=54, height=54, bg=BG, bd=0,
+    highlightthickness=0, takefocus=0,
+)
+eye.pack(side="left", padx=(8, 2), pady=7)
+eye.create_oval(8, 8, 46, 46, outline=GRAY, width=3, tags="ring")
+eye.create_oval(21, 21, 33, 33, fill=GRAY, outline="", tags="pupil")
+eye.create_line(27, 2, 27, 13, fill=GRAY, width=2, tags="crosshair")
+eye.create_line(27, 41, 27, 52, fill=GRAY, width=2, tags="crosshair")
+eye.create_line(2, 27, 13, 27, fill=GRAY, width=2, tags="crosshair")
+eye.create_line(41, 27, 52, 27, fill=GRAY, width=2, tags="crosshair")
+status_copy = tk.Label(
+    status_panel, text="EYES OFF", width=16, anchor="w", bg=BG, fg=GRAY,
+    font=("DejaVu Sans Mono", 12, "bold"), bd=0, takefocus=0,
+)
+status_copy.pack(side="left", fill="both", expand=True, padx=(5, 8))
+
+
+def show_perception(color, copy):
+    eye.itemconfigure("ring", outline=color)
+    eye.itemconfigure("pupil", fill=color)
+    eye.itemconfigure("crosshair", fill=color)
+    status_copy.configure(text=copy[:16], fg=color)
+
+
+def poll_perception():
+    color, copy = GRAY, "EYES OFF"
+    try:
+        with open(STATUS_PATH, encoding="utf-8") as status_file:
+            status = json.load(status_file)
+        if not isinstance(status, dict):
+            raise TypeError("status is not an object")
+        updated_at = status.get("updated_at")
+        if isinstance(updated_at, bool) or not isinstance(updated_at, (int, float)):
+            raise ValueError("missing update timestamp")
+        age = time.time() - updated_at
+        if age > STATUS_STALE_S or age < -5:
+            color, copy = AMBER, "EYES STALE"
+        elif status.get("camera_available") is not True:
+            color, copy = GRAY, "EYES OFF"
+        else:
+            gesture_at = status.get("gesture_timestamp")
+            gesture = status.get("last_gesture")
+            app = status.get("app")
+            if (
+                not isinstance(gesture_at, bool)
+                and isinstance(gesture_at, (int, float))
+                and -1 <= time.time() - gesture_at <= GESTURE_FEEDBACK_S
+                and gesture in {"up", "down", "forward", "back"}
+                and app in {"youtube", "spotify", "plex", "browser"}
+            ):
+                action = {"forward": "NEXT", "back": "BACK"}.get(
+                    gesture, gesture.upper()
+                )
+                color, copy = GREEN, f"{action} \u00b7 {app.upper()}"
+            elif status.get("hand_present") is True:
+                color, copy = GREEN, "HAND SEEN"
+            else:
+                color, copy = CYAN, "EYES ONLINE"
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        color, copy = AMBER, "EYES DATA"
+    show_perception(color, copy)
+    root.after(500, poll_perception)
+
+
 keys_style = {
     **style,
     "font": ("DejaVu Sans", 16, "bold"),
@@ -107,6 +188,7 @@ def stay_visible():
     root.after(3000, stay_visible)
 
 
+poll_perception()
 stay_visible()
 root.mainloop()
 PYEOF

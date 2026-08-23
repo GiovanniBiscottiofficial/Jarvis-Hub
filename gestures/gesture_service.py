@@ -29,6 +29,9 @@ import websocket
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "rtsp://127.0.0.1:8556/x1_webcam")
 DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
+PERCEPTION_STATUS_PATH = os.environ.get(
+    "GESTURE_STATUS_PATH", "/run/jarvis/perception.json"
+)
 # Fraction of frame the hand must travel to count as a swipe
 X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.20"))
 Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.18"))
@@ -39,6 +42,33 @@ LIFEOS_URL = os.environ.get("LIFEOS_URL", "http://127.0.0.1:8090").rstrip("/")
 LIFEOS_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "")
 PRESENCE_CLEAR_S = float(os.environ.get("GESTURE_PRESENCE_CLEAR_S", "8"))
 PRESENCE_HEARTBEAT_S = float(os.environ.get("GESTURE_PRESENCE_HEARTBEAT_S", "300"))
+
+_perception_status = {
+    "camera_available": False,
+    "hand_present": False,
+    "last_gesture": None,
+    "app": None,
+    "gesture_timestamp": None,
+    "updated_at": None,
+}
+
+
+def write_perception_status(**changes: object) -> None:
+    """Atomically expose local metadata for the kiosk toolbar; never frames."""
+    _perception_status.update(changes)
+    _perception_status["updated_at"] = time.time()
+    status_dir = os.path.dirname(PERCEPTION_STATUS_PATH)
+    temporary_path = f"{PERCEPTION_STATUS_PATH}.tmp"
+    try:
+        os.makedirs(status_dir, mode=0o755, exist_ok=True)
+        with open(temporary_path, "w", encoding="utf-8") as status_file:
+            json.dump(_perception_status, status_file, separators=(",", ":"))
+            status_file.flush()
+            os.fsync(status_file.fileno())
+        os.replace(temporary_path, PERCEPTION_STATUS_PATH)
+        os.chmod(PERCEPTION_STATUS_PATH, 0o644)
+    except OSError as error:
+        print(f"perception status write failed: {error}", flush=True)
 
 
 def publish_event(
@@ -227,10 +257,14 @@ def main() -> None:
     presence_state: bool | None = None
     last_presence_seen = 0.0
     last_presence_publish = 0.0
+    status_hand_visible = False
+    last_status_hand_seen = 0.0
+    write_perception_status(camera_available=False, hand_present=False)
     while True:
         ok, frame = cap.read()
         if not ok:
             print("video source dropped; reconnecting...", flush=True)
+            write_perception_status(camera_available=False, hand_present=False)
             if camera_online:
                 publish_event(
                     "vision.camera_health",
@@ -240,6 +274,7 @@ def main() -> None:
                     attributes={"reason": "stream_unavailable"},
                 )
                 camera_online = False
+                status_hand_visible = False
             if presence_state:
                 publish_event(
                     "vision.presence_changed",
@@ -264,6 +299,7 @@ def main() -> None:
                 attributes={"stream": "x1_webcam"},
             )
             camera_online = True
+            write_perception_status(camera_available=True, hand_present=False)
         skip = (skip + 1) % 2
         frames += 1
         if skip:  # every other frame is plenty and halves CPU
@@ -281,7 +317,25 @@ def main() -> None:
             frames = 0
             hand_frames = 0
             last_status = now
+            write_perception_status(
+                camera_available=camera_online,
+                hand_present=status_hand_visible,
+            )
         hand_visible = bool(result.multi_hand_landmarks)
+        if hand_visible:
+            last_status_hand_seen = now
+        if hand_visible and not status_hand_visible:
+            status_hand_visible = True
+            write_perception_status(
+                camera_available=camera_online,
+                hand_present=True,
+            )
+        elif status_hand_visible and now - last_status_hand_seen >= 0.75:
+            status_hand_visible = False
+            write_perception_status(
+                camera_available=camera_online,
+                hand_present=False,
+            )
         if hand_visible:
             last_presence_seen = now
             if presence_state is not True or now - last_presence_publish >= PRESENCE_HEARTBEAT_S:
@@ -340,6 +394,13 @@ def main() -> None:
         if gesture:
             try:
                 app = fire(gesture)
+                write_perception_status(
+                    camera_available=True,
+                    hand_present=True,
+                    last_gesture=gesture,
+                    app=app,
+                    gesture_timestamp=time.time(),
+                )
                 publish_event(
                     "vision.gesture",
                     attributes={

@@ -475,6 +475,13 @@ bash bootstrap/setup-satellite.sh
   The Command Center shows the current room signal, confidence, last gesture, and
   privacy policy. Metadata expires after 24 hours by default. Tune that with
   `LIFEOS_VISION_EVENT_RETENTION_HOURS` in `.env`.
+- **Always-visible eyes indicator**: the bottom-left kiosk toolbar reads the local
+  `/run/jarvis/perception.json` metadata channel, so camera and gesture feedback is
+  visible inside every Chromium app. Gray means unavailable, cyan means camera online,
+  green means a hand or successful gesture was seen, and amber means stale or malformed
+  telemetry. Gesture feedback such as `NEXT · PLEX` appears briefly, then returns to
+  the live camera state. The channel contains no images and does not require a LifeOS
+  token.
 
 After pulling this upgrade, rebuild both services so the perception publisher and
 new Command Center are active:

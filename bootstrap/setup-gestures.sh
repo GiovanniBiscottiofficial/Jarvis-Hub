@@ -26,6 +26,9 @@ if [[ ! -f .env ]] || ! grep -Eq '^LIFEOS_API_TOKEN=.+$' .env; then
   echo "   Gestures will control the kiosk, but perception will not appear in LifeOS." >&2
 fi
 
+echo "==> Preparing the local kiosk perception channel..."
+sudo install -d -m 0755 /run/jarvis
+
 echo "==> Building + starting the gesture container (first build ~2 min)..."
 docker compose --profile gestures up -d --build
 sleep 4
@@ -41,6 +44,7 @@ echo "   swipe FORWARD -> skip / next video   (hand to YOUR right)"
 echo "   swipe BACK    -> back to last screen (hand to YOUR left)"
 echo ""
 echo " Watch it react:   docker logs -f gestures"
+echo " Kiosk indicator:   /run/jarvis/perception.json"
 echo " Gesture actions use Chromium DevTools on loopback port 9222;"
 echo " no Wayland/X11 socket or privileged input access is required."
 echo " LifeOS receives presence/gesture metadata only. Camera frames stay local"
