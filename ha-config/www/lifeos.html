@@ -36,13 +36,24 @@
 
   function currentAccessToken() {
     const hass = locateHass();
-    const auth = hass && hass.auth;
-    return auth && (
-      (auth.data && auth.data.access_token) ||
-      auth.accessToken ||
-      (auth.currentSession && auth.currentSession.access_token) ||
-      (auth._token && auth._token.access_token)
-    );
+    if (!hass) return null;
+    // Home Assistant exposes the websocket Auth object through connection
+    // options in current releases.  Keep the direct path for older frontends.
+    const candidates = [
+      hass.auth,
+      hass.connection && hass.connection.options && hass.connection.options.auth,
+      hass.connection && hass.connection.auth,
+    ].filter(Boolean);
+    for (const auth of candidates) {
+      const token = (
+        (auth.data && auth.data.access_token) ||
+        auth.accessToken ||
+        (auth.currentSession && auth.currentSession.access_token) ||
+        (auth._token && auth._token.access_token)
+      );
+      if (token) return token;
+    }
+    return null;
   }
 
   function sendHomeAssistantSession() {

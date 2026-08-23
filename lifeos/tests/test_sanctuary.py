@@ -66,6 +66,7 @@ def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
     assert "lifeos-auth-request" in wrapper
     assert "lifeos-ha-auth" in app_script
     assert "lifeos-ha-auth" in wrapper
+    assert "hass.connection && hass.connection.options" in wrapper
     assert "window.prompt" not in app_script
     assert "localStorage" not in wrapper
     assert "sessionStorage" not in wrapper
