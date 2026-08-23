@@ -72,6 +72,10 @@ def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
     assert "lifeos-ha-auth" in panel
     assert "hass.connection && hass.connection.options" in wrapper
     assert "hass.connection && hass.connection.options" in panel
+    assert "auth.refreshAccessToken()" in wrapper
+    assert "auth.refreshAccessToken()" in panel
+    assert "auth.expired" in wrapper
+    assert "auth.expired" in panel
     assert "window.prompt" not in app_script
     assert "localStorage" not in wrapper
     assert "sessionStorage" not in wrapper

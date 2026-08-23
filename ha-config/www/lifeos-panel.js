@@ -4,6 +4,7 @@ class JarvisLifeOSPanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._hass = null;
     this._retryTimer = null;
+    this._refreshPromise = null;
     this._appOrigin = `${window.location.protocol}//${window.location.hostname}:8090`;
 
     const style = document.createElement("style");
@@ -46,7 +47,7 @@ class JarvisLifeOSPanel extends HTMLElement {
     this._stopRetrying();
   }
 
-  _accessToken() {
+  async _accessToken() {
     const hass = this._hass;
     if (!hass) return null;
     const candidates = [
@@ -55,6 +56,13 @@ class JarvisLifeOSPanel extends HTMLElement {
       hass.connection && hass.connection.auth,
     ].filter(Boolean);
     for (const auth of candidates) {
+      if (auth.expired && typeof auth.refreshAccessToken === "function") {
+        if (!this._refreshPromise) {
+          this._refreshPromise = Promise.resolve(auth.refreshAccessToken())
+            .finally(() => { this._refreshPromise = null; });
+        }
+        await this._refreshPromise;
+      }
       const token = (
         (auth.data && auth.data.access_token) ||
         auth.accessToken ||
@@ -66,8 +74,9 @@ class JarvisLifeOSPanel extends HTMLElement {
     return null;
   }
 
-  _sendSession() {
-    const token = this._accessToken();
+  async _sendSession() {
+    let token = null;
+    try { token = await this._accessToken(); } catch (_) { return false; }
     if (!token || !this._frame.contentWindow) return false;
     this._frame.contentWindow.postMessage({ type: "lifeos-ha-auth", token }, this._appOrigin);
     return true;

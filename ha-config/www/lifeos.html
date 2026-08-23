@@ -20,6 +20,7 @@
   const app = document.getElementById('app');
   const appOrigin = location.protocol + '//' + location.hostname + ':8090';
   let retryTimer = null;
+  let refreshPromise = null;
 
   function locateHass() {
     let context = window;
@@ -34,7 +35,7 @@
     return null;
   }
 
-  function currentAccessToken() {
+  async function currentAccessToken() {
     const hass = locateHass();
     if (!hass) return null;
     // Home Assistant exposes the websocket Auth object through connection
@@ -45,6 +46,13 @@
       hass.connection && hass.connection.auth,
     ].filter(Boolean);
     for (const auth of candidates) {
+      if (auth.expired && typeof auth.refreshAccessToken === 'function') {
+        if (!refreshPromise) {
+          refreshPromise = Promise.resolve(auth.refreshAccessToken())
+            .finally(() => { refreshPromise = null; });
+        }
+        await refreshPromise;
+      }
       const token = (
         (auth.data && auth.data.access_token) ||
         auth.accessToken ||
@@ -56,8 +64,9 @@
     return null;
   }
 
-  function sendHomeAssistantSession() {
-    const token = currentAccessToken();
+  async function sendHomeAssistantSession() {
+    let token = null;
+    try { token = await currentAccessToken(); } catch (_) { return false; }
     if (token) {
       app.contentWindow.postMessage({ type: 'lifeos-ha-auth', token }, appOrigin);
       if (retryTimer) {
