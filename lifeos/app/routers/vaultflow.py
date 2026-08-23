@@ -26,6 +26,7 @@ class BillIn(BaseModel):
     due_day: int
     paycheck: int = 1
     start_period: str | None = None
+    one_time: bool = False
     account_id: int | None = None
 
 
@@ -140,11 +141,11 @@ def add_bill(body: BillIn):
             if account is None:
                 raise HTTPException(404, "account not found")
         c.execute(
-            "INSERT INTO bills(name,amount,due_day,paycheck,account_id,start_period)"
-            " VALUES(?,?,?,?,?,?)",
+            "INSERT INTO bills(name,amount,due_day,paycheck,account_id,start_period,one_time)"
+            " VALUES(?,?,?,?,?,?,?)",
             (
                 name, body.amount, body.due_day, body.paycheck,
-                body.account_id, body.start_period,
+                body.account_id, body.start_period, int(body.one_time),
             ),
         )
         return {"ok": True}

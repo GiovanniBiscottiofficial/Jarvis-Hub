@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS bills (
     paycheck INTEGER NOT NULL DEFAULT 0,
     paid_period TEXT,
     start_period TEXT,
+    one_time INTEGER NOT NULL DEFAULT 0,
     note TEXT NOT NULL DEFAULT ''
 );
 
@@ -387,6 +388,7 @@ def _migrate(c: sqlite3.Connection) -> None:
             ("paycheck", "INTEGER NOT NULL DEFAULT 0"),
             ("paid_period", "TEXT"),
             ("start_period", "TEXT"),
+            ("one_time", "INTEGER NOT NULL DEFAULT 0"),
             ("note", "TEXT NOT NULL DEFAULT ''"),
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
@@ -548,7 +550,7 @@ def init_db() -> None:
                 (first_period,),
             )
             c.execute(
-                "UPDATE bills SET amount=90,due_day=28,paycheck=1,start_period=?,"
+                "UPDATE bills SET amount=90,due_day=28,paycheck=1,start_period=?,one_time=1,"
                 " note='one-time water turn-on · first upcoming pay'"
                 " WHERE name='Apartment Water Activation'",
                 (first_period,),
@@ -559,6 +561,18 @@ def init_db() -> None:
             c.execute(
                 "INSERT INTO settings(key,value)"
                 " VALUES('finance_commissioning_v2',?)",
+                (date.today().isoformat(),),
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='finance_commissioning_v4'"
+        ).fetchone() is None:
+            c.execute(
+                "UPDATE bills SET one_time=1"
+                " WHERE name='Apartment Water Activation'"
+            )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('finance_commissioning_v4',?)",
                 (date.today().isoformat(),),
             )
         if c.execute("SELECT COUNT(*) AS n FROM debts").fetchone()["n"] == 0:

@@ -60,8 +60,9 @@ def _period_bills(c, period: dict) -> list[dict]:
         for r in c.execute(
             "SELECT * FROM bills WHERE paycheck=?"
             " AND (start_period IS NULL OR start_period='' OR start_period<=?)"
+            " AND (one_time=0 OR start_period=?)"
             " ORDER BY due_day, name",
-            (period["paycheck"], period["key"]),
+            (period["paycheck"], period["key"], period["key"]),
         ).fetchall()
     ]
     for b in bills:
@@ -293,8 +294,9 @@ def forecast(periods: int = 6):
             n = payday["paycheck"]
             row = c.execute(
                 "SELECT COALESCE(SUM(amount),0) s FROM bills WHERE paycheck=?"
-                " AND (start_period IS NULL OR start_period='' OR start_period<=?)",
-                (n, payday["period"]),
+                " AND (start_period IS NULL OR start_period='' OR start_period<=?)"
+                " AND (one_time=0 OR start_period=?)",
+                (n, payday["period"], payday["period"]),
             ).fetchone()
             bills = row["s"]
             surplus = round(onepay_in - bills - fund_half, 2)

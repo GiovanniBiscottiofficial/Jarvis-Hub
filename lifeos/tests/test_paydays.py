@@ -83,6 +83,7 @@ def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
     assert bills["Spectrum Internet"]["due_day"] == 28
     assert bills["Spectrum Internet"]["paycheck"] == 1
     assert bills["Apartment Water Activation"]["amount"] == 90
+    assert bills["Apartment Water Activation"]["one_time"] == 1
     assert bills["Apartment Water Activation"]["start_period"] == schedule[0]["period"]
     for name in ("Klarna Statement", "Duke Energy Payment Plan", "Old Spectrum Paydown"):
         assert bills[name]["start_period"] == schedule[2]["period"]

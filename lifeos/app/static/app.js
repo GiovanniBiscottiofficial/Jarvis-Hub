@@ -689,6 +689,7 @@ function assignedPaycheck(bill) {
 
 function billAppliesToPayday(bill, payday) {
   if (assignedPaycheck(bill) !== Number(payday.paycheck)) return false;
+  if (bill.one_time && bill.start_period !== payday.period) return false;
   return !bill.start_period || String(payday.period) >= String(bill.start_period);
 }
 
