@@ -629,13 +629,24 @@ body:has(#budget.active) main { max-width: 1540px; }
 .pantry-composer { display: grid; grid-template-columns: 1.2fr .55fr .75fr .9fr auto; gap: 8px; align-items: end; }
 .pantry-composer button { min-height: 44px; white-space: nowrap; }
 .inventory-list { margin-top: 8px; }
-.scale-readiness { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); }
-.scale-readiness strong { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
-.scale-readiness span { color: #c4d8e0; font-size: .76rem; }
+.scale-readiness { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; margin-top: 12px; padding: 13px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); overflow-wrap: anywhere; }
+.scale-readiness .scale-state { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
+.scale-readiness .scale-route { color: #c4d8e0; font-size: .76rem; }
 .scale-readiness.is-configured { border-left-color: var(--good); }
-.scale-readiness.is-configured strong { color: var(--good); }
+.scale-readiness.is-configured .scale-state { color: var(--good); }
+.scale-readiness.is-awaiting { border-left-color: var(--warn); background: rgba(247,185,85,.07); }
+.scale-readiness.is-awaiting .scale-state { color: var(--warn); }
 .scale-readiness.is-unconfigured { border-left-color: var(--warn); }
-.scale-readiness.is-unconfigured strong { color: var(--warn); }
+.scale-readiness.is-unconfigured .scale-state { color: var(--warn); }
+.scale-readiness.is-unavailable { border-left-color: #71899a; }
+.scale-reading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 3px; padding: 10px 0; border-block: 1px solid rgba(90,206,232,.12); }
+.scale-reading .scale-weight { color: #eafcff; font: 500 1.35rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: -.03em; }
+.scale-reading .scale-reading-meta { color: #7895a6; font-size: .66rem; text-align: right; }
+.scale-fallback { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 10px; margin-top: 5px; padding-top: 9px; border-top: 1px solid rgba(90,206,232,.09); }
+.scale-fallback .scale-fallback-label { color: #6e8a9c; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; }
+.scale-fallback > strong { color: #8da0ad; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; }
+.scale-fallback > strong.is-ready { color: var(--good); }
+.scale-fallback small { grid-column: 1/-1; margin: 0; }
 .error-state { color: #f3a3a3; border-color: rgba(248,113,113,.3); }
 
 @media (max-width: 1050px) {

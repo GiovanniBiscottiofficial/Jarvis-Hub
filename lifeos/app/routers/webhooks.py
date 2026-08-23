@@ -92,9 +92,9 @@ async def health_auto_export(request: Request):
                     units = (m.get("units") or "").lower()
                     weight = qty * KG_TO_LB if units == "kg" else qty
                     c.execute(
-                        "INSERT INTO weighins(ts,weight_lb,profile_id)"
-                        " VALUES(?,?,?)",
-                        (day + " 08:00:00", weight, pid),
+                        "INSERT INTO weighins(ts,weight_lb,profile_id,source)"
+                        " VALUES(?,?,?,?)",
+                        (day + " 08:00:00", weight, pid, "health_auto_export"),
                     )
                     imported["weighins"] += 1
     return {"ok": True, "imported": imported, "event_id": event_id}

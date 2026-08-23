@@ -1,5 +1,37 @@
 # Health routines: medication + hydration.
 
+# Any scale that Home Assistant exposes as a standards-compliant weight sensor
+# (including supported Tuya body-fat scales) flows straight into Body Ops.
+- id: jarvis_home_assistant_scale_sync
+  alias: "Health: sync Home Assistant weight sensor to LifeOS"
+  mode: queued
+  max: 5
+  trigger:
+    - platform: event
+      event_type: state_changed
+  condition:
+    - condition: template
+      value_template: >-
+        {% set new = trigger.event.data.new_state %}
+        {{ new is not none
+           and new.entity_id.startswith('sensor.')
+           and new.attributes.device_class == 'weight'
+           and new.state not in ['unknown', 'unavailable', 'none', '']
+           and (new.state | float(0)) > 0 }}
+  action:
+    - variables:
+        raw_weight: "{{ trigger.event.data.new_state.state | float }}"
+        weight_unit: >-
+          {{ trigger.event.data.new_state.attributes.unit_of_measurement | default('lb') | lower }}
+        weight_lb: >-
+          {{ (raw_weight * 2.2046226218) | round(2)
+             if weight_unit in ['kg', 'kilogram', 'kilograms']
+             else raw_weight | round(2) }}
+    - service: rest_command.lifeos_weighin
+      data:
+        pounds: "{{ weight_lb }}"
+        source: "home_assistant:{{ trigger.event.data.entity_id }}"
+
 # Morning vitamins reminder — 7:00 on purpose: Giovanni is out the door by
 # 7:35, so the nudge lands before he leaves. Silenced for the day by saying
 # "I took my vitamins" (logs to LifeOS), flipping input_boolean.medication_taken,

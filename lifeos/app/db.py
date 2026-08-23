@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS weighins (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     weight_lb REAL NOT NULL,
-    profile_id INTEGER NOT NULL DEFAULT 1
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL DEFAULT 'manual'
 );
 
 CREATE TABLE IF NOT EXISTS steps (
@@ -383,6 +384,7 @@ def _migrate(c: sqlite3.Connection) -> None:
             ("note", "TEXT NOT NULL DEFAULT ''"),
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
+        "weighins": [("source", "TEXT NOT NULL DEFAULT 'manual'")],
     }
     for table, adds in simple_adds.items():
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}

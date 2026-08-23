@@ -89,7 +89,7 @@ rest_command:
     headers:
       Authorization: !secret lifeos_api_authorization
     content_type: application/json
-    payload: '{"weight_lb": {{ pounds }}}'
+    payload: '{"weight_lb": {{ pounds }}, "source": {{ source | default("home_assistant") | tojson }}}'
   lifeos_set_steps:
     url: http://localhost:8090/api/body/steps
     method: POST

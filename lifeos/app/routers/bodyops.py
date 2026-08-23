@@ -36,6 +36,7 @@ class OverrideIn(BaseModel):
 
 class WeighIn(BaseModel):
     weight_lb: float
+    source: str = "manual"
 
 
 class StepsIn(BaseModel):
@@ -150,22 +151,26 @@ def get_suggestions(max_minutes: int = 15):
 
 @router.get("/scale/readiness")
 def scale_readiness():
-    """Report the supported smart-scale bridge and latest imported weight."""
+    """Report Tuya-first scale readiness and the latest imported weight."""
     with conn() as c:
         profile = active_profile(c)
         latest = c.execute(
-            "SELECT ts, weight_lb FROM weighins WHERE profile_id=?"
+            "SELECT ts, weight_lb, source FROM weighins WHERE profile_id=?"
             " ORDER BY ts DESC LIMIT 1",
             (profile["id"],),
         ).fetchone()
     return {
-        "configured": bool(os.environ.get("LIFEOS_HEALTH_WEBHOOK_SECRET", "").strip()),
-        "bridge": "Apple Health → Health Auto Export → LifeOS",
-        "direct_ihome_integration": False,
+        "configured": bool(latest and str(latest["source"]).startswith("home_assistant:")),
+        "automation_ready": True,
+        "bridge": "Tuya scale → Home Assistant weight sensor → LifeOS",
+        "fallback_bridge": "Apple Health → Health Auto Export → LifeOS",
+        "health_fallback_configured": bool(
+            os.environ.get("LIFEOS_HEALTH_WEBHOOK_SECRET", "").strip()
+        ),
         "guidance": (
-            "If the iHome scale app exposes Weight in Apple Health, allow that access, "
-            "then enable Weight in Health Auto Export. LifeOS will update Body Ops "
-            "automatically. Otherwise keep using the manual weight entry."
+            "Add the scale to the same Smart Life or Tuya Smart account used by Home "
+            "Assistant, then reload the Tuya integration. As soon as Home Assistant "
+            "creates a weight sensor, Jarvis will record new readings automatically."
         ),
         "latest": dict(latest) if latest else None,
     }
@@ -229,16 +234,29 @@ def add_override(body: OverrideIn):
 
 @router.post("/weighin")
 def add_weighin(body: WeighIn):
+    if not 20 <= body.weight_lb <= 1000:
+        raise HTTPException(400, "weight must be between 20 and 1000 lb")
+    source = body.source.strip()[:120] or "manual"
     with conn() as c:
         pid = active_profile(c)["id"]
         prev = c.execute(
-            "SELECT weight_lb FROM weighins WHERE profile_id=?"
+            "SELECT ts, weight_lb, source FROM weighins WHERE profile_id=?"
             " ORDER BY ts DESC LIMIT 1",
             (pid,),
         ).fetchone()
+        if (
+            source.startswith("home_assistant:")
+            and prev
+            and abs(prev["weight_lb"] - body.weight_lb) < 0.01
+            and c.execute(
+                "SELECT datetime(?) >= datetime('now','localtime','-5 minutes') recent",
+                (prev["ts"],),
+            ).fetchone()["recent"]
+        ):
+            return {"ok": True, "duplicate": True, "message": "Reading already logged."}
         c.execute(
-            "INSERT INTO weighins(weight_lb,profile_id) VALUES(?,?)",
-            (body.weight_lb, pid),
+            "INSERT INTO weighins(weight_lb,profile_id,source) VALUES(?,?,?)",
+            (body.weight_lb, pid, source),
         )
         msg = "Logged."
         if prev:
@@ -562,7 +580,7 @@ def body_summary():
         weights = [
             dict(r)
             for r in c.execute(
-                "SELECT ts, weight_lb FROM weighins WHERE profile_id=?"
+                "SELECT ts, weight_lb, source FROM weighins WHERE profile_id=?"
                 " ORDER BY ts DESC LIMIT 14",
                 (pid,),
             ).fetchall()

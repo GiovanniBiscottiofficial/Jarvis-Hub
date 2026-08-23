@@ -397,24 +397,100 @@ async function loadPantry() {
   }
 }
 
+function friendlyScaleSource(source) {
+  const value = String(source || "").replace(/^home_assistant:/, "").replace(/^sensor\./, "").replaceAll("_", " ").trim();
+  return value ? value.replace(/\b\w/g, (letter) => letter.toUpperCase()).replace(/\bIhome\b/g, "iHome") : "Home Assistant weight sensor";
+}
+
+function formatScaleTimestamp(value) {
+  const timestamp = new Date(value);
+  if (!value || Number.isNaN(timestamp.valueOf())) return String(value || "Time unavailable");
+  return timestamp.toLocaleString([], {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+}
+
+function scaleReadinessView(readiness, error) {
+  if (!readiness) {
+    return {
+      state: "unavailable",
+      title: "SCALE TELEMETRY UNAVAILABLE",
+      route: "Manual weight entry remains available.",
+      detail: error ? `Readiness endpoint unavailable · ${error.message}` : "Readiness endpoint unavailable.",
+      latest: null,
+      fallback: null,
+    };
+  }
+
+  const state = readiness.configured ? "configured" : (readiness.automation_ready ? "awaiting" : "unconfigured");
+  const title = readiness.configured
+    ? "TUYA SCALE CONNECTED"
+    : (readiness.automation_ready ? "TUYA AUTOMATION READY · AWAITING WEIGHT SENSOR" : "TUYA SCALE NOT CONFIGURED");
+  const weight = readiness.latest ? Number(readiness.latest.weight_lb) : NaN;
+
+  return {
+    state,
+    title,
+    route: readiness.bridge || "Tuya scale → Home Assistant weight sensor → LifeOS",
+    detail: state === "awaiting"
+      ? "Make sure the scale appears in the same Smart Life/Tuya account, then reload the Tuya integration in Home Assistant."
+      : (readiness.guidance || "Waiting for scale readiness guidance."),
+    latest: readiness.latest ? {
+      weight: Number.isFinite(weight) ? `${weight.toFixed(1)} lb` : "Weight unavailable",
+      timestamp: formatScaleTimestamp(readiness.latest.ts),
+      source: friendlyScaleSource(readiness.latest.source),
+    } : null,
+    fallback: {
+      route: readiness.fallback_bridge || "Apple Health → Health Auto Export → LifeOS",
+      configured: Boolean(readiness.health_fallback_configured),
+    },
+  };
+}
+
+function renderScaleReadiness(readiness, error) {
+  const scale = $("scale-readiness");
+  const view = scaleReadinessView(readiness, error);
+  scale.className = `scale-readiness is-${view.state}`;
+  scale.replaceChildren(
+    el("strong", "scale-state", view.title),
+    el("span", "scale-route", view.route),
+  );
+
+  if (view.latest) {
+    const reading = el("div", "scale-reading");
+    reading.append(
+      el("strong", "scale-weight", view.latest.weight),
+      el("span", "scale-reading-meta", `${view.latest.timestamp} · ${view.latest.source}`),
+    );
+    scale.appendChild(reading);
+  } else if (view.state !== "unavailable") {
+    scale.appendChild(el("small", "scale-no-reading", "No Home Assistant weight reading received yet."));
+  }
+
+  scale.appendChild(el("small", "scale-guidance", view.detail));
+  if (view.fallback) {
+    const fallback = el("div", "scale-fallback");
+    fallback.append(
+      el("span", "scale-fallback-label", "APPLE HEALTH FALLBACK"),
+      el("strong", view.fallback.configured ? "is-ready" : "", view.fallback.configured ? "CONFIGURED" : "NOT CONFIGURED"),
+      el("small", "", view.fallback.route),
+    );
+    scale.appendChild(fallback);
+  }
+}
+
 async function loadBody() {
   loadWorkouts();
   loadPantry();
-  const [s, readiness] = await Promise.all([api("/api/body/summary"), api("/api/body/scale/readiness").catch(() => null)]);
+  const [s, readinessResult] = await Promise.all([
+    api("/api/body/summary"),
+    api("/api/body/scale/readiness")
+      .then((value) => ({ value, error: null }))
+      .catch((error) => ({ value: null, error })),
+  ]);
   const hist = s.weighins.map((w) => `${w.ts.slice(0, 10)}: ${w.weight_lb} lb`).join(" · ");
   $("weight-history").textContent = hist || "No weigh-ins yet.";
-  const scale = $("scale-readiness");
-  scale.replaceChildren();
-  if (!readiness) scale.textContent = "Scale bridge status unavailable. Manual weigh-ins remain available.";
-  else {
-    scale.className = `scale-readiness ${readiness.configured ? "is-configured" : "is-unconfigured"}`;
-    scale.append(
-      el("strong", "", readiness.configured ? "HEALTH BRIDGE CONFIGURED" : "HEALTH BRIDGE NOT CONFIGURED"),
-      el("span", "", "iHome app → Apple Health → Health Auto Export → LifeOS"),
-      el("small", "", readiness.latest ? `Latest synced reading: ${readiness.latest.weight_lb} lb · ${String(readiness.latest.ts).slice(0, 16)}` : "No synced reading yet. This is not a direct iHome integration."),
-      el("small", "", readiness.guidance)
-    );
-  }
+  renderScaleReadiness(readinessResult.value, readinessResult.error);
   if (s.snack_suggestions.length) {
     $("snack-card").hidden = false;
     $("snacks").replaceChildren();
