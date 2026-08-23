@@ -1,34 +1,15 @@
-# "Jarvis, movie night" — the full cinema experience: Fire TV on Netflix,
-# main lights out, a low red ambient glow, a Jarvis send-off, then even
-# the glow fades once the movie's rolling.
-# EDIT: entity IDs (light.ambient = any lamp/LED strip behind the TV).
+# "Jarvis, movie night" — lighting remains independently functional even
+# before a media player is commissioned.
 movie_night:
   alias: "Movie night"
   sequence:
-    - service: media_player.turn_on
-      target:
-        entity_id: media_player.fire_tv
-    - service: media_player.select_source
-      target:
-        entity_id: media_player.fire_tv
+    - service: script.sanctuary_activate_mode
       data:
-        source: "Netflix"
-    - service: light.turn_off
-      target:
-        entity_id: light.living_room
-    - service: light.turn_on
-      target:
-        entity_id: light.ambient
-      data:
-        rgb_color: [180, 0, 20]
-        brightness: 20
+        mode: Cinema
+        source: voice
+        reason: Movie night requested
     - service: script.jarvis_say
       data:
-        message: "Enjoy the movie. I've set the ambiance."
-    # Fade the last glow out once you're settled in
-    - delay: "00:00:30"
-    - service: light.turn_off
-      target:
-        entity_id: light.ambient
-      data:
-        transition: 10
+        message: >-
+          Cinema lighting is ready. Media control will appear automatically
+          when a player is commissioned.

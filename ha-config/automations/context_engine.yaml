@@ -13,7 +13,8 @@
         {% set entity = trigger.event.data.entity_id | default('') %}
         {{ entity.split('.')[0] in
            ['person', 'binary_sensor', 'cover', 'lock', 'alarm_control_panel',
-            'input_boolean', 'media_player', 'light', 'climate', 'vacuum'] }}
+            'input_boolean', 'input_select', 'input_number', 'media_player',
+            'light', 'climate', 'vacuum', 'camera', 'switch'] }}
   action:
     - service: rest_command.lifeos_context_event
       data:
@@ -26,8 +27,10 @@
           {{ trigger.event.data.old_state.state
              if trigger.event.data.old_state else none }}
         attributes: >-
-          {{ trigger.event.data.new_state.attributes
-             if trigger.event.data.new_state else {} }}
+          {% set entity = trigger.event.data.entity_id | default('') %}
+          {% set base = trigger.event.data.new_state.attributes
+             if trigger.event.data.new_state else {} %}
+          {{ dict(base, sanctuary_area_id=area_id(entity)) }}
 
 - alias: "Jarvis: nightly security review"
   id: jarvis_nightly_security_review

@@ -1,0 +1,401 @@
+# Sanctuary OS v1.2 — authoritative schedules and state transitions.
+# All scheduled lifestyle behavior is gated by
+# input_boolean.sanctuary_automations_enabled (OFF by default) and Manual Hold.
+
+- id: sanctuary_weekday_morning
+  alias: "Sanctuary: calibrated weekday morning sequence"
+  mode: queued
+  trigger:
+    - platform: time
+      at: "06:30:00"
+      id: sunrise_start
+    - platform: time
+      at: "06:40:00"
+      id: sunrise_progress
+    - platform: time
+      at: "06:50:00"
+      id: sunrise_activation
+    - platform: time
+      at: "07:00:00"
+      id: full_wake
+    - platform: time
+      at: "07:20:00"
+      id: launch_window
+  condition:
+    - condition: time
+      weekday: [mon, tue, wed, thu, fri]
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_calibration_ready
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+    - condition: state
+      entity_id: person.giovanni_biscotti
+      state: home
+  action:
+    - choose:
+        - conditions: "{{ trigger.id == 'sunrise_start' }}"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id:
+                  - input_boolean.sleep_mode
+                  - input_boolean.quiet_mode
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Morning
+                source: schedule
+                reason: Weekday Sunrise started at 6:30 AM
+        - conditions: "{{ trigger.id == 'sunrise_progress' }}"
+          sequence:
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bedroom
+                brightness: 32
+                kelvin: 2900
+                transition: 120
+        - conditions: "{{ trigger.id == 'sunrise_activation' }}"
+          sequence:
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bathroom
+                brightness: 60
+                kelvin: 3400
+                transition: 90
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: office
+                brightness: 28
+                kelvin: 3300
+                transition: 90
+        - conditions: "{{ trigger.id == 'full_wake' }}"
+          sequence:
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bedroom
+                brightness: 55
+                kelvin: 3500
+                transition: 90
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bathroom
+                brightness: >-
+                  {{ states('input_number.sanctuary_bathroom_grooming_brightness') | int(80) }}
+                kelvin: 3600
+                transition: 60
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: office
+                brightness: >-
+                  {{ states('input_number.sanctuary_office_work_brightness') | int(40) }}
+                kelvin: 3600
+                transition: 60
+        - conditions: "{{ trigger.id == 'launch_window' }}"
+          sequence:
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: hallway
+                brightness: 30
+                kelvin: 3200
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: dinning_room
+                brightness: 35
+                kelvin: 3200
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: entry
+                brightness: 40
+                kelvin: 3200
+
+- id: sanctuary_presence_transition
+  alias: "Sanctuary: presence-driven arrival and departure"
+  mode: restart
+  trigger:
+    - platform: state
+      entity_id: person.giovanni_biscotti
+      from: not_home
+      to: home
+      id: arrival
+    - platform: state
+      entity_id: person.giovanni_biscotti
+      from: home
+      to: not_home
+      id: departure
+  condition:
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+  action:
+    - choose:
+        - conditions: "{{ trigger.id == 'arrival' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Welcome
+                source: schedule
+                reason: Confirmed person transition from away to home
+        - conditions: "{{ trigger.id == 'departure' }}"
+          sequence:
+            - delay: "00:10:00"
+            - condition: state
+              entity_id: person.giovanni_biscotti
+              state: not_home
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Away
+                source: schedule
+                reason: Confirmed person remained away after the departure grace period
+
+- id: sanctuary_evening_sequence
+  alias: "Sanctuary: evening care and sleep sequence"
+  mode: queued
+  trigger:
+    - platform: time
+      at: "20:00:00"
+      id: shower
+    - platform: time
+      at: "21:00:00"
+      id: shower_to_wind_down
+    - platform: time
+      at: "21:30:00"
+      id: stronger_wind_down
+    - platform: time
+      at: "22:00:00"
+      id: thunderstorm
+    - platform: time
+      at: "22:30:00"
+      id: deep_sleep
+  condition:
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_calibration_ready
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: state
+      entity_id: person.giovanni_biscotti
+      state: home
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+  action:
+    - choose:
+        - conditions: >-
+            {{ trigger.id == 'shower'
+               and not is_state('binary_sensor.x1_recording', 'on')
+               and not is_state('input_boolean.guest_mode', 'on')
+               and states('input_select.sanctuary_mode') not in
+                 ['Away', 'Guest', 'Date Night', 'Vacation'] }}
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Shower
+                source: schedule
+                reason: Daily 8 PM personal-care transition
+        - conditions: "{{ trigger.id == 'shower_to_wind_down' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Wind Down
+                source: schedule
+                reason: Shower Time completed; stimulation reduction started
+        - conditions: "{{ trigger.id == 'stronger_wind_down' }}"
+          sequence:
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bedroom
+                brightness: 6
+                hue: 220
+                saturation: 42
+                transition: 120
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: hallway
+                brightness: >-
+                  {{ states('input_number.sanctuary_hallway_night_brightness') | int(1) }}
+                kelvin: 2200
+                transition: 120
+        - conditions: "{{ trigger.id == 'thunderstorm' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Thunderstorm
+                source: schedule
+                reason: Protected nightly Thunderstorm state began
+        - conditions: "{{ trigger.id == 'deep_sleep' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Thunderstorm
+                source: schedule
+                reason: Protected 10:30 PM Sleep state confirmed
+            - service: input_boolean.turn_on
+              target:
+                entity_id:
+                  - input_boolean.sleep_mode
+                  - input_boolean.quiet_mode
+            - event: sanctuary_sleep_protected
+              event_data:
+                mode: Thunderstorm
+                lighting_persists_until: weekday_sunrise
+
+- id: sanctuary_sunday_cleaning
+  alias: "Sanctuary: Sunday cleaning readiness"
+  mode: single
+  trigger:
+    - platform: time
+      at: "12:00:00"
+  condition:
+    - condition: time
+      weekday: [sun]
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: state
+      entity_id: person.giovanni_biscotti
+      state: home
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: "off"
+  action:
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: Cleaning
+        source: schedule
+        reason: Sunday whole-home reset window started
+
+- id: sanctuary_media_context
+  alias: "Sanctuary: available media enters Cinema without disturbing Sleep"
+  mode: restart
+  trigger:
+    - platform: event
+      event_type: state_changed
+  condition:
+    - condition: template
+      value_template: >-
+        {% set entity = trigger.event.data.entity_id | default('') %}
+        {% set new = trigger.event.data.new_state %}
+        {{ entity.startswith('media_player.') and new is not none
+           and new.state == 'playing' }}
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: template
+      value_template: >-
+        {{ states('input_select.sanctuary_mode') not in
+           ['Thunderstorm', 'Manual Hold', 'Date Night', 'Guest'] }}
+  action:
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: Cinema
+        source: schedule
+        reason: An available media player started playback
+
+- id: sanctuary_dynamic_emergency
+  alias: "Sanctuary: safety sensors override atmosphere"
+  mode: single
+  trigger:
+    - platform: event
+      event_type: state_changed
+  condition:
+    - condition: template
+      value_template: >-
+        {% set new = trigger.event.data.new_state %}
+        {{ new is not none and new.state == 'on'
+           and new.attributes.device_class in ['smoke', 'carbon_monoxide', 'gas', 'moisture'] }}
+  action:
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: Emergency
+        source: safety
+        reason: >-
+          {{ trigger.event.data.entity_id }} reported
+          {{ trigger.event.data.new_state.attributes.device_class }}
+
+- id: sanctuary_context_events
+  alias: "Sanctuary: write mode decisions to LifeOS context"
+  mode: queued
+  max: 20
+  trigger:
+    - platform: event
+      event_type: sanctuary_mode_changed
+      id: changed
+    - platform: event
+      event_type: sanctuary_mode_skipped
+      id: skipped
+    - platform: event
+      event_type: sanctuary_calibration_tested
+      id: calibration
+    - platform: event
+      event_type: sanctuary_sleep_protected
+      id: sleep
+  action:
+    - service: rest_command.lifeos_context_event
+      data:
+        event_type: "sanctuary.{{ trigger.id }}"
+        entity_id: input_select.sanctuary_mode
+        state: >-
+          {{ trigger.event.data.mode
+             | default(states('input_select.sanctuary_mode')) }}
+        previous_state: "{{ trigger.event.data.previous_mode | default(none) }}"
+        attributes: "{{ trigger.event.data }}"
+
+- id: sanctuary_context_inventory_sync
+  alias: "Sanctuary: synchronize spatial inventory with LifeOS"
+  mode: restart
+  trigger:
+    - platform: homeassistant
+      event: start
+    - platform: time_pattern
+      hours: "/6"
+  action:
+    - variables:
+        sanctuary_helpers:
+          - input_select.sanctuary_mode
+          - input_boolean.sanctuary_automations_enabled
+          - input_boolean.sanctuary_calibration_ready
+          - input_boolean.sanctuary_manual_hold
+          - input_number.sanctuary_bedroom_sleep_brightness
+          - input_number.sanctuary_bathroom_night_brightness
+          - input_number.sanctuary_hallway_night_brightness
+          - input_number.sanctuary_dining_area_night_brightness
+          - input_number.sanctuary_entry_night_brightness
+          - input_number.sanctuary_welcome_brightness
+          - input_number.sanctuary_office_work_brightness
+          - input_number.sanctuary_bathroom_grooming_brightness
+        inventory_entities: >-
+          {{ (states.light | map(attribute='entity_id') | list)
+             + sanctuary_helpers }}
+    - repeat:
+        for_each: "{{ inventory_entities }}"
+        sequence:
+          - service: rest_command.lifeos_context_event
+            data:
+              event_type: inventory.snapshot
+              entity_id: "{{ repeat.item }}"
+              state: "{{ states(repeat.item) }}"
+              previous_state: null
+              attributes: >-
+                {{ dict(
+                  state_attr(repeat.item, 'friendly_name') is not none
+                    and {'friendly_name': state_attr(repeat.item, 'friendly_name')}
+                    or {},
+                  sanctuary_area_id=area_id(repeat.item)
+                ) }}

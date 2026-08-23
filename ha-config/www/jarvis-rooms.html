@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Jarvis Spatial Directory</title>
+  <title>Sanctuary Spatial Command Center</title>
   <style>
     @font-face { font-family: Orbitron; src: url('/local/fonts/orbitron.woff2') format('woff2'); font-display: swap; }
     @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
@@ -11,131 +11,280 @@
     @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
     :root {
       color-scheme: dark;
-      --ink: #030910;
-      --panel: #07121c;
-      --panel-hi: #0a1a27;
-      --line: #173342;
-      --cyan: #43d9ee;
-      --cyan-muted: #286a78;
-      --steel: #87a4b2;
-      --text: #e3f5fa;
-      --green: #65dc9d;
-      --amber: #e4ad53;
-      --red: #e26767;
+      --ink: #0b0a09;
+      --walnut: #17120e;
+      --panel: #161513;
+      --panel-2: #201d19;
+      --line: #4a4035;
+      --line-soft: #302a24;
+      --ivory: #f0e9dc;
+      --muted: #aaa094;
+      --brass: #c6a15b;
+      --brass-hi: #f0cc7b;
+      --cyan: #5bc5cf;
+      --red: #cf7068;
+      --green: #8eb886;
+      --shadow: rgba(0,0,0,.55);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: var(--ink); color: var(--text); }
+    html, body { margin: 0; min-height: 100%; background: var(--ink); color: var(--ivory); }
     body {
       font-family: Rajdhani, "Segoe UI", sans-serif;
       background:
-        linear-gradient(90deg, rgba(67,217,238,.025) 1px, transparent 1px),
-        linear-gradient(rgba(67,217,238,.018) 1px, transparent 1px),
-        radial-gradient(circle at 86% -10%, #0c2737 0, transparent 34%),
+        radial-gradient(circle at 72% -20%, rgba(151,108,48,.14), transparent 36%),
+        linear-gradient(135deg, rgba(255,255,255,.018) 1px, transparent 1px),
         var(--ink);
-      background-size: 48px 48px, 48px 48px, auto, auto;
+      background-size: auto, 32px 32px, auto;
     }
-    button { font: inherit; }
-    .shell { min-height: 100vh; padding: 24px 24px 30px; }
-    header {
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .shell { min-height: 100vh; padding: clamp(14px,1.2vw,30px); }
+    .topline {
       display: grid;
-      grid-template-columns: minmax(0,1fr) auto;
-      align-items: end;
-      gap: 20px;
-      padding: 0 2px 17px;
-      border-bottom: 1px solid var(--cyan-muted);
-      position: relative;
-    }
-    header::after {
-      content: ""; position: absolute; left: 0; bottom: -2px;
-      width: 84px; height: 3px; background: var(--cyan);
-    }
-    .eyebrow { color: var(--steel); font: 600 12px/1 Orbitron, monospace; letter-spacing: .24em; }
-    h1 { margin: 7px 0 0; font: 600 clamp(22px,3vw,34px)/1 Orbitron, monospace; letter-spacing: .12em; }
-    .sync { display: flex; align-items: center; gap: 13px; color: var(--steel); font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
-    .sync strong { color: var(--text); font: 600 20px/1 Orbitron, monospace; }
-    .pulse { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 9px rgba(101,220,157,.45); }
-    .pulse.wait { background: var(--amber); }
-    .pulse.error { background: var(--red); }
-    #rooms {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
-      gap: 12px;
-      padding-top: 16px;
-    }
-    .room {
-      --status: var(--green);
-      min-height: 190px;
-      display: grid;
-      grid-template-columns: 6px 1fr;
-      background: linear-gradient(125deg, rgba(10,26,39,.98), rgba(5,15,24,.98));
+      grid-template-columns: minmax(280px,1.25fr) repeat(5,minmax(112px,.5fr));
       border: 1px solid var(--line);
-      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-      animation: enter .35s ease both;
+      background: rgba(20,18,15,.94);
+      box-shadow: 0 18px 50px var(--shadow);
     }
-    .room[data-state="active"] { --status: var(--cyan); }
-    .room[data-state="warning"] { --status: var(--amber); }
-    .status-rail { background: linear-gradient(180deg, var(--status), color-mix(in srgb, var(--status) 18%, transparent)); }
-    .room-body { min-width: 0; padding: 18px 18px 16px; display: flex; flex-direction: column; }
-    .room-top { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
-    .index { color: var(--cyan); font: 600 11px/1 Orbitron, monospace; letter-spacing: .18em; }
-    h2 { margin: 9px 0 0; font: 700 clamp(21px,2.5vw,29px)/1 Rajdhani, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-    .state-label { color: var(--status); font: 600 10px/1 Orbitron, monospace; letter-spacing: .15em; text-transform: uppercase; padding-top: 2px; }
-    .telemetry { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0; }
-    .metric { min-width: 62px; }
-    .metric b { display: block; color: var(--text); font: 600 20px/1 Orbitron, monospace; }
-    .metric span { display: block; margin-top: 6px; color: var(--steel); font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-    .actions { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 7px; margin-top: auto; }
-    .actions button {
-      min-height: 47px;
-      border: 1px solid #234958;
-      background: #091a25;
-      color: #b9d8df;
+    .brand { padding: 17px 20px; border-right: 1px solid var(--line); }
+    .eyebrow { color: var(--brass); font: 600 11px/1 Orbitron, monospace; letter-spacing: .23em; text-transform: uppercase; }
+    h1 { margin: 7px 0 0; font: 700 clamp(22px,2vw,38px)/1 Rajdhani, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .telemetry { min-height: 74px; padding: 13px 15px; border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; }
+    .telemetry:last-child { border-right: 0; }
+    .telemetry span { color: var(--muted); font: 600 9px/1 Orbitron, monospace; letter-spacing: .16em; text-transform: uppercase; }
+    .telemetry strong { margin-top: 7px; color: var(--ivory); font-size: clamp(16px,1.5vw,24px); line-height: 1; letter-spacing: .04em; text-transform: uppercase; }
+    .telemetry strong.good { color: var(--green); }
+    .telemetry strong.warn { color: var(--brass-hi); }
+    .telemetry strong.bad { color: var(--red); }
+    .reason { min-height: 36px; display: flex; align-items: center; gap: 11px; padding: 7px 14px; color: var(--muted); border: 1px solid var(--line-soft); border-top: 0; background: #100f0e; font-size: 14px; font-weight: 600; }
+    .reason::before { content: ""; width: 5px; height: 5px; background: var(--cyan); box-shadow: 0 0 8px rgba(91,197,207,.5); }
+    .modebar { display: flex; gap: 7px; padding: 12px 0 14px; overflow-x: auto; scrollbar-width: thin; }
+    .command {
+      min-width: 104px;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      background: #171411;
+      color: var(--ivory);
+      padding: 9px 15px;
       cursor: pointer;
       font-weight: 700;
-      font-size: 13px;
-      letter-spacing: .09em;
+      letter-spacing: .07em;
       text-transform: uppercase;
-      transition: background .16s, border-color .16s, color .16s;
+      white-space: nowrap;
     }
-    .actions button:hover, .actions button:focus-visible { outline: none; border-color: var(--cyan); color: white; background: #0c2734; }
-    .actions button:active { transform: translateY(1px); }
-    .actions button:disabled { opacity: .32; cursor: default; }
-    .actions .primary { color: var(--cyan); }
-    .message {
-      min-height: 300px; grid-column: 1/-1;
-      display: grid; place-items: center; text-align: center;
-      border: 1px solid var(--line); border-left: 4px solid var(--cyan);
-      background: rgba(7,18,28,.92); color: var(--steel); padding: 32px;
+    .command:hover { border-color: var(--brass); background: #251f18; }
+    .command[data-active="true"] { color: var(--brass-hi); border-color: var(--brass); box-shadow: inset 0 -3px var(--brass); }
+    .command.utility { margin-left: auto; color: var(--cyan); }
+    .command:disabled { opacity: .38; cursor: default; }
+    .workspace { position: relative; min-height: calc(100vh - 176px); }
+    .plan-shell {
+      position: relative;
+      width: 100%;
+      min-height: calc(100vh - 186px);
+      display: grid;
+      place-items: center;
+      padding: clamp(8px,1.1vw,24px);
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg,#15120f,#0d0c0b 68%);
+      box-shadow: 0 28px 70px var(--shadow);
+      overflow: hidden;
     }
-    .message b { display: block; color: var(--text); font: 600 18px/1.4 Orbitron, monospace; letter-spacing: .12em; margin-bottom: 12px; }
-    .message.error { border-left-color: var(--red); }
-    @keyframes enter { from { opacity: 0; transform: translateY(7px); } }
-    @media (max-width: 580px) {
-      .shell { padding: 17px 14px 24px; }
-      header { align-items: start; }
-      .sync { font-size: 11px; }
-      .sync strong { font-size: 16px; }
-      .room { min-height: 204px; }
-      .actions button { min-height: 52px; }
+    .plan-shell::before { content: "SANCTUARY / SPATIAL MODEL"; position: absolute; left: 18px; top: 16px; z-index: 2; color: var(--brass); font: 600 10px/1 Orbitron, monospace; letter-spacing: .18em; }
+    .plan-frame { position: relative; width: min(100%, calc((100vh - 222px) * 1.275)); aspect-ratio: 2326 / 1824; }
+    .plan-frame img { display: block; width: 100%; height: 100%; object-fit: contain; filter: invert(.92) sepia(.25) saturate(.7) brightness(.5) contrast(1.45); opacity: .78; }
+    .zone {
+      --zone-color: var(--muted);
+      position: absolute;
+      min-width: 92px;
+      min-height: 52px;
+      border: 1px solid color-mix(in srgb,var(--zone-color) 65%,transparent);
+      background: color-mix(in srgb,var(--zone-color) 11%,rgba(10,9,8,.72));
+      color: var(--ivory);
+      padding: 7px 11px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(0,0,0,.35), inset 3px 0 var(--zone-color);
+      text-align: left;
+      transform: translate(-50%,-50%);
+      transition: background .16s,border-color .16s,transform .16s;
     }
-    @media (prefers-reduced-motion: reduce) { .room { animation: none; } }
+    .zone:hover, .zone:focus-visible { background: color-mix(in srgb,var(--zone-color) 20%,rgba(10,9,8,.78)); border-color: var(--zone-color); transform: translate(-50%,-50%) scale(1.025); z-index: 4; }
+    .zone strong { display: block; font-size: clamp(12px,1.05vw,19px); line-height: 1; letter-spacing: .07em; text-transform: uppercase; }
+    .zone small { display: block; margin-top: 5px; color: var(--muted); font-size: clamp(10px,.72vw,13px); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .zone[data-state="active"] { --zone-color: var(--brass-hi); }
+    .zone[data-state="off"] { --zone-color: #898079; }
+    .zone[data-state="degraded"] { --zone-color: var(--red); }
+    .zone[data-state="uncommissioned"] { --zone-color: #665d55; border-style: dashed; }
+    .zone:disabled { cursor: not-allowed; opacity: .6; transform: translate(-50%,-50%); }
+    .zone-entry { left: 9%; top: 38%; }
+    .zone-kitchen { left: 19%; top: 19%; }
+    .zone-dining { left: 41%; top: 19%; }
+    .zone-living { left: 43%; top: 52%; }
+    .zone-patio { left: 27%; top: 82%; }
+    .zone-bathroom { left: 71%; top: 30%; }
+    .zone-hallway { left: 72%; top: 51%; }
+    .zone-bedroom { left: 84%; top: 19%; }
+    .zone-office { left: 84%; top: 81%; }
+    .legend { position: absolute; left: 18px; bottom: 16px; z-index: 3; display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .legend span { display: flex; align-items: center; gap: 6px; }
+    .legend i { width: 8px; height: 8px; background: var(--key); }
+    .room-list { display: none; }
+    .empty-state { min-height: 420px; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 30px; }
+    .empty-state strong { display: block; margin-bottom: 8px; color: var(--ivory); font: 600 17px/1.4 Orbitron,monospace; letter-spacing: .12em; }
+    .scrim { position: fixed; inset: 0; z-index: 20; background: rgba(4,4,3,.72); opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .scrim.open { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed;
+      z-index: 21;
+      top: 0;
+      right: 0;
+      width: min(720px,100vw);
+      height: 100dvh;
+      overflow-y: auto;
+      background: #11100e;
+      border-left: 1px solid var(--brass);
+      box-shadow: -28px 0 70px rgba(0,0,0,.65);
+      transform: translateX(102%);
+      transition: transform .25s ease;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer[inert] { visibility: hidden; pointer-events: none; }
+    .drawer-head { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 1fr 56px; gap: 12px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); background: rgba(17,16,14,.96); }
+    .drawer-kicker { color: var(--brass); font: 600 10px/1 Orbitron,monospace; letter-spacing: .18em; }
+    .drawer h2 { margin: 8px 0 0; font-size: clamp(29px,4vw,48px); line-height: .95; letter-spacing: .05em; text-transform: uppercase; }
+    .close { width: 56px; height: 56px; border: 1px solid var(--line); background: #1c1915; color: var(--ivory); cursor: pointer; font-size: 25px; }
+    .drawer-body { padding: 22px 24px 38px; }
+    .purpose { color: var(--muted); font-size: 18px; line-height: 1.45; }
+    .section-title { margin: 26px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); color: var(--brass); font: 600 10px/1 Orbitron,monospace; letter-spacing: .18em; text-transform: uppercase; }
+    .control-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    .drawer .command { width: 100%; min-height: 54px; }
+    .field { margin-top: 12px; padding: 13px 15px; border: 1px solid var(--line-soft); background: #171512; }
+    .field label { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .field input[type="range"] { width: 100%; height: 44px; margin: 4px 0 0; accent-color: var(--brass); }
+    .light-list { list-style: none; padding: 0; margin: 0; }
+    .light-list li { min-height: 48px; display: grid; grid-template-columns: 10px minmax(0,1fr) auto; align-items: center; gap: 10px; border-bottom: 1px solid var(--line-soft); }
+    .light-list i { width: 7px; height: 7px; background: var(--muted); }
+    .light-list li[data-state="on"] i { background: var(--brass-hi); box-shadow: 0 0 8px rgba(240,204,123,.5); }
+    .light-list li[data-state="unavailable"] i { background: var(--red); }
+    .light-list strong { overflow-wrap: anywhere; font-size: 16px; }
+    .light-list span { color: var(--muted); font-size: 13px; text-transform: uppercase; }
+    .facts { display: grid; gap: 7px; }
+    .fact { min-height: 44px; display: flex; align-items: center; padding: 8px 12px; border-left: 3px solid var(--line); background: #171512; color: var(--muted); }
+    .settings-link { min-height: 48px; display: inline-flex; align-items: center; margin-top: 15px; color: var(--cyan); font-weight: 700; letter-spacing: .05em; }
+    #liveStatus { position: fixed; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+    @media (min-width: 2200px) {
+      .shell { padding: 34px; }
+      .topline { grid-template-columns: minmax(520px,1.25fr) repeat(5,minmax(200px,.5fr)); }
+      .brand, .telemetry { min-height: 112px; padding: 23px 28px; }
+      .modebar { gap: 12px; padding-block: 18px; }
+      .command { min-width: 155px; min-height: 64px; font-size: 18px; }
+      .workspace, .plan-shell { min-height: calc(100vh - 260px); }
+      .plan-frame { width: min(100%,calc((100vh - 310px) * 1.275)); }
+      .zone { min-width: 150px; min-height: 76px; padding: 12px 18px; }
+    }
+    @media (max-width: 1050px) {
+      .topline { grid-template-columns: 1fr 1fr 1fr; }
+      .brand { grid-column: 1/-1; border-right: 0; border-bottom: 1px solid var(--line); }
+      .workspace,.plan-shell { min-height: auto; }
+      .plan-shell { padding: 26px 8px 48px; }
+      .plan-frame { width: 100%; }
+      .zone { min-width: 76px; min-height: 46px; padding: 5px 8px; }
+    }
+    @media (max-width: 620px) {
+      .shell { padding: 10px; }
+      .topline { grid-template-columns: 1fr 1fr; }
+      .brand { padding: 14px; }
+      .telemetry { min-height: 62px; padding: 10px 12px; }
+      .reason { font-size: 12px; }
+      .modebar { padding-block: 9px 11px; }
+      .command { min-height: 48px; min-width: 100px; padding-inline: 12px; }
+      .command.utility { margin-left: 0; }
+      .plan-shell { display: block; padding: 32px 5px 42px; overflow-x: auto; }
+      .plan-frame { width: 680px; max-width: none; }
+      .zone { min-width: 92px; min-height: 52px; }
+      .zone strong { font-size: 13px; }
+      .zone small { font-size: 10px; }
+      .legend { display: none; }
+      .room-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; padding-top: 10px; }
+      .room-list button { min-height: 52px; border: 1px solid var(--line); background: #171411; color: var(--ivory); font-weight: 700; text-transform: uppercase; }
+      .room-list button:disabled { opacity: .55; }
+      .drawer-body,.drawer-head { padding-inline: 16px; }
+    }
+    @media (max-width: 390px) { .control-row { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 <body>
   <main class="shell">
-    <header>
-      <div><div class="eyebrow">JARVIS // RESIDENCE</div><h1>SPATIAL DIRECTORY</h1></div>
-      <div class="sync"><span id="pulse" class="pulse wait"></span><span><strong id="count">--</strong> AREAS · <span id="syncText">LINKING</span></span></div>
-    </header>
-    <section id="rooms" aria-live="polite"><div class="message"><div><b>READING SPATIAL REGISTRY</b>Establishing a secure link with Home Assistant.</div></div></section>
+    <section class="topline" aria-label="Sanctuary status">
+      <div class="brand"><div class="eyebrow">Sanctuary // Spatial Command</div><h1>The residence is the interface</h1></div>
+      <div class="telemetry"><span>Current mode</span><strong id="modeValue">Linking</strong></div>
+      <div class="telemetry"><span>Automation</span><strong id="automationValue">Unknown</strong></div>
+      <div class="telemetry"><span>Manual hold</span><strong id="holdValue">Unknown</strong></div>
+      <div class="telemetry"><span>Illumination</span><strong id="lightsValue">-- / --</strong></div>
+      <div class="telemetry"><span>HA connection</span><strong id="connectionValue">Linking</strong></div>
+    </section>
+    <div id="reason" class="reason">Connecting to the authenticated Home Assistant session.</div>
+    <nav id="modebar" class="modebar" aria-label="Sanctuary modes"></nav>
+    <section class="workspace">
+      <div id="planShell" class="plan-shell">
+        <div class="plan-frame">
+          <img src="/local/sanctuary-floorplan.png" alt="Sanctuary apartment floor plan">
+          <div id="zones"></div>
+        </div>
+        <div class="legend" aria-label="Room state legend">
+          <span><i style="--key:var(--brass-hi)"></i>Active</span><span><i style="--key:#898079"></i>Off</span><span><i style="--key:var(--red)"></i>Degraded</span><span><i style="--key:#665d55"></i>Not commissioned</span>
+        </div>
+      </div>
+      <nav id="roomList" class="room-list" aria-label="Room list"></nav>
+    </section>
   </main>
+  <div id="scrim" class="scrim"></div>
+  <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
+    <header class="drawer-head"><div><div class="drawer-kicker">Selected zone</div><h2 id="drawerTitle">Room</h2></div><button id="closeDrawer" class="close" type="button" aria-label="Close room controls">×</button></header>
+    <div id="drawerBody" class="drawer-body"></div>
+  </aside>
+  <div id="liveStatus" role="status" aria-live="polite"></div>
   <script>
     'use strict';
-    const roomsEl = document.getElementById('rooms');
-    const countEl = document.getElementById('count');
-    const syncText = document.getElementById('syncText');
-    const pulse = document.getElementById('pulse');
-    let hass, areas = [], devices = [], entities = [], renderedSignature = '';
+    const ZONES = [
+      { key: 'entry', name: 'Entry', purpose: 'Arrival, departure and protected perimeter readiness.', aliases: ['entry','foyer'], facts: ['Internet power remains protected and is never exposed here.','Lock, camera and perimeter sensors are readiness-only until commissioned.'] },
+      { key: 'living', name: 'Living Room', purpose: 'Primary relaxation, conversation and media environment.', aliases: ['living room','living_room'], facts: ['Media and thermostat capability appears as readiness, never as a broken control.','Vacuum capability remains readiness-only until commissioned.'] },
+      { key: 'dining', name: 'Dining Area', purpose: 'Shared dining and ambient evening illumination.', aliases: ['dining area','dining room','dinning room','dinning_room'], facts: ['The temporary Dinning Room alias is mapped to this canonical zone.'] },
+      { key: 'kitchen', name: 'Kitchen', purpose: 'Task lighting and meal preparation.', aliases: ['kitchen'], facts: ['Appliance control is intentionally outside this lighting surface.'] },
+      { key: 'hallway', name: 'Hallway', purpose: 'Safe circulation between living and private zones.', aliases: ['hallway','hall'], facts: ['Perimeter and motion sensors are readiness facts until commissioned.'] },
+      { key: 'bathroom', name: 'Bathroom', purpose: 'Morning, shower and wind-down lighting.', aliases: ['bathroom','bath','bathroom 1','bathroom 2'], facts: ['Shower mode uses the Sanctuary mode script when commissioned.'] },
+      { key: 'bedroom', name: 'Bedroom', purpose: 'Rest, sleep preparation and low-stimulation lighting.', aliases: ['bedroom','bedroom 1','bedroom #1'], facts: ['Second bedroom light remains a readiness item until added.','Thermostat capability remains readiness-only until commissioned.'] },
+      { key: 'office', name: 'Office', purpose: 'Focused work and deliberate task illumination.', aliases: ['office','bedroom 2','bedroom #2'], facts: ['Bedroom #2 on the source plan is canonically the Office.'] },
+      { key: 'patio', name: 'Patio', purpose: 'Covered outdoor threshold and evening ambience.', aliases: ['patio','covered patio'], facts: ['Camera and perimeter sensing remain readiness-only until commissioned.'] }
+    ];
+    const MODE_NAMES = ['Home Base','Welcome','Work / Focus','Shower','Wind Down','Thunderstorm','Cleaning'];
+    const zonesEl = document.getElementById('zones');
+    const roomListEl = document.getElementById('roomList');
+    const modebarEl = document.getElementById('modebar');
+    const drawer = document.getElementById('drawer');
+    const drawerBody = document.getElementById('drawerBody');
+    const drawerTitle = document.getElementById('drawerTitle');
+    const scrim = document.getElementById('scrim');
+    const closeDrawerButton = document.getElementById('closeDrawer');
+    const reasonEl = document.getElementById('reason');
+    const liveStatus = document.getElementById('liveStatus');
+    const modeValue = document.getElementById('modeValue');
+    const automationValue = document.getElementById('automationValue');
+    const holdValue = document.getElementById('holdValue');
+    const lightsValue = document.getElementById('lightsValue');
+    const connectionValue = document.getElementById('connectionValue');
+    let hass;
+    let areas = [];
+    let devices = [];
+    let entities = [];
+    let model = [];
+    let selectedKey = null;
+    let returnFocus = null;
+    let lastSignature = '';
+    let connectionSeen = 0;
+    let sessionFresh = false;
+    let connectionWasLost = false;
 
     function locateHass() {
       let context = window;
@@ -150,110 +299,202 @@
       return null;
     }
 
-    function message(title, detail, error = false) {
-      roomsEl.replaceChildren();
-      const box = document.createElement('div');
-      box.className = 'message' + (error ? ' error' : '');
-      const inner = document.createElement('div');
-      const heading = document.createElement('b');
-      heading.textContent = title;
-      inner.append(heading, document.createTextNode(detail));
-      box.append(inner); roomsEl.append(box);
+    function normalize(value) { return String(value || '').toLowerCase().replace(/[#_.-]+/g,' ').replace(/\s+/g,' ').trim(); }
+    function resolveZone(value) {
+      const candidate=normalize(value);
+      let winner=null;
+      let winningScore=-1;
+      ZONES.forEach(zone=>zone.aliases.forEach(rawAlias=>{
+        const alias=normalize(rawAlias);
+        const score=candidate===alias?1000+alias.length:candidate.includes(alias)?alias.length:-1;
+        if(score>winningScore){winner=zone;winningScore=score;}
+      }));
+      return winner;
     }
+    function helper(entityId) { return hass && hass.states ? hass.states[entityId] : null; }
+    function isAvailable(state) { return Boolean(state && !['unknown','unavailable'].includes(state.state)); }
+    function scriptReady(entityId) { return isAvailable(helper(entityId)); }
+    function textElement(tag,className,text) { const node=document.createElement(tag); if(className) node.className=className; node.textContent=text; return node; }
+    function button(label,className,handler,disabled=false) { const node=document.createElement('button'); node.type='button'; node.className=className; node.textContent=label; node.disabled=disabled; node.addEventListener('click',handler); return node; }
+    function announce(text) { liveStatus.textContent=text; }
 
-    function assignedArea(entity, deviceById) {
+    function areaFor(entity,deviceById) {
       if (entity.area_id) return entity.area_id;
-      const device = entity.device_id && deviceById.get(entity.device_id);
+      const device=entity.device_id && deviceById.get(entity.device_id);
       return device ? device.area_id : null;
     }
 
-    function snapshot() {
-      const deviceById = new Map(devices.map(device => [device.id, device]));
-      return areas.map(area => {
-        const registered = entities.filter(entity => assignedArea(entity, deviceById) === area.area_id);
-        const live = registered.map(entity => hass.states[entity.entity_id]).filter(Boolean);
-        const unavailable = live.filter(state => ['unavailable', 'unknown'].includes(state.state)).length;
-        const active = live.filter(state => !['off', 'unavailable', 'unknown', 'idle', 'standby'].includes(state.state)).length;
-        const lights = registered.filter(entity => entity.entity_id.startsWith('light.'));
-        const state = unavailable ? 'warning' : active ? 'active' : 'nominal';
-        return { area, registered, unavailable, active, lights, state };
-      }).sort((a, b) => a.area.name.localeCompare(b.area.name));
+    function buildModel() {
+      const deviceById=new Map(devices.map(device=>[device.id,device]));
+      const areaById=new Map(areas.map(area=>[area.area_id,area]));
+      const registryIds=new Set(entities.map(entity=>entity.entity_id));
+      const eligible=entities.filter(entity=>entity.entity_id.startsWith('light.')&&!entity.disabled_by&&!entity.hidden_by).map(entity=>({entityId:entity.entity_id,areaId:areaFor(entity,deviceById),registry:entity}));
+      Object.keys(hass.states).forEach(entityId=>{ if(entityId.startsWith('light.')&&!registryIds.has(entityId)) eligible.push({entityId,areaId:null,registry:null}); });
+      eligible.forEach(light=>{if(!light.areaId){const state=hass.states[light.entityId];const identity=(state&&state.attributes.friendly_name)||light.entityId;const inferred=resolveZone(identity);light.inferredKey=inferred?inferred.key:null;}});
+      model=ZONES.map(zone=>{
+        const area=areas.find(item=>resolveZone(item.name)?.key===zone.key);
+        const lights=eligible.filter(light=>(area&&light.areaId===area.area_id)||(!light.areaId&&light.inferredKey===zone.key)).map(light=>{
+          const state=hass.states[light.entityId];
+          return { ...light,state,name:(state&&state.attributes.friendly_name)||(light.registry&&(light.registry.name||light.registry.original_name))||light.entityId.slice(6).replace(/_/g,' '),unavailable:!isAvailable(state),on:Boolean(state&&state.state==='on') };
+        });
+        const unavailable=lights.filter(light=>light.unavailable).length;
+        const active=lights.filter(light=>light.on&&!light.unavailable).length;
+        return { ...zone,area,areaName:area?area.name:zone.name,lights,unavailable,active,state:lights.length===0?'uncommissioned':unavailable?'degraded':active?'active':'off' };
+      });
+      void areaById;
     }
 
-    function metric(value, label) {
-      const node = document.createElement('div'); node.className = 'metric';
-      const number = document.createElement('b'); number.textContent = String(value);
-      const caption = document.createElement('span'); caption.textContent = label;
-      node.append(number, caption); return node;
+    async function safeService(domain,service,data,label) {
+      if(!sessionFresh){announce('Controls are paused until the Home Assistant connection recovers.');return false;}
+      try { await hass.callService(domain,service,data); announce(label+' accepted.'); return true; }
+      catch(error) { announce(label+' failed. '+(error&&error.message?error.message:'Home Assistant rejected the request.')); return false; }
     }
 
-    function action(label, className, handler, disabled = false) {
-      const button = document.createElement('button');
-      button.type = 'button'; button.textContent = label; button.className = className || '';
-      button.disabled = disabled; button.addEventListener('click', handler); return button;
+    function activateMode(mode) {
+      if (!scriptReady('script.sanctuary_activate_mode')) { announce('Sanctuary mode control is not commissioned.'); return; }
+      safeService('script','sanctuary_activate_mode',{mode,source:'floor_plan'},mode);
     }
 
-    function render() {
-      hass = locateHass() || hass;
-      if (!hass || !areas.length) return;
-      const data = snapshot();
-      const signature = JSON.stringify(data.map(room => [room.area.area_id, room.registered.length, room.active, room.unavailable, room.lights.length, room.state]));
-      if (signature === renderedSignature) return;
-      renderedSignature = signature;
-      roomsEl.replaceChildren(); countEl.textContent = String(data.length).padStart(2, '0');
-      syncText.textContent = 'SYNCED'; pulse.className = 'pulse';
-      if (!data.length) {
-        message('NO AREAS REGISTERED', 'Create Areas in Home Assistant Settings, then return here.');
-        return;
-      }
-      data.forEach((room, index) => {
-        const article = document.createElement('article'); article.className = 'room'; article.dataset.state = room.state;
-        article.style.animationDelay = Math.min(index * 45, 360) + 'ms';
-        const rail = document.createElement('div'); rail.className = 'status-rail';
-        const body = document.createElement('div'); body.className = 'room-body';
-        const top = document.createElement('div'); top.className = 'room-top';
-        const identity = document.createElement('div');
-        const roomIndex = document.createElement('div'); roomIndex.className = 'index'; roomIndex.textContent = 'AREA ' + String(index + 1).padStart(2, '0');
-        const name = document.createElement('h2'); name.textContent = room.area.name;
-        identity.append(roomIndex, name);
-        const state = document.createElement('div'); state.className = 'state-label'; state.textContent = room.state;
-        top.append(identity, state);
-        const telemetry = document.createElement('div'); telemetry.className = 'telemetry';
-        telemetry.append(metric(room.registered.length, 'Entities'), metric(room.active, 'Active'), metric(room.unavailable, 'Offline'), metric(room.lights.length, 'Lights'));
-        const actions = document.createElement('div'); actions.className = 'actions';
-        const ids = room.lights.map(light => light.entity_id);
-        actions.append(
-          action('Lights on', 'primary', () => hass.callService('light', 'turn_on', { entity_id: ids }), !ids.length),
-          action('Lights off', '', () => hass.callService('light', 'turn_off', { entity_id: ids }), !ids.length),
-          action('Room details', '', () => { window.parent.location.assign('/config/areas/area/' + encodeURIComponent(room.area.area_id)); })
-        );
-        body.append(top, telemetry, actions); article.append(rail, body); roomsEl.append(article);
+    function renderModebar() {
+      modebarEl.replaceChildren();
+      const current=helper('input_select.sanctuary_mode');
+      const active=normalize(current&&current.state);
+      MODE_NAMES.forEach(name=>{
+        const control=button(name,'command',()=>activateMode(name),!sessionFresh||!scriptReady('script.sanctuary_activate_mode'));
+        control.dataset.active=String(active===normalize(name));
+        modebarEl.append(control);
+      });
+      const hold=button('Hold','command utility',()=>{
+        if(scriptReady('script.sanctuary_hold')) safeService('script','sanctuary_hold',{},'Manual hold'); else announce('Hold control is not commissioned.');
+      },!sessionFresh||!scriptReady('script.sanctuary_hold'));
+      const resume=button('Resume','command',()=>{
+        if(scriptReady('script.sanctuary_resume')) safeService('script','sanctuary_resume',{},'Automation resume'); else announce('Resume control is not commissioned.');
+      },!sessionFresh||!scriptReady('script.sanctuary_resume'));
+      modebarEl.append(hold,resume);
+    }
+
+    function zoneSummary(room) {
+      if(room.state==='uncommissioned') return 'Not commissioned';
+      if(room.state==='degraded') return room.unavailable+' offline';
+      if(room.active) return room.active+' active';
+      return room.lights.length?room.lights.length+' lights off':'No lights';
+    }
+
+    function renderZones() {
+      zonesEl.replaceChildren(); roomListEl.replaceChildren();
+      model.forEach(room=>{
+        const control=button('', 'zone zone-'+room.key, ()=>openDrawer(room.key));
+        control.dataset.state=room.state;
+        control.setAttribute('aria-label',room.name+', '+zoneSummary(room));
+        control.disabled=!sessionFresh;
+        control.append(textElement('strong','',room.name),textElement('small','',zoneSummary(room)));
+        zonesEl.append(control);
+        roomListEl.append(button(room.name,'',()=>openDrawer(room.key),!sessionFresh));
       });
     }
 
-    async function connect() {
-      for (let tries = 0; tries < 40; tries += 1) {
-        hass = locateHass();
-        if (hass && hass.callWS) break;
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      if (!hass || !hass.callWS) throw new Error('Home Assistant session is not available.');
-      [areas, devices, entities] = await Promise.all([
-        hass.callWS({ type: 'config/area_registry/list' }),
-        hass.callWS({ type: 'config/device_registry/list' }),
-        hass.callWS({ type: 'config/entity_registry/list' })
-      ]);
-      if (!areas.length) {
-        countEl.textContent = '00'; syncText.textContent = 'SYNCED'; pulse.className = 'pulse';
-        message('NO AREAS REGISTERED', 'Create Areas in Home Assistant Settings, then return here.');
-      } else render();
-      setInterval(render, 2000);
+    function field(label,valueText,min,max,value,onCommit,disabled=false) {
+      const wrap=document.createElement('div'); wrap.className='field';
+      const caption=document.createElement('label');
+      const name=textElement('span','',label); const reading=textElement('span','',valueText(value));
+      caption.append(name,reading);
+      const range=document.createElement('input'); range.type='range'; range.min=String(min); range.max=String(max); range.value=String(value); range.disabled=disabled;
+      range.setAttribute('aria-label',label);
+      range.addEventListener('input',()=>{reading.textContent=valueText(Number(range.value));});
+      range.addEventListener('change',()=>onCommit(Number(range.value)));
+      wrap.append(caption,range); return wrap;
     }
 
-    connect().catch(error => {
-      syncText.textContent = 'FAULT'; pulse.className = 'pulse error';
-      message('REGISTRY LINK FAILED', error && error.message ? error.message : 'Unable to read Home Assistant Areas.', true);
-    });
+    function relevantModes(room) {
+      const map={entry:['Welcome','Home Base'],living:['Home Base','Wind Down','Thunderstorm','Cleaning'],dining:['Home Base','Wind Down'],kitchen:['Home Base','Cleaning'],hallway:['Home Base','Wind Down'],bathroom:['Shower','Wind Down'],bedroom:['Wind Down','Thunderstorm'],office:['Work / Focus','Home Base'],patio:['Welcome','Wind Down']};
+      return map[room.key]||['Home Base'];
+    }
+
+    function calibrationFor(room) {
+      return Object.values(hass.states).find(state=>state.entity_id.startsWith('input_number.sanctuary_')&&(normalize(state.entity_id).includes(normalize(room.key))||normalize(state.attributes.friendly_name).includes(normalize(room.name))));
+    }
+
+    function openDrawer(key,preserveScroll=false) {
+      const room=model.find(item=>item.key===key); if(!room) return;
+      const opening=!drawer.classList.contains('open');
+      const previousScroll=drawer.scrollTop;
+      selectedKey=key; if(opening)returnFocus=document.activeElement; drawerTitle.textContent=room.name; drawerBody.replaceChildren();
+      drawerBody.append(textElement('p','purpose',room.purpose));
+      drawerBody.append(textElement('h3','section-title','Room illumination'));
+      const available=room.lights.filter(light=>!light.unavailable);
+      const power=document.createElement('div'); power.className='control-row';
+      power.append(
+        button('Room on','command',()=>safeService('light','turn_on',{entity_id:available.map(light=>light.entityId)},room.name+' lights on'),!sessionFresh||!available.length),
+        button('Room off','command',()=>safeService('light','turn_off',{entity_id:available.map(light=>light.entityId)},room.name+' lights off'),!sessionFresh||!available.length)
+      );
+      drawerBody.append(power);
+      const applyReady=scriptReady('script.sanctuary_apply_room_lighting');
+      const dimmable=available.some(light=>{const modes=light.state.attributes.supported_color_modes||[];return modes.some(mode=>mode!=='onoff');});
+      const tunable=available.some(light=>(light.state.attributes.supported_color_modes||[]).includes('color_temp'));
+      if(dimmable) drawerBody.append(field('Brightness',value=>value+'%',1,100,Math.max(1,Math.round(((available.find(light=>light.on&&light.state.attributes.brightness!==undefined)?.state.attributes.brightness)||178)/255*100)),value=>{
+        if(applyReady) safeService('script','sanctuary_apply_room_lighting',{area:room.area?room.area.area_id:room.key,brightness:value},room.name+' brightness'); else announce('Sanctuary room lighting control is not commissioned.');
+      },!sessionFresh||!applyReady));
+      if(tunable) drawerBody.append(field('Color temperature',value=>value+' K',2200,6500,3200,value=>{
+        if(applyReady) safeService('script','sanctuary_apply_room_lighting',{area:room.area?room.area.area_id:room.key,kelvin:value},room.name+' color temperature'); else announce('Sanctuary room lighting control is not commissioned.');
+      },!sessionFresh||!applyReady));
+      drawerBody.append(textElement('h3','section-title','Light entities'));
+      const list=document.createElement('ul'); list.className='light-list';
+      if(!room.lights.length) list.append(textElement('li','',room.area?'No enabled lights assigned to this Area.':'Area not commissioned in Home Assistant.'));
+      room.lights.forEach(light=>{const item=document.createElement('li');item.dataset.state=light.unavailable?'unavailable':light.on?'on':'off';const dot=document.createElement('i');const name=textElement('strong','',light.name);const state=textElement('span','',light.unavailable?'Unavailable':light.on?'On':'Off');item.append(dot,name,state);list.append(item);});
+      drawerBody.append(list);
+      drawerBody.append(textElement('h3','section-title','Sanctuary scenes'));
+      const scenes=document.createElement('div'); scenes.className='control-row';
+      relevantModes(room).forEach(mode=>scenes.append(button(mode,'command',()=>activateMode(mode),!sessionFresh||!scriptReady('script.sanctuary_activate_mode'))));
+      drawerBody.append(scenes);
+      const calibration=calibrationFor(room);
+      drawerBody.append(textElement('h3','section-title','Calibration'));
+      drawerBody.append(textElement('div','fact',calibration?'Current value: '+calibration.state+(calibration.attributes.unit_of_measurement?' '+calibration.attributes.unit_of_measurement:''):'Calibration helper not commissioned for this zone.'));
+      drawerBody.append(button('Test calibration','command',()=>{
+        if(scriptReady('script.sanctuary_test_calibration')) safeService('script','sanctuary_test_calibration',{area:room.area?room.area.area_id:room.key},room.name+' calibration test'); else announce('Calibration test is not commissioned.');
+      },!sessionFresh||!scriptReady('script.sanctuary_test_calibration')));
+      drawerBody.append(textElement('h3','section-title','Readiness'));
+      const facts=document.createElement('div'); facts.className='facts';
+      facts.append(textElement('div','fact',room.area?'Area linked as “'+room.area.name+'”.':'Home Assistant Area not commissioned.'));
+      room.facts.forEach(text=>facts.append(textElement('div','fact',text)));
+      drawerBody.append(facts);
+      if(room.area){const link=document.createElement('a');link.className='settings-link';link.href='/config/areas/area/'+encodeURIComponent(room.area.area_id);link.target='_parent';link.textContent='Open Home Assistant Area Settings →';drawerBody.append(link);}
+      drawer.removeAttribute('inert');drawer.classList.add('open');scrim.classList.add('open');drawer.setAttribute('aria-hidden','false');drawer.scrollTop=preserveScroll?previousScroll:0;if(opening){closeDrawerButton.focus();announce(room.name+' controls opened.');}
+    }
+
+    function closeDrawer() { if(!drawer.classList.contains('open'))return;drawer.classList.remove('open');scrim.classList.remove('open');drawer.setAttribute('aria-hidden','true');drawer.setAttribute('inert','');selectedKey=null;if(returnFocus&&returnFocus.focus)returnFocus.focus(); }
+    closeDrawerButton.addEventListener('click',closeDrawer); scrim.addEventListener('click',closeDrawer);
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDrawer();if(event.key==='Tab'&&drawer.classList.contains('open')){const focusable=Array.from(drawer.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled)'));if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}});
+
+    function renderStatus() {
+      const mode=helper('input_select.sanctuary_mode'); const automation=helper('input_boolean.sanctuary_automations_enabled'); const hold=helper('input_boolean.sanctuary_manual_hold'); const transition=helper('sensor.sanctuary_last_transition');
+      modeValue.textContent=isAvailable(mode)?mode.state:'Not commissioned'; modeValue.className=isAvailable(mode)?'good':'warn';
+      automationValue.textContent=isAvailable(automation)?(automation.state==='on'?'Enabled':'Disabled'):'Not commissioned'; automationValue.className=automation&&automation.state==='on'?'good':'warn';
+      holdValue.textContent=isAvailable(hold)?(hold.state==='on'?'Active':'Clear'):'Not commissioned'; holdValue.className=hold&&hold.state==='on'?'warn':isAvailable(hold)?'good':'warn';
+      const all=model.flatMap(room=>room.lights); const active=all.filter(light=>light.on&&!light.unavailable).length; const offline=all.filter(light=>light.unavailable).length;
+      lightsValue.textContent=active+' active · '+offline+' offline'; lightsValue.className=offline?'bad':active?'good':'';
+      connectionValue.textContent=sessionFresh?'Connected':'Stale'; connectionValue.className=sessionFresh?'good':'bad';
+      reasonEl.textContent=sessionFresh?(isAvailable(transition)?String(transition.attributes.reason||transition.state):'Home Assistant connected. Transition history is not commissioned.'):'Home Assistant connection is stale. Controls are paused until recovery.';
+    }
+
+    function render() {
+      const current=locateHass();
+      const connected=Boolean(current&&(!current.connection||current.connection.connected!==false));
+      if(connected){hass=current;connectionSeen=Date.now();if(!sessionFresh){sessionFresh=true;lastSignature='';if(connectionWasLost){announce('Home Assistant connection recovered.');connectionWasLost=false;}}}
+      if(!hass)return;
+      if(!connected&&Date.now()-connectionSeen>12000&&sessionFresh){sessionFresh=false;connectionWasLost=true;lastSignature='';announce('Home Assistant connection is stale. Controls are paused.');}
+      reasonEl.style.color=sessionFresh?'':'var(--red)'; buildModel();
+      const signature=JSON.stringify(model.map(room=>[room.key,room.state,room.active,room.unavailable,room.lights.map(light=>[light.entityId,light.state&&light.state.last_updated])]))+String(helper('input_select.sanctuary_mode')?.state)+String(helper('input_boolean.sanctuary_manual_hold')?.state)+String(sessionFresh);
+      if(signature===lastSignature)return; lastSignature=signature; renderStatus();renderModebar();renderZones();if(selectedKey)openDrawer(selectedKey,true);
+    }
+
+    async function connect() {
+      for(let tries=0;tries<40;tries+=1){hass=locateHass();if(hass&&hass.callWS&&hass.states)break;await new Promise(resolve=>window.setTimeout(resolve,500));}
+      if(!hass||!hass.callWS)throw new Error('Authenticated Home Assistant session is unavailable.');
+      connectionSeen=Date.now();sessionFresh=true;
+      [areas,devices,entities]=await Promise.all([hass.callWS({type:'config/area_registry/list'}),hass.callWS({type:'config/device_registry/list'}),hass.callWS({type:'config/entity_registry/list'})]);
+      render(); window.setInterval(render,1500);
+    }
+    connect().catch(error=>{reasonEl.textContent=error&&error.message?error.message:'Unable to connect to Home Assistant.';reasonEl.style.color='var(--red)';connectionValue.textContent='Disconnected';connectionValue.className='bad';document.getElementById('planShell').replaceChildren(textElement('div','empty-state','Sanctuary is disconnected. Reload after Home Assistant is available.'));});
   </script>
 </body>
 </html>

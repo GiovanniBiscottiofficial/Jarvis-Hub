@@ -261,12 +261,11 @@ JarvisWakeUp:
 
 JarvisMoodSupport:
   action:
-    - service: light.turn_on
-      target:
-        entity_id: light.living_room
+    - service: script.sanctuary_activate_mode
       data:
-        brightness_pct: 35
-        kelvin: 2400
+        mode: Wind Down
+        source: voice
+        reason: Recovery lighting requested
   speech:
     text: >-
       {{ [
@@ -330,13 +329,13 @@ JarvisHouseStatus:
     text: >-
       {%- set on_lights = states.light | selectattr('state', 'eq', 'on')
          | map(attribute='name') | list -%}
-      {%- set vac = states('vacuum.juno') -%}
+      {%- set vacuums = states.vacuum | rejectattr('state', 'in', ['unknown', 'unavailable']) | list -%}
       {{ 'All lights are off'
          if not on_lights
          else (on_lights | count | string) + ' light'
            + ('s' if on_lights | count != 1 else '') + ' on: '
            + (on_lights | join(', ')) }}.
-      {{ 'The vacuum is ' + vac + '.' if vac not in ['unknown', 'unavailable'] else '' }}
+      {{ 'The vacuum is ' + vacuums[0].state + '.' if vacuums else 'A vacuum is not commissioned.' }}
       {{ 'Sleep mode is on.' if is_state('input_boolean.sleep_mode', 'on') else '' }}
       {{ 'Guest mode is on.' if is_state('input_boolean.guest_mode', 'on') else '' }}
       {{ 'Vacation mode is on.' if is_state('input_boolean.vacation_mode', 'on') else '' }}
@@ -501,13 +500,11 @@ JarvisRPS:
 
 JarvisParty:
   action:
-    - service: light.turn_on
-      target:
-        entity_id:
-          - light.living_room
-          - light.ambient
+    - service: script.sanctuary_activate_mode
       data:
-        brightness_pct: 100
+        mode: Guest
+        source: voice
+        reason: Party mode requested
   speech:
     text: "Party mode activated. Lights up — the playlist, sir, is your department."
 

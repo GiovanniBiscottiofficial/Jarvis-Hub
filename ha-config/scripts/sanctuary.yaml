@@ -1,0 +1,462 @@
+sanctuary_apply_room_lighting:
+  alias: "Sanctuary: apply room lighting"
+  description: >-
+    Capability-aware lighting primitive. It targets light entities in one Area
+    only; switches and protected infrastructure can never enter this path.
+  mode: queued
+  max: 20
+  fields:
+    area:
+      required: true
+      selector:
+        text:
+    brightness:
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+    kelvin:
+      selector:
+        number:
+          min: 2000
+          max: 6500
+          unit_of_measurement: K
+    hue:
+      selector:
+        number:
+          min: 0
+          max: 360
+    saturation:
+      selector:
+        number:
+          min: 0
+          max: 100
+    transition:
+      selector:
+        number:
+          min: 0
+          max: 900
+          unit_of_measurement: s
+  sequence:
+    - variables:
+        requested_area: "{{ area | string | lower | replace(' ', '_') }}"
+        canonical_area: >-
+          {% set aliases = {
+            'dining_area': 'dinning_room',
+            'dining_room': 'dinning_room',
+            'dinning_room': 'dinning_room',
+            'bedroom_#2': 'office'
+          } %}
+          {{ aliases.get(requested_area, requested_area) }}
+        candidate_lights: >-
+          {{ area_entities(canonical_area)
+             | select('match', '^light\\.') | list }}
+        available_lights: >-
+          {{ expand(candidate_lights)
+             | rejectattr('state', 'in', ['unavailable', 'unknown'])
+             | map(attribute='entity_id') | list }}
+        temperature_lights: >-
+          {% set ns = namespace(ids=[]) %}
+          {% for light in expand(available_lights) %}
+            {% if 'color_temp' in light.attributes.supported_color_modes | default([]) %}
+              {% set ns.ids = ns.ids + [light.entity_id] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.ids }}
+        color_lights: >-
+          {% set ns = namespace(ids=[]) %}
+          {% for light in expand(available_lights) %}
+            {% set modes = light.attributes.supported_color_modes | default([]) %}
+            {% if modes | select('in', ['hs', 'xy', 'rgb', 'rgbw', 'rgbww']) | list | count > 0 %}
+              {% set ns.ids = ns.ids + [light.entity_id] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.ids }}
+        brightness_value: "{{ brightness | default(0) | int(0) }}"
+        kelvin_value: "{{ kelvin | default(0) | int(0) }}"
+        hue_value: "{{ hue | default(-1) | float(-1) }}"
+        saturation_value: "{{ saturation | default(55) | float(55) }}"
+        transition_value: "{{ transition | default(2) | int(2) }}"
+    - choose:
+        - conditions: "{{ available_lights | count > 0 and brightness_value | int > 0 }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: "{{ available_lights }}"
+              data:
+                brightness_pct: "{{ [1, [brightness_value | int, 100] | min] | max }}"
+                transition: "{{ transition_value }}"
+    - choose:
+        - conditions: "{{ temperature_lights | count > 0 and kelvin_value | int > 0 }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: "{{ temperature_lights }}"
+              data:
+                color_temp_kelvin: "{{ kelvin_value }}"
+                transition: "{{ transition_value }}"
+    - choose:
+        - conditions: "{{ color_lights | count > 0 and hue_value | float >= 0 }}"
+          sequence:
+            - service: light.turn_on
+              target:
+                entity_id: "{{ color_lights }}"
+              data:
+                hs_color:
+                  - "{{ hue_value }}"
+                  - "{{ saturation_value }}"
+                transition: "{{ transition_value }}"
+
+sanctuary_activate_mode:
+  alias: "Sanctuary: activate mode"
+  description: >-
+    Authoritative, explainable Sanctuary state transition. Scheduled calls are
+    calibration-gated; manual calls always remain available.
+  mode: queued
+  max: 10
+  fields:
+    mode:
+      required: true
+      selector:
+        select:
+          options:
+            - Home Base
+            - Morning
+            - Away
+            - Welcome
+            - Work
+            - Focus
+            - Create
+            - Studio
+            - Shower
+            - Wind Down
+            - Thunderstorm
+            - Date Night
+            - Cleaning
+            - Guest
+            - Cinema
+            - Vacation
+            - Emergency
+            - Manual Hold
+    source:
+      selector:
+        text:
+    reason:
+      selector:
+        text:
+  sequence:
+    - variables:
+        requested_mode: "{{ mode | string }}"
+        transition_source: "{{ source | default('manual') | string }}"
+        transition_reason: >-
+          {{ reason | default('Requested from ' ~ transition_source, true) }}
+        previous_mode: "{{ states('input_select.sanctuary_mode') }}"
+        valid_modes: "{{ state_attr('input_select.sanctuary_mode', 'options') | default([]) }}"
+        scheduled_allowed: >-
+          {{ is_state('input_boolean.sanctuary_automations_enabled', 'on')
+             and is_state('input_boolean.sanctuary_calibration_ready', 'on')
+             and is_state('input_boolean.sanctuary_manual_hold', 'off') }}
+        room_recipes:
+          Home Base:
+            - {area: entry, brightness: 30, kelvin: 2800}
+            - {area: living_room, brightness: 30, kelvin: 2800}
+            - {area: dinning_room, brightness: 28, kelvin: 2800}
+            - {area: hallway, brightness: 18, kelvin: 2700}
+          Morning:
+            - {area: bedroom, brightness: 20, kelvin: 2700, transition: 120}
+            - {area: bathroom, brightness: 45, kelvin: 3300, transition: 60}
+          Welcome:
+            - {area: entry, brightness_helper: input_number.sanctuary_welcome_brightness, kelvin: 2800}
+            - {area: hallway, brightness: 22, kelvin: 2800}
+            - {area: dinning_room, brightness: 28, kelvin: 2800}
+            - {area: living_room, brightness: 32, kelvin: 2800}
+          Work:
+            - {area: office, brightness_helper: input_number.sanctuary_office_work_brightness, kelvin: 3500}
+            - {area: hallway, brightness: 15, kelvin: 3000}
+          Focus:
+            - {area: office, brightness: 55, kelvin: 4000}
+            - {area: hallway, brightness: 10, kelvin: 2800}
+          Create:
+            - {area: office, brightness: 42, hue: 220, saturation: 42}
+            - {area: hallway, brightness: 12, hue: 220, saturation: 28}
+          Studio:
+            - {area: office, brightness: 65, hue: 205, saturation: 55}
+            - {area: hallway, brightness: 18, hue: 205, saturation: 35}
+          Wind Down:
+            - {area: bedroom, brightness: 10, hue: 220, saturation: 38, transition: 90}
+            - {area: bathroom, brightness: 8, kelvin: 2400, transition: 60}
+            - {area: hallway, brightness: 5, kelvin: 2300, transition: 60}
+            - {area: dinning_room, brightness: 8, kelvin: 2400, transition: 60}
+          Thunderstorm:
+            - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, hue: 220, saturation: 48, transition: 120}
+          Date Night:
+            - {area: dinning_room, brightness: 8, kelvin: 2200, transition: 30}
+            - {area: living_room, brightness: 12, kelvin: 2300, transition: 30}
+            - {area: hallway, brightness: 3, kelvin: 2200, transition: 30}
+            - {area: bedroom, brightness: 9, kelvin: 2200, transition: 30}
+          Cleaning:
+            - {area: entry, brightness: 100, kelvin: 4500}
+            - {area: living_room, brightness: 100, kelvin: 4500}
+            - {area: dinning_room, brightness: 100, kelvin: 4500}
+            - {area: kitchen, brightness: 100, kelvin: 4500}
+            - {area: hallway, brightness: 100, kelvin: 4500}
+            - {area: bathroom, brightness: 100, kelvin: 4500}
+            - {area: bedroom, brightness: 100, kelvin: 4500}
+            - {area: office, brightness: 100, kelvin: 4500}
+          Guest:
+            - {area: entry, brightness: 35, kelvin: 2800}
+            - {area: living_room, brightness: 38, kelvin: 2900}
+            - {area: dinning_room, brightness: 32, kelvin: 2800}
+            - {area: hallway, brightness: 18, kelvin: 2700}
+            - {area: bathroom, brightness: 55, kelvin: 3300}
+          Cinema:
+            - {area: living_room, brightness: 12, kelvin: 2400, transition: 20}
+            - {area: hallway, brightness: 3, kelvin: 2200, transition: 20}
+          Emergency:
+            - {area: entry, brightness: 100, kelvin: 4000}
+            - {area: living_room, brightness: 100, kelvin: 4000}
+            - {area: dinning_room, brightness: 100, kelvin: 4000}
+            - {area: hallway, brightness: 100, kelvin: 4000}
+            - {area: bathroom, brightness: 100, kelvin: 4000}
+            - {area: bedroom, brightness: 100, kelvin: 4000}
+            - {area: office, brightness: 100, kelvin: 4000}
+    - condition: template
+      value_template: "{{ requested_mode in valid_modes }}"
+    - choose:
+        - conditions: >-
+            {{ transition_source == 'schedule'
+               and requested_mode != 'Emergency'
+               and not scheduled_allowed }}
+          sequence:
+            - service: input_text.set_value
+              target:
+                entity_id: input_text.sanctuary_transition_reason
+              data:
+                value: >-
+                  Skipped {{ requested_mode }}: schedules are disabled or Manual Hold is active
+            - event: sanctuary_mode_skipped
+              event_data:
+                requested_mode: "{{ requested_mode }}"
+                source: "{{ transition_source }}"
+                reason: calibration_or_manual_hold
+            - stop: "Scheduled Sanctuary transition was safely skipped"
+    - choose:
+        - conditions: "{{ requested_mode == 'Manual Hold' }}"
+          sequence:
+            - service: script.sanctuary_hold
+              data:
+                reason: "{{ transition_reason }}"
+            - stop: "Manual Hold activated"
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.sanctuary_mode
+      data:
+        option: "{{ requested_mode }}"
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.sanctuary_transition_reason
+      data:
+        value: "{{ transition_reason }}"
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.sanctuary_transition_source
+      data:
+        value: "{{ transition_source }}"
+    - choose:
+        - conditions: "{{ requested_mode in ['Away', 'Vacation'] }}"
+          sequence:
+            - service: light.turn_off
+              target:
+                area_id:
+                  - entry
+                  - living_room
+                  - dinning_room
+                  - kitchen
+                  - hallway
+                  - bathroom
+                  - bedroom
+                  - office
+              data:
+                transition: 3
+        - conditions: "{{ requested_mode == 'Shower' }}"
+          sequence:
+            - variables:
+                private_shower: >-
+                  {{ is_state('input_boolean.guest_mode', 'on')
+                     or previous_mode == 'Date Night' }}
+            - service: script.sanctuary_apply_room_lighting
+              data:
+                area: bathroom
+                brightness: 35
+                hue: 282
+                saturation: 58
+                transition: 20
+            - choose:
+                - conditions: "{{ not private_shower }}"
+                  sequence:
+                    - repeat:
+                        for_each:
+                          - entry
+                          - living_room
+                          - dinning_room
+                          - hallway
+                          - bedroom
+                          - office
+                        sequence:
+                          - service: script.sanctuary_apply_room_lighting
+                            data:
+                              area: "{{ repeat.item }}"
+                              brightness: 12
+                              hue: 282
+                              saturation: 42
+                              transition: 30
+        - conditions: "{{ requested_mode in room_recipes }}"
+          sequence:
+            - repeat:
+                for_each: "{{ room_recipes[requested_mode] }}"
+                sequence:
+                  - variables:
+                      recipe_brightness: >-
+                        {% if repeat.item.brightness_helper is defined %}
+                          {{ states(repeat.item.brightness_helper) | int(1) }}
+                        {% else %}
+                          {{ repeat.item.brightness | default(0) }}
+                        {% endif %}
+                  - service: script.sanctuary_apply_room_lighting
+                    data:
+                      area: "{{ repeat.item.area }}"
+                      brightness: "{{ recipe_brightness }}"
+                      kelvin: "{{ repeat.item.kelvin | default(0) }}"
+                      hue: "{{ repeat.item.hue | default(-1) }}"
+                      saturation: "{{ repeat.item.saturation | default(55) }}"
+                      transition: "{{ repeat.item.transition | default(3) }}"
+    - choose:
+        - conditions: "{{ requested_mode == 'Thunderstorm' }}"
+          sequence:
+            - service: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.sleep_mode
+            - condition: template
+              value_template: >-
+                {{ has_value('light.bathroom_bathroom_light_5') }}
+            - service: light.turn_on
+              target:
+                entity_id: light.bathroom_bathroom_light_5
+              data:
+                brightness_pct: >-
+                  {{ states('input_number.sanctuary_bathroom_night_brightness') | int(1) }}
+                transition: 30
+        - conditions: "{{ previous_mode == 'Thunderstorm' and requested_mode != 'Thunderstorm' }}"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.sleep_mode
+    - event: sanctuary_mode_changed
+      event_data:
+        mode: "{{ requested_mode }}"
+        previous_mode: "{{ previous_mode }}"
+        source: "{{ transition_source }}"
+        reason: "{{ transition_reason }}"
+        scheduled: "{{ transition_source == 'schedule' }}"
+
+sanctuary_test_calibration:
+  alias: "Sanctuary: test room calibration"
+  description: Test one room without changing the active Sanctuary mode.
+  mode: restart
+  fields:
+    area:
+      required: true
+      selector:
+        text:
+  sequence:
+    - variables:
+        requested_area: "{{ area | string | lower | replace(' ', '_') }}"
+        brightness_value: >-
+          {% if requested_area == 'bedroom' %}
+            {{ states('input_number.sanctuary_bedroom_sleep_brightness') | int(1) }}
+          {% elif requested_area == 'bathroom' %}
+            {{ states('input_number.sanctuary_bathroom_night_brightness') | int(1) }}
+          {% elif requested_area == 'hallway' %}
+            {{ states('input_number.sanctuary_hallway_night_brightness') | int(1) }}
+          {% elif requested_area in ['dining_area', 'dining_room', 'dinning_room'] %}
+            {{ states('input_number.sanctuary_dining_area_night_brightness') | int(1) }}
+          {% elif requested_area == 'entry' %}
+            {{ states('input_number.sanctuary_entry_night_brightness') | int(1) }}
+          {% elif requested_area == 'office' %}
+            {{ states('input_number.sanctuary_office_work_brightness') | int(40) }}
+          {% else %}
+            20
+          {% endif %}
+        kelvin_value: >-
+          {{ 3500 if requested_area in ['office', 'bathroom'] else 2200 }}
+    - service: script.sanctuary_apply_room_lighting
+      data:
+        area: "{{ requested_area }}"
+        brightness: "{{ brightness_value }}"
+        kelvin: "{{ kelvin_value }}"
+        transition: 2
+    - event: sanctuary_calibration_tested
+      event_data:
+        area: "{{ requested_area }}"
+        brightness: "{{ brightness_value }}"
+        kelvin: "{{ kelvin_value }}"
+        action_execution: lighting_only
+
+sanctuary_hold:
+  alias: "Sanctuary: hold automations"
+  mode: single
+  fields:
+    reason:
+      selector:
+        text:
+  sequence:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.sanctuary_mode_before_hold
+      data:
+        value: >-
+          {{ states('input_select.sanctuary_mode')
+             if states('input_select.sanctuary_mode') != 'Manual Hold'
+             else states('input_text.sanctuary_mode_before_hold') }}
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.sanctuary_manual_hold
+    - service: input_select.select_option
+      target:
+        entity_id: input_select.sanctuary_mode
+      data:
+        option: Manual Hold
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.sanctuary_transition_reason
+      data:
+        value: "{{ reason | default('Manual changes are protected', true) }}"
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.sanctuary_transition_source
+      data:
+        value: manual_hold
+    - event: sanctuary_mode_changed
+      event_data:
+        mode: Manual Hold
+        source: manual_hold
+        reason: "{{ reason | default('Manual changes are protected', true) }}"
+
+sanctuary_resume:
+  alias: "Sanctuary: resume automations"
+  mode: single
+  sequence:
+    - variables:
+        resume_mode: >-
+          {% set saved = states('input_text.sanctuary_mode_before_hold') %}
+          {{ saved if saved in state_attr('input_select.sanctuary_mode', 'options')
+             and saved != 'Manual Hold' else 'Home Base' }}
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.sanctuary_manual_hold
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: "{{ resume_mode }}"
+        source: manual_resume
+        reason: Manual Hold released

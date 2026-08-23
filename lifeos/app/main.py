@@ -1,9 +1,13 @@
 """LifeOS — Vault Flow + Body Ops for the Jarvis Hub."""
-from datetime import date
+import base64
+from datetime import date, datetime, timedelta, timezone
 import hmac
+import hashlib
+import json
 import os
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +29,9 @@ from .suggestions import suggest_meals
 app = FastAPI(title="LifeOS", version="0.2.0")
 
 
-PUBLIC_PATHS = {"/api/auth", "/healthz"}
+PUBLIC_PATHS = {"/api/auth", "/api/auth/home-assistant", "/healthz"}
+SESSION_COOKIE = "lifeos_session"
+SESSION_MAX_AGE = 3600
 
 
 def _token_matches(supplied: str | None, expected: str) -> bool:
@@ -38,18 +44,91 @@ def _token_matches(supplied: str | None, expected: str) -> bool:
     )
 
 
+def _b64encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def _b64decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _issue_session(subject: str, expected: str) -> str:
+    expires = datetime.now(timezone.utc) + timedelta(seconds=SESSION_MAX_AGE)
+    payload = _b64encode(
+        json.dumps(
+            {"sub": subject, "exp": int(expires.timestamp())},
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+    )
+    signature = _b64encode(
+        hmac.new(expected.encode(), payload.encode(), hashlib.sha256).digest()
+    )
+    return f"{payload}.{signature}"
+
+
+def _session_matches(supplied: str | None, expected: str) -> bool:
+    if not supplied or not expected:
+        return False
+    try:
+        payload, signature = supplied.split(".", 1)
+        expected_signature = _b64encode(
+            hmac.new(expected.encode(), payload.encode(), hashlib.sha256).digest()
+        )
+        if not hmac.compare_digest(signature, expected_signature):
+            return False
+        claims = json.loads(_b64decode(payload))
+        return int(claims["exp"]) > int(datetime.now(timezone.utc).timestamp())
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return False
+
+
+def _set_session_cookie(response: JSONResponse, session: str, request: Request) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        session,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        max_age=SESSION_MAX_AGE,
+        path="/",
+    )
+
+
+async def _verify_home_assistant_token(token: str) -> dict:
+    """Validate a browser token against HA without retaining it."""
+    if not token:
+        raise ValueError("missing Home Assistant token")
+    url = os.environ.get("HOME_ASSISTANT_URL", "http://homeassistant:8123").rstrip("/")
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=8) as client:
+        response = await client.get(f"{url}/api/auth/current_user", headers=headers)
+        if response.status_code == 404:
+            response = await client.get(f"{url}/api/", headers=headers)
+        response.raise_for_status()
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+    return data if isinstance(data, dict) else {}
+
+
 
 @app.middleware("http")
 async def require_api_token(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.url.path not in PUBLIC_PATHS:
         expected = os.environ.get("LIFEOS_API_TOKEN", "").strip()
         authorization = request.headers.get("authorization", "")
-        supplied = (
+        bearer = (
             authorization[7:].strip()
             if authorization.lower().startswith("bearer ")
-            else request.cookies.get("lifeos_session", "")
+            else None
         )
-        if not expected or not _token_matches(supplied, expected):
+        cookie = request.cookies.get(SESSION_COOKIE, "")
+        authenticated = _token_matches(bearer, expected) or _session_matches(
+            cookie, expected
+        )
+        if not expected or not authenticated:
             return JSONResponse({"detail": "authentication required"}, status_code=401)
     return await call_next(request)
 
@@ -74,7 +153,24 @@ async def auth(request: Request):
     if not expected or not _token_matches(body.get("token"), expected):
         return JSONResponse({"detail": "invalid token"}, status_code=401)
     response = JSONResponse({"ok": True})
-    response.set_cookie("lifeos_session", expected, httponly=True, samesite="strict", secure=False, max_age=86400)
+    _set_session_cookie(response, _issue_session("lifeos-token", expected), request)
+    return response
+
+
+@app.post("/api/auth/home-assistant")
+async def auth_home_assistant(request: Request):
+    """Exchange an authenticated HA browser session for a short LifeOS session."""
+    expected = os.environ.get("LIFEOS_API_TOKEN", "").strip()
+    if not expected:
+        return JSONResponse({"detail": "LifeOS authentication is not configured"}, status_code=503)
+    try:
+        body = await request.json()
+        user = await _verify_home_assistant_token(str(body.get("token") or ""))
+    except (ValueError, httpx.HTTPError):
+        return JSONResponse({"detail": "invalid Home Assistant session"}, status_code=401)
+    subject = str(user.get("id") or user.get("name") or "home-assistant-user")
+    response = JSONResponse({"ok": True, "source": "home_assistant"})
+    _set_session_cookie(response, _issue_session(subject, expected), request)
     return response
 
 init_db()

@@ -3,9 +3,16 @@
 Self-hosted smart home hub for a ThinkPad X1 (Gen 3) — better than Alexa/Google Home:
 fully local, private, conversational (LLM-powered), and infinitely automatable.
 
-Controls: Monster Illuminessence lights, iHome AutoVac Juno (iHRV9), Fire TV, your computers, and anything else you add later.
+Controls the currently commissioned Home Assistant lights and expands safely as
+media, cleaning, climate, and security hardware is added later.
 
 Full long-form plan: [docs/PLAN.md](docs/PLAN.md)
+
+Sanctuary OS v1.2 is the governed apartment experience layered over Jarvis:
+Home Assistant owns local device execution, LifeOS owns context and audit, and
+Google Home is an optional bridge. The versioned master manual and the
+[commissioning runbook](docs/SANCTUARY-COMMISSIONING.md) define the approved
+room identities, calibration gate, routines, and rollout.
 
 ## Quick start (on the X1, fresh Ubuntu Server 24.04)
 
@@ -22,9 +29,9 @@ Then open `http://<laptop-ip>:8123`, create your account, and follow the phases 
 
 **Software foundation: implemented and continuously tested.** The repository now
 contains the orchestration, LifeOS, voice, kiosk, safety policy, simulations, and
-automation layers. Real-world readiness still depends on deploying this branch to
-the X1, confirming its Linux device nodes, pairing household devices, and replacing
-placeholder Home Assistant entity IDs. Use
+automation layers. Real-world readiness still depends on commissioning each device
+and calibrating each room on the X1. Missing hardware stays visibly
+`not_commissioned`; it is never represented by a service-calling placeholder. Use
 **[docs/CONNECT-DEVICES.md](docs/CONNECT-DEVICES.md)** as the commissioning runbook.
 
 **Built and in this repo:**
@@ -35,6 +42,9 @@ placeholder Home Assistant entity IDs. Use
   wisdom & sarcasm, diagnostics, announcements
 - Dashboard: Wall kiosk view, boot splash, holographic Jarvis avatar orb, Twin tab,
   Media quick-launch tiles, dark-glass Jarvis theme, on-screen keyboard
+- Sanctuary Spatial Command Center: interactive apartment blueprint, canonical
+  room identities, room drawers, live light/readiness state, Manual Hold, and
+  calibration controls for the X1 and phone
 - Proactive layer: 6:30 workday wake-up, schedule-aware dinner nudge, medication +
   hydration, circadian lighting, welcome home, nightly musing, power-outage alerts,
   safe shutdown, charge cap, CPU temp watch, nightly backups
@@ -193,9 +203,27 @@ The split is deliberate: Home Assistant owns devices, LifeOS owns durable person
 and contextual intelligence, Jarvis owns conversation and synthesis, and the policy
 gate owns authority.
 
-The automation/script files contain placeholder entity IDs (`light.living_room`,
-`vacuum.juno`, `media_player.fire_tv`, `notify.mobile_app_phone`) — rename them to match
-your real devices after connecting them (Settings → Devices & Services → Entities).
+## Sanctuary state machine
+
+`input_select.sanctuary_mode` is the single apartment state. All lighting uses
+Home Assistant Areas through capability-aware, light-only scripts; no Sanctuary
+scene can target a switch, lock, cover, alarm, climate entity, or vacuum. The
+Entry internet-power switch is explicitly protected.
+
+Scheduled behavior ships OFF. Calibrate the room levels, exercise manual scenes,
+set `input_boolean.sanctuary_calibration_ready`, and only then enable
+`input_boolean.sanctuary_automations_enabled`. Manual Hold always protects user
+changes. See
+[docs/SANCTUARY-COMMISSIONING.md](docs/SANCTUARY-COMMISSIONING.md).
+
+The weekday sequence begins Sunrise at 6:30 AM and stages preparation through
+7:20 AM. Shower, Wind Down, Thunderstorm, and protected Sleep begin at 8:00,
+9:00/9:30, 10:00, and 10:30 PM. Thunderstorm lighting stays at the calibrated
+1–2% level until weekday Sunrise; media playback is independent.
+
+Legacy routines that targeted placeholder lights, vacuums, media players, locks,
+or sensors are retired. Capability-aware routines discover only available,
+commissioned entities through Home Assistant Areas.
 
 ## Phase checklist
 

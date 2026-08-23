@@ -225,6 +225,18 @@ rest_command:
 
 # Toggles used by the guest-mode and sleep-intelligence automations
 input_boolean:
+  sanctuary_automations_enabled:
+    name: Sanctuary scheduled automations
+    icon: mdi:home-automation
+    initial: false
+  sanctuary_calibration_ready:
+    name: Sanctuary room calibration verified
+    icon: mdi:check-decagram
+    initial: false
+  sanctuary_manual_hold:
+    name: Sanctuary manual hold
+    icon: mdi:hand-back-right
+    initial: false
   guest_mode:
     name: Guest mode
     icon: mdi:account-group
@@ -244,9 +256,117 @@ input_boolean:
     name: Circadian lighting
     icon: mdi:theme-light-dark
 
+# The single authoritative apartment state. Scheduled transitions remain
+# disabled until the room calibration gate is complete.
+input_select:
+  sanctuary_mode:
+    name: Sanctuary mode
+    icon: mdi:home-heart
+    options:
+      - Home Base
+      - Morning
+      - Away
+      - Welcome
+      - Work
+      - Focus
+      - Create
+      - Studio
+      - Shower
+      - Wind Down
+      - Thunderstorm
+      - Date Night
+      - Cleaning
+      - Guest
+      - Cinema
+      - Vacation
+      - Emergency
+      - Manual Hold
+    initial: Home Base
+
+input_text:
+  sanctuary_transition_reason:
+    name: Sanctuary transition reason
+    max: 255
+    initial: System initialized in calibration-safe mode
+  sanctuary_transition_source:
+    name: Sanctuary transition source
+    max: 64
+    initial: startup
+  sanctuary_mode_before_hold:
+    name: Sanctuary mode before hold
+    max: 32
+    initial: Home Base
+
+# Calibration values are device commands, never assumptions about perceived
+# brightness. The first five helpers are intentionally capped at 5 percent.
+input_number:
+  sanctuary_bedroom_sleep_brightness:
+    name: Bedroom Thunderstorm calibration
+    min: 1
+    max: 5
+    step: 1
+    initial: 1
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_bathroom_night_brightness:
+    name: Bathroom night beacon calibration
+    min: 1
+    max: 5
+    step: 1
+    initial: 1
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_hallway_night_brightness:
+    name: Hallway night navigation calibration
+    min: 1
+    max: 5
+    step: 1
+    initial: 1
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_dining_area_night_brightness:
+    name: Dining Area night navigation calibration
+    min: 1
+    max: 5
+    step: 1
+    initial: 1
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_entry_night_brightness:
+    name: Entry night navigation calibration
+    min: 1
+    max: 5
+    step: 1
+    initial: 1
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_welcome_brightness:
+    name: Welcome brightness calibration
+    min: 20
+    max: 50
+    step: 1
+    initial: 35
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_office_work_brightness:
+    name: Office work brightness calibration
+    min: 20
+    max: 80
+    step: 1
+    initial: 40
+    unit_of_measurement: "%"
+    mode: slider
+  sanctuary_bathroom_grooming_brightness:
+    name: Bathroom grooming brightness calibration
+    min: 40
+    max: 100
+    step: 1
+    initial: 80
+    unit_of_measurement: "%"
+    mode: slider
+
 # Monthly budget cap — the budget-alert automation fires when LifeOS
 # month-to-date spending crosses this (adjust it from any dashboard).
-input_number:
   monthly_budget:
     name: Monthly budget
     icon: mdi:cash-lock
@@ -348,11 +468,49 @@ template:
         state: >-
           {{ now().weekday() < 5 and 8 <= now().hour < 17 }}
   - sensor:
+      - name: Sanctuary last transition
+        unique_id: sanctuary_last_transition
+        icon: mdi:timeline-clock
+        state: >-
+          {{ states('input_text.sanctuary_transition_reason') }}
+        attributes:
+          mode: "{{ states('input_select.sanctuary_mode') }}"
+          source: "{{ states('input_text.sanctuary_transition_source') }}"
+          changed_at: >-
+            {{ states.input_select.sanctuary_mode.last_changed.isoformat()
+               if states.input_select.sanctuary_mode is not none else none }}
+      - name: Sanctuary readiness
+        unique_id: sanctuary_readiness
+        icon: mdi:shield-home
+        state: >-
+          {% set lights = states.light | rejectattr('state','in',['unavailable','unknown']) | list %}
+          {{ 'calibration' if is_state('input_boolean.sanctuary_calibration_ready','off')
+             else 'paused' if is_state('input_boolean.sanctuary_automations_enabled','off')
+             else 'ready' if lights | count > 0 else 'degraded' }}
+        attributes:
+          active_lights: >-
+            {{ states.light | selectattr('state','eq','on') | list | count }}
+          available_lights: >-
+            {{ states.light | rejectattr('state','in',['unavailable','unknown']) | list | count }}
+          calibration_verified: >-
+            {{ is_state('input_boolean.sanctuary_calibration_ready', 'on') }}
+          bedroom_light_2: >-
+            {{ 'ready' if area_entities('bedroom') | select('match','^light\\.') | list | count >= 2
+               else 'not_commissioned' }}
+          vacuum: >-
+            {{ 'ready' if states.vacuum | rejectattr('state','in',['unavailable','unknown']) | list | count > 0
+               else 'not_commissioned' }}
+          media: >-
+            {{ 'ready' if states.media_player | rejectattr('state','in',['unavailable','unknown']) | list | count > 0
+               else 'not_commissioned' }}
+          perimeter: >-
+            {{ 'ready' if states.binary_sensor | selectattr('attributes.device_class','in',['door','window','garage_door']) | list | count > 0
+               else 'not_commissioned' }}
       - name: Current activity
         unique_id: jarvis_current_activity
         icon: mdi:motion
         state: >-
-          {% if is_state('media_player.fire_tv', 'playing') %}
+          {% if states.media_player | selectattr('state','eq','playing') | list | count > 0 %}
             watching_tv
           {% elif is_state('binary_sensor.desk_chair', 'on') %}
             working
@@ -365,8 +523,10 @@ template:
         unique_id: jarvis_room_atmosphere
         icon: mdi:home-heart
         state: >-
-          {% set tv = is_state('media_player.fire_tv', 'playing') %}
-          {% set lights = is_state('light.living_room', 'on') %}
+          {% set tv = states.media_player | selectattr('state','eq','playing') | list | count > 0 %}
+          {% set lights = expand(area_entities('living_room'))
+             | selectattr('domain','eq','light') | selectattr('state','eq','on')
+             | list | count > 0 %}
           {% if is_state('input_boolean.sleep_mode', 'on') %}
             sleeping
           {% elif tv and lights %}
@@ -379,24 +539,9 @@ template:
             normal
           {% endif %}
 
-# Behavior learning + predictive maintenance (history_stats turns entity
-# history into hours-per-day numbers).
-# EDIT: climate.thermostat / binary_sensor.bedroom_motion to your entities.
-sensor:
-  - platform: history_stats
-    name: HVAC runtime hours
-    entity_id: climate.thermostat
-    state: "heat"
-    type: time
-    start: "{{ now() - timedelta(days=90) }}"
-    end: "{{ now() }}"
-  - platform: history_stats
-    name: Bedroom activity today
-    entity_id: binary_sensor.bedroom_motion
-    state: "on"
-    type: time
-    start: "{{ now().replace(hour=0, minute=0, second=0) }}"
-    end: "{{ now() }}"
+# Predictive-maintenance history sensors are intentionally omitted until a
+# thermostat and occupancy sensor are commissioned. Their absence is reported
+# through Sanctuary readiness rather than as broken Home Assistant entities.
 
 # Energy tracking: point these at smart-plug power sensors once you have them
 # (each plug exposes sensor.<plug>_energy). utility_meter turns kWh into

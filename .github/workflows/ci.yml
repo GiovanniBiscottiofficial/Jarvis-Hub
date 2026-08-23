@@ -40,4 +40,7 @@ jobs:
         run: docker compose config --quiet
 
       - name: Validate browser JavaScript
-        run: node --check lifeos/app/static/app.js
+        run: |
+          node --check lifeos/app/static/app.js
+          node scripts/validate-web-js.mjs
+          node scripts/validate-accessibility.mjs

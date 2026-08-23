@@ -8,11 +8,11 @@ guest_mode_on:
     - service: input_boolean.turn_on
       target:
         entity_id: input_boolean.guest_mode
-    - service: light.turn_on
-      target:
-        entity_id: light.living_room
+    - service: script.sanctuary_activate_mode
       data:
-        brightness_pct: 80
+        mode: Guest
+        source: voice
+        reason: Guest mode enabled
     - service: script.jarvis_say
       data:
         message: "Guest mode is on. Personal announcements are paused."
@@ -24,3 +24,8 @@ guest_mode_off:
     - service: input_boolean.turn_off
       target:
         entity_id: input_boolean.guest_mode
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: Home Base
+        source: voice
+        reason: Guest mode disabled

@@ -14,10 +14,33 @@
 </style>
 </head>
 <body>
-<iframe id="app" allow="camera; microphone"></iframe>
+<iframe id="app" title="LifeOS" allow="camera; microphone"></iframe>
 <script>
-  document.getElementById('app').src =
-    location.protocol + '//' + location.hostname + ':8090/';
+  'use strict';
+  const app = document.getElementById('app');
+  const appOrigin = location.protocol + '//' + location.hostname + ':8090';
+
+  function locateHass() {
+    let context = window;
+    for (let depth = 0; depth < 6; depth += 1) {
+      try {
+        const root = context.document.querySelector('home-assistant');
+        if (root && root.hass) return root.hass;
+        if (context === context.parent) break;
+        context = context.parent;
+      } catch (_) { break; }
+    }
+    return null;
+  }
+
+  app.addEventListener('load', () => {
+    const hass = locateHass();
+    const token = hass && hass.auth && hass.auth.data && hass.auth.data.access_token;
+    if (token) {
+      app.contentWindow.postMessage({ type: 'lifeos-ha-auth', token }, appOrigin);
+    }
+  });
+  app.src = appOrigin + '/';
 </script>
 </body>
 </html>

@@ -122,19 +122,11 @@ views:
             color: green
             tap_action:
               action: toggle
-          - type: heading
-            heading: Juno
-            icon: mdi:robot-vacuum
-          - type: tile
-            entity: vacuum.juno
-            name: Vacuum
-            color: cyan
-            features:
-              - type: vacuum-commands
-                commands:
-                  - start_pause
-                  - return_home
-                  - locate
+          - type: markdown
+            content: >-
+              **Vacuum — not commissioned**
+
+              Add a vacuum integration to unlock cleaning controls.
 
       - type: grid
         cards:
@@ -151,7 +143,6 @@ views:
           - type: logbook
             hours_to_show: 12
             entities:
-              - vacuum.juno
               - script.movie_night
               - script.goodnight
               - script.leaving
@@ -362,18 +353,11 @@ views:
             entity: input_boolean.guest_mode
             name: Guests
             icon: mdi:account-group
-          - type: custom:bubble-card
-            card_type: button
-            button_type: switch
-            card_layout: large
-            entity: vacuum.juno
-            name: Juno
-            icon: mdi:robot-vacuum
-            tap_action:
-              action: call-service
-              service: vacuum.start
-              target:
-                entity_id: vacuum.juno
+          - type: markdown
+            content: >-
+              **Vacuum — not commissioned**
+
+              Cleaning actions stay disabled until hardware is available.
           - type: heading
             heading: Jarvis OS
             icon: mdi:apps
@@ -567,18 +551,10 @@ views:
           - type: heading
             heading: Lights
             icon: mdi:lightbulb-group
-          - type: tile
-            entity: light.living_room
-            name: Living Room
-            color: amber
-            features:
-              - type: light-brightness
-          - type: tile
-            entity: light.bedroom
-            name: Bedroom
-            color: amber
-            features:
-              - type: light-brightness
+          - type: markdown
+            content: >-
+              Use **Wall → Sanctuary Command Center** for Area-aware room
+              lighting, calibration, and device health.
 
       - type: grid
         cards:
@@ -635,28 +611,20 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Juno
+            heading: Readiness
             icon: mdi:robot-vacuum
-          - type: tile
-            entity: vacuum.juno
-            name: Juno
-            color: cyan
-            features:
-              - type: vacuum-commands
-                commands:
-                  - start_pause
-                  - stop
-                  - return_home
-                  - locate
+          - type: markdown
+            content: >-
+              ## Vacuum not commissioned
+              Jarvis will not issue vacuum service calls until Home Assistant
+              reports an available vacuum entity.
       - type: grid
         cards:
           - type: heading
             heading: Cleaning history
             icon: mdi:history
-          - type: history-graph
-            hours_to_show: 168
-            entities:
-              - vacuum.juno
+          - type: markdown
+            content: "Cleaning history will appear after commissioning."
 
   # ------------------------------------------------------------------
   - title: Media
@@ -669,10 +637,13 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Fire TV
+            heading: Media readiness
             icon: mdi:television
-          - type: media-control
-            entity: media_player.fire_tv
+          - type: markdown
+            content: >-
+              ## Media player not commissioned
+              Cinema lighting is available; playback controls appear only after
+              a media player is added to Home Assistant.
           - type: tile
             entity: script.movie_night
             name: "Movie Night (Netflix + dim lights)"

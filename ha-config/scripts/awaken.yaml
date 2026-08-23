@@ -6,13 +6,11 @@ full_jarvis_awakening:
   alias: "Full Jarvis awakening"
   icon: mdi:robot-excited
   sequence:
-    # Ambient glow — Jarvis-cyan across the living room
-    - service: light.turn_on
-      target:
-        entity_id: light.living_room
+    - service: script.sanctuary_activate_mode
       data:
-        rgb_color: [0, 212, 255]
-        brightness: 80
+        mode: Morning
+        source: voice
+        reason: Full Jarvis awakening requested
     # Audio greeting
     - service: script.jarvis_say
       data:

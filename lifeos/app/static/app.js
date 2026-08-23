@@ -12,30 +12,73 @@ function escapeHtml(value) {
   }[char]));
 }
 
-async function api(path, method = "GET", body) {
+let homeAssistantToken = null;
+let tokenWaiter = null;
+let authenticationPromise = null;
+
+window.addEventListener("message", (event) => {
+  let source;
+  try { source = new URL(event.origin); } catch (_) { return; }
+  if (source.hostname !== window.location.hostname) return;
+  if (!event.data || event.data.type !== "lifeos-ha-auth" || !event.data.token) return;
+  homeAssistantToken = String(event.data.token);
+  if (tokenWaiter) tokenWaiter(homeAssistantToken);
+});
+
+function waitForHomeAssistantToken(timeout = 1600) {
+  if (homeAssistantToken) return Promise.resolve(homeAssistantToken);
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      tokenWaiter = null;
+      resolve(null);
+    }, timeout);
+    tokenWaiter = (token) => {
+      window.clearTimeout(timer);
+      tokenWaiter = null;
+      resolve(token);
+    };
+  });
+}
+
+async function authenticateBrowser() {
+  if (authenticationPromise) return authenticationPromise;
+  authenticationPromise = (async () => {
+    const haToken = await waitForHomeAssistantToken();
+    if (haToken) {
+      const exchanged = await fetch("/api/auth/home-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: haToken }),
+      });
+      homeAssistantToken = null;
+      if (exchanged.ok) return true;
+    }
+    const token = window.prompt("Enter your LifeOS API token");
+    if (!token) return false;
+    const auth = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    return auth.ok;
+  })();
+  try {
+    return await authenticationPromise;
+  } finally {
+    authenticationPromise = null;
+  }
+}
+
+async function api(path, method = "GET", body, retried = false) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
-  const saved = localStorage.getItem("lifeos_token");
-  if (saved) headers["Authorization"] = "Bearer " + saved;
   const res = await fetch(path, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401) {
-    if (saved) localStorage.removeItem("lifeos_token");
-    const token = window.prompt("Enter your LifeOS API token");
-    if (token) {
-      const auth = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (auth.ok) {
-        localStorage.setItem("lifeos_token", token);
-        return api(path, method, body);
-      }
-    }
+  if (res.status === 401 && !retried && await authenticateBrowser()) {
+    return api(path, method, body, true);
   }
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || data.message || `LifeOS request failed (${res.status})`);
@@ -316,10 +359,9 @@ $("photo-btn").onclick = async () => {
   try {
     const form = new FormData();
     form.append("photo", file);
-    const token = localStorage.getItem("lifeos_token");
+    await api("/api/health");
     const res = await fetch("/api/body/meals/photo", {
       method: "POST",
-      headers: token ? { Authorization: "Bearer " + token } : undefined,
       body: form,
     });
     const r = await res.json();
@@ -1136,6 +1178,7 @@ async function loadCommandCenter() {
     const telemetry = context.telemetry || {};
     const lifeos = context.lifeos || {};
     const perception = context.perception || {};
+    const sanctuary = payload.sanctuary || context.sanctuary || {};
     const openPerimeter = security.open_perimeter || [];
     const hazards = security.active_hazards || [];
     const people = (occupancy.people_home || []).map(friendlyEntity);
@@ -1143,7 +1186,7 @@ async function loadCommandCenter() {
     const alarmState = String(security.alarm || "unknown").toLowerCase();
     const awaiting = telemetry.link_state === "awaiting_data";
     $("command").classList.add(awaiting ? "is-awaiting" : secure ? "is-nominal" : "is-attention");
-    commandText("command-mode", String(context.house_mode || "unknown").toUpperCase());
+    commandText("command-mode", String(sanctuary.mode || context.house_mode || "unknown").toUpperCase());
     commandText("command-occupancy", people.length ? people.join(", ") : "VACANT");
     commandText("command-alarm", alarmState.toUpperCase());
     commandText("command-perimeter", openPerimeter.length ? `${openPerimeter.length} OPEN` : "SECURE");
@@ -1155,7 +1198,7 @@ async function loadCommandCenter() {
       awaiting
         ? "Context engine online. Waiting for the first Home Assistant event."
         : secure
-        ? `${context.pending_proposals || proposals.length} pending proposal(s). Perimeter integrity confirmed.`
+        ? `${sanctuary.reason || "Sanctuary state synchronized."} ${context.pending_proposals || proposals.length} pending proposal(s). ${(sanctuary.missing_capabilities || []).length ? `Not commissioned: ${sanctuary.missing_capabilities.join(", ")}.` : "Perimeter integrity confirmed."}`
         : `Review required: ${[...openPerimeter, ...hazards].map(friendlyEntity).join(", ") || (["unknown", "unavailable"].includes(alarmState) ? "alarm telemetry is unknown" : "alarm state is not secure")}.`
     );
     commandText("command-updated", `SYNC ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);

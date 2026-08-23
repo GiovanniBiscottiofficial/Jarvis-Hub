@@ -33,9 +33,10 @@ jarvis_say:
         piper_tts: >-
           {{ states.tts | map(attribute='entity_id')
              | select('search', 'piper') | list | first | default('') }}
-        speaker_ok: >-
-          {{ states('media_player.living_room_speaker')
-             not in ['unknown', 'unavailable'] }}
+        speaker: >-
+          {{ states.media_player
+             | rejectattr('state', 'in', ['unknown', 'unavailable'])
+             | map(attribute='entity_id') | list | first | default('') }}
     - choose:
         - conditions: "{{ satellite != '' }}"
           sequence:
@@ -44,17 +45,17 @@ jarvis_say:
                 entity_id: "{{ satellite }}"
               data:
                 message: "{{ message }}"
-        - conditions: "{{ piper_tts != '' and speaker_ok }}"
+        - conditions: "{{ piper_tts != '' and speaker != '' }}"
           sequence:
             - service: tts.speak
               target:
                 entity_id: "{{ piper_tts }}"
               data:
-                media_player_entity_id: media_player.living_room_speaker
+                media_player_entity_id: "{{ speaker }}"
                 message: "{{ message }}"
-        - conditions: "{{ speaker_ok }}"
+        - conditions: "{{ speaker != '' }}"
           sequence:
             - service: tts.google_translate_say
               data:
-                entity_id: media_player.living_room_speaker
+                entity_id: "{{ speaker }}"
                 message: "{{ message }}"

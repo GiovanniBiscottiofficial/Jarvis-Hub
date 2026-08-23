@@ -532,6 +532,32 @@ Build these in evidence-driven order rather than adding disconnected gadgets.
 
 ---
 
+## Phase 21 — Sanctuary OS v1.2 completion
+
+Sanctuary v1.2 replaces disconnected placeholder routines with one calibrated,
+explainable apartment state machine.
+
+- Home Assistant is the authoritative local control plane; LifeOS owns context,
+  proposals, policy, and audit; Google Home is optional.
+- The apartment floor plan is the primary room interface and Bedroom #2 is the
+  Office. `Dining Area` is the canonical display name.
+- All room lighting resolves through Home Assistant Areas and the `light` domain.
+  Missing devices are readiness facts, not service-call failures.
+- Scheduled routines are disabled until real-room calibration passes. Manual
+  modes, Manual Hold, Resume, and calibration tests remain available.
+- Weekday Sunrise, presence-driven Welcome/Away, Shower, Wind Down,
+  Thunderstorm-until-Sunrise, and Sunday Cleaning share one priority model.
+- Home Assistant browser sessions exchange for short-lived HttpOnly LifeOS
+  sessions, eliminating the embedded token prompt without putting long-lived
+  secrets in URLs or browser storage.
+- Synthetic Sanctuary scenarios cover every mode, priority gates, recording and
+  guest protection, unavailable devices, and lighting-only safety boundaries.
+
+Commissioning and rollback are defined in
+[SANCTUARY-COMMISSIONING.md](SANCTUARY-COMMISSIONING.md).
+
+---
+
 ## Reality check vs Alexa/Google
 
 | | Your X1 hub | Alexa/Google |

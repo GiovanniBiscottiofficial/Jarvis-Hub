@@ -14,15 +14,20 @@ from .db import active_profile, conn, get_setting
 ACTION_REGISTRY: dict[str, dict[str, Any]] = {
     "scene.arrival": {
         "name": "Prepare the house for arrival",
-        "description": "Activate the configured arrival scene.",
+        "description": "Activate the approved Sanctuary Welcome mode.",
         "risk": "low",
         "scope": "comfort",
         "reversible": True,
         "confirmation_policy": "automatic_or_simulated",
         "requires_confirmation": False,
         "remote_execution": True,
-        "service": "scene.turn_on",
-        "target": "scene.arrival",
+        "service": "script.sanctuary_activate_mode",
+        "target": None,
+        "default_data": {
+            "mode": "Welcome",
+            "source": "lifeos",
+            "reason": "Approved arrival orchestration proposal",
+        },
     },
     "notify.departure_anomaly": {
         "name": "Report a departure anomaly",
@@ -33,7 +38,7 @@ ACTION_REGISTRY: dict[str, dict[str, Any]] = {
         "confirmation_policy": "automatic_or_simulated",
         "requires_confirmation": False,
         "remote_execution": True,
-        "service": "notify.mobile_app_phone",
+        "service": "notify.jarvis_phone",
         "target": None,
     },
     "security.arm_away": {
@@ -93,9 +98,116 @@ ACTION_REGISTRY: dict[str, dict[str, Any]] = {
         "confirmation_policy": "automatic_or_simulated",
         "requires_confirmation": False,
         "remote_execution": True,
-        "service": "notify.mobile_app_phone",
+        "service": "notify.jarvis_phone",
         "target": None,
     },
+    "sanctuary.activate_lighting_mode": {
+        "name": "Activate a Sanctuary lighting mode",
+        "description": "Apply a reversible, lighting-only Sanctuary mode through Home Assistant.",
+        "risk": "low",
+        "scope": "comfort",
+        "reversible": True,
+        "confirmation_policy": "automatic_or_simulated",
+        "requires_confirmation": False,
+        "remote_execution": True,
+        "service": "script.sanctuary_activate_mode",
+        "target": None,
+        "default_data": {"source": "lifeos"},
+    },
+    "sanctuary.activate_away": {
+        "name": "Activate Sanctuary Away mode",
+        "description": "Turn off commissioned lights after confirmed departure.",
+        "risk": "medium",
+        "scope": "energy_and_presence",
+        "reversible": True,
+        "confirmation_policy": "explicit_confirmation",
+        "requires_confirmation": True,
+        "remote_execution": True,
+        "service": "script.sanctuary_activate_mode",
+        "target": None,
+        "default_data": {
+            "mode": "Away",
+            "source": "lifeos",
+            "reason": "Confirmed departure proposal",
+        },
+    },
+    "sanctuary.manual_hold": {
+        "name": "Protect manual lighting changes",
+        "description": "Pause scheduled lifestyle transitions until manually resumed.",
+        "risk": "low",
+        "scope": "automation_control",
+        "reversible": True,
+        "confirmation_policy": "automatic_or_simulated",
+        "requires_confirmation": False,
+        "remote_execution": True,
+        "service": "script.sanctuary_hold",
+        "target": None,
+        "default_data": {"reason": "Manual Hold requested from LifeOS"},
+    },
+    "sanctuary.resume": {
+        "name": "Resume Sanctuary transitions",
+        "description": "Release Manual Hold and restore the previously active mode.",
+        "risk": "low",
+        "scope": "automation_control",
+        "reversible": True,
+        "confirmation_policy": "automatic_or_simulated",
+        "requires_confirmation": False,
+        "remote_execution": True,
+        "service": "script.sanctuary_resume",
+        "target": None,
+        "default_data": {},
+    },
+    "sanctuary.emergency_lighting": {
+        "name": "Activate emergency path lighting",
+        "description": "Override decorative modes with bright light-only egress guidance.",
+        "risk": "medium",
+        "scope": "physical_safety",
+        "reversible": True,
+        "confirmation_policy": "explicit_confirmation_or_sensor_trigger",
+        "requires_confirmation": True,
+        "remote_execution": True,
+        "service": "script.sanctuary_activate_mode",
+        "target": None,
+        "default_data": {
+            "mode": "Emergency",
+            "source": "lifeos",
+            "reason": "Confirmed emergency lighting request",
+        },
+    },
+}
+
+SANCTUARY_MODES = {
+    "Home Base",
+    "Morning",
+    "Away",
+    "Welcome",
+    "Work",
+    "Focus",
+    "Create",
+    "Studio",
+    "Shower",
+    "Wind Down",
+    "Thunderstorm",
+    "Date Night",
+    "Cleaning",
+    "Guest",
+    "Cinema",
+    "Vacation",
+    "Emergency",
+    "Manual Hold",
+}
+SANCTUARY_ROOM_ALIASES = {
+    "entry": "Entry",
+    "living_room": "Living Room",
+    "dinning_room": "Dining Area",
+    "dining_room": "Dining Area",
+    "dining_area": "Dining Area",
+    "kitchen": "Kitchen",
+    "hallway": "Hallway",
+    "bathroom": "Bathroom",
+    "bedroom": "Bedroom",
+    "office": "Office",
+    "patio": "Patio",
 }
 
 OPEN_STATES = {"on", "open", "opening", "unlocked", "unsafe"}
@@ -294,6 +406,55 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
     for event in recent:
         event["attributes"] = _decode(event.pop("attributes_json"))
     mode = all_facts.get("house.mode", {}).get("value", "normal")
+    sanctuary_mode = all_facts.get("sanctuary.mode", {}).get("value", "Home Base")
+    sanctuary_reason = all_facts.get("sanctuary.last_transition", {}).get("value", {})
+    room_entities: dict[str, list[dict[str, Any]]] = {
+        name: [] for name in SANCTUARY_ROOM_ALIASES.values()
+    }
+    unassigned_lights: list[dict[str, Any]] = []
+    for key, fact in all_facts.items():
+        if not key.startswith("sanctuary.room_entity."):
+            continue
+        value = fact.get("value") if isinstance(fact.get("value"), dict) else {}
+        area_id = str(value.get("area_id") or "")
+        room_name = SANCTUARY_ROOM_ALIASES.get(area_id)
+        item = {
+            "entity_id": key.removeprefix("sanctuary.room_entity."),
+            "name": value.get("friendly_name"),
+            "state": value.get("state", "unknown"),
+            "updated_at": fact.get("updated_at"),
+        }
+        if room_name:
+            room_entities[room_name].append(item)
+        else:
+            unassigned_lights.append(item)
+    rooms = []
+    for room_name, entities in room_entities.items():
+        rooms.append(
+            {
+                "name": room_name,
+                "lights": entities,
+                "active_lights": sum(item["state"] == "on" for item in entities),
+                "unavailable_lights": sum(
+                    item["state"] in {"unavailable", "unknown"} for item in entities
+                ),
+                "commissioned": bool(entities),
+            }
+        )
+    sanctuary_devices = list(devices)
+    missing_capabilities = []
+    for domain, label in (
+        ("vacuum.", "vacuum"),
+        ("media_player.", "media"),
+        ("lock.", "locks"),
+        ("climate.", "climate"),
+        ("camera.", "cameras"),
+    ):
+        if not any(entity.startswith(domain) for entity in sanctuary_devices):
+            missing_capabilities.append(label)
+    bedroom = next(room for room in rooms if room["name"] == "Bedroom")
+    if len(bedroom["lights"]) < 2:
+        missing_capabilities.append("bedroom_light_2")
     alarm = all_facts.get("security.alarm", {}).get("value", "unknown")
     hardware = {
         "battery": devices.get("sensor.x1_battery", "unknown"),
@@ -346,6 +507,39 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
     return {
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "house_mode": mode,
+        "sanctuary": {
+            "mode": sanctuary_mode,
+            "reason": sanctuary_reason.get("reason")
+            if isinstance(sanctuary_reason, dict)
+            else None,
+            "source": sanctuary_reason.get("source")
+            if isinstance(sanctuary_reason, dict)
+            else None,
+            "changed_at": all_facts.get("sanctuary.last_transition", {}).get(
+                "updated_at"
+            ),
+            "automations_enabled": str(
+                all_facts.get("sanctuary.automations_enabled", {}).get("value", "off")
+            ).lower()
+            == "on",
+            "calibration_ready": str(
+                all_facts.get("sanctuary.calibration_ready", {}).get("value", "off")
+            ).lower()
+            == "on",
+            "manual_hold": str(
+                all_facts.get("sanctuary.manual_hold", {}).get("value", "off")
+            ).lower()
+            == "on",
+            "calibration": {
+                key.removeprefix("sanctuary.calibration."): fact["value"]
+                for key, fact in all_facts.items()
+                if key.startswith("sanctuary.calibration.")
+            },
+            "rooms": rooms,
+            "unassigned_lights": unassigned_lights,
+            "missing_capabilities": sorted(set(missing_capabilities)),
+            "protected_targets": ["entry_internet_power_switch"],
+        },
         "occupancy": {
             "occupied": bool(people_home),
             "people_home": people_home,
@@ -413,17 +607,125 @@ def command_center_payload(event_limit: int = 40) -> dict[str, Any]:
     snapshot = current_context(event_limit=event_limit)
     return {
         "context": snapshot,
+        "sanctuary": snapshot["sanctuary"],
         "proposals": list_proposals("pending"),
         "actions": ACTION_REGISTRY,
         "capabilities": capability_manifest(snapshot),
     }
 
 
+def simulate_sanctuary_mode(
+    mode: str, overrides: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Exercise the Sanctuary gate without calling HA or writing the database."""
+    if mode not in SANCTUARY_MODES:
+        raise ValueError(mode)
+    scenario = deepcopy(overrides or {})
+    source = str(scenario.setdefault("source", "schedule"))
+    automations_enabled = bool(scenario.setdefault("automations_enabled", True))
+    calibration_ready = bool(scenario.setdefault("calibration_ready", True))
+    manual_hold = bool(scenario.setdefault("manual_hold", False))
+    scenario.setdefault("person_home", True)
+    scenario.setdefault("workday", True)
+    scenario.setdefault("guest_mode", False)
+    scenario.setdefault("recording", False)
+    scenario.setdefault("current_mode", "Home Base")
+    scenario.setdefault("unavailable_lights", [])
+    allowed = (
+        mode == "Emergency"
+        or source != "schedule"
+        or (automations_enabled and calibration_ready and not manual_hold)
+    )
+    rooms_by_mode = {
+        "Home Base": ["Entry", "Living Room", "Dining Area", "Hallway"],
+        "Morning": ["Bedroom", "Bathroom", "Office", "Hallway", "Dining Area", "Entry"],
+        "Away": [],
+        "Welcome": ["Entry", "Living Room", "Dining Area", "Hallway"],
+        "Work": ["Office", "Hallway"],
+        "Focus": ["Office", "Hallway"],
+        "Create": ["Office", "Hallway"],
+        "Studio": ["Office", "Hallway"],
+        "Shower": ["Bathroom"]
+        if scenario["guest_mode"]
+        else ["Bathroom", "Entry", "Living Room", "Dining Area", "Hallway", "Bedroom", "Office"],
+        "Wind Down": ["Bedroom", "Bathroom", "Hallway", "Dining Area"],
+        "Thunderstorm": ["Bedroom", "Bathroom"],
+        "Date Night": ["Dining Area", "Living Room", "Hallway", "Bedroom"],
+        "Cleaning": [
+            "Entry",
+            "Living Room",
+            "Dining Area",
+            "Kitchen",
+            "Hallway",
+            "Bathroom",
+            "Bedroom",
+            "Office",
+        ],
+        "Guest": ["Entry", "Living Room", "Dining Area", "Hallway", "Bathroom"],
+        "Cinema": ["Living Room", "Hallway"],
+        "Vacation": [],
+        "Emergency": [
+            "Entry",
+            "Living Room",
+            "Dining Area",
+            "Hallway",
+            "Bathroom",
+            "Bedroom",
+            "Office",
+        ],
+        "Manual Hold": [],
+    }
+    predicted_actions = []
+    shower_protected = mode == "Shower" and (
+        scenario["recording"]
+        or scenario["guest_mode"]
+        or scenario["current_mode"] in {"Away", "Guest", "Date Night", "Vacation"}
+    )
+    if allowed and not shower_protected:
+        predicted_actions.append(
+            {
+                "action_id": "sanctuary.emergency_lighting"
+                if mode == "Emergency"
+                else "sanctuary.activate_lighting_mode",
+                "reason": f"Apply {mode} through the lighting-only state machine",
+                "rooms": rooms_by_mode[mode],
+                "domains": ["light"],
+            }
+        )
+    status = "ready" if predicted_actions else "skipped"
+    if shower_protected:
+        skip_reason = "recording_protection" if scenario["recording"] else "mode_protection"
+    elif not allowed:
+        if manual_hold:
+            skip_reason = "manual_hold"
+        elif not calibration_ready:
+            skip_reason = "calibration_required"
+        else:
+            skip_reason = "automations_disabled"
+    else:
+        skip_reason = None
+    for item in predicted_actions:
+        item["policy"] = ACTION_REGISTRY[item["action_id"]]
+    return {
+        "simulation": True,
+        "behavior": "sanctuary",
+        "mode": mode,
+        "status": status,
+        "skip_reason": skip_reason,
+        "scenario": scenario,
+        "predicted_actions": predicted_actions,
+        "house_state_mutated": False,
+        "action_execution": False,
+    }
+
+
 def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     """Predict a behavior without writing facts, proposals, audits, or HA state."""
-    if behavior not in {"arrival", "departure", "nightly", "perception"}:
+    if behavior not in {"arrival", "departure", "nightly", "perception", "sanctuary"}:
         raise ValueError(behavior)
     scenario = deepcopy(overrides or {})
+    if behavior == "sanctuary":
+        return simulate_sanctuary_mode(str(scenario.pop("mode", "Home Base")), scenario)
     actions: list[dict[str, Any]] = []
     if behavior == "arrival":
         person = scenario.setdefault("person", "person.simulated_resident")
@@ -478,6 +780,16 @@ def _fact_key(entity_id: str) -> str:
         return f"perimeter.{entity_id}"
     if domain == "alarm_control_panel":
         return "security.alarm"
+    if entity_id == "input_select.sanctuary_mode":
+        return "sanctuary.mode"
+    if entity_id == "input_boolean.sanctuary_automations_enabled":
+        return "sanctuary.automations_enabled"
+    if entity_id == "input_boolean.sanctuary_calibration_ready":
+        return "sanctuary.calibration_ready"
+    if entity_id == "input_boolean.sanctuary_manual_hold":
+        return "sanctuary.manual_hold"
+    if domain == "input_number" and name.startswith("sanctuary_"):
+        return f"sanctuary.calibration.{name.removeprefix('sanctuary_')}"
     if domain == "input_boolean" and name.endswith("_mode"):
         return f"mode.{name}"
     return f"device.{entity_id}"
@@ -507,6 +819,34 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
         event_id = cursor.lastrowid
     if entity_id and state is not None:
         set_fact(_fact_key(str(entity_id)), str(state), source, float(event.get("confidence", 1)))
+        if str(entity_id).startswith("light."):
+            set_fact(
+                f"sanctuary.room_entity.{entity_id}",
+                {
+                    "state": str(state),
+                    "area_id": attributes.get("sanctuary_area_id"),
+                    "friendly_name": attributes.get("friendly_name"),
+                },
+                source,
+                float(event.get("confidence", 1)),
+            )
+    if event_type == "sanctuary.changed":
+        set_fact(
+            "sanctuary.last_transition",
+            {
+                "mode": str(attributes.get("mode") or state or "unknown"),
+                "previous_mode": attributes.get("previous_mode"),
+                "reason": attributes.get("reason"),
+                "source": attributes.get("source"),
+            },
+            source,
+        )
+        if attributes.get("mode"):
+            set_fact("sanctuary.mode", str(attributes["mode"]), source)
+    elif event_type == "sanctuary.skipped":
+        set_fact("sanctuary.last_skipped", attributes, source)
+    elif event_type == "sanctuary.calibration":
+        set_fact("sanctuary.last_calibration_test", attributes, source)
     if event_type == "vision.gesture" and attributes.get("gesture"):
         set_fact(
             "perception.last_gesture",
@@ -537,7 +877,10 @@ def _derive_house_mode() -> None:
         if key.startswith("mode.")
     }
     people = _entity_facts("person.")
-    if modes.get("vacation_mode") == "on":
+    sanctuary = str(all_facts.get("sanctuary.mode", {}).get("value", ""))
+    if sanctuary in SANCTUARY_MODES and sanctuary not in {"Home Base", "Manual Hold"}:
+        mode = sanctuary.lower().replace(" ", "_")
+    elif modes.get("vacation_mode") == "on":
         mode = "vacation"
     elif modes.get("sleep_mode") == "on":
         mode = "night"
@@ -738,7 +1081,8 @@ def execute_action(
         raise PermissionError("confirmation_required")
     if not action["remote_execution"] and not dry_run:
         raise PermissionError("local_confirmation_required")
-    payload = dict(data or {})
+    payload = deepcopy(action.get("default_data", {}))
+    payload.update(data or {})
     if action["target"]:
         payload.setdefault("entity_id", action["target"])
     outcome = "simulated"

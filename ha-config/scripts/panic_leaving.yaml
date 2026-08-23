@@ -1,19 +1,14 @@
-# "Jarvis, I'm leaving" / one NFC-tag tap at the door.
-# Locks computers (HASS.Agent buttons), kills lights/TV, sends the vacuum
-# home, and flags the house as away. Add camera arming when Frigate lands.
+# "Jarvis, I'm leaving" / one NFC-tag tap at the door. Only commissioned
+# lighting is controlled; absent media, vacuum, and locks stay readiness facts.
 leaving:
   alias: "Leaving (panic button)"
   icon: mdi:exit-run
   sequence:
-    - service: light.turn_off
-      target:
-        entity_id: all
-    - service: media_player.turn_off
-      target:
-        entity_id: media_player.fire_tv
-    - service: vacuum.return_to_base
-      target:
-        entity_id: vacuum.juno
+    - service: script.sanctuary_activate_mode
+      data:
+        mode: Away
+        source: voice
+        reason: Leaving mode manually confirmed
     # Lock every computer (uncomment as machines get HASS.Agent, Phase 17)
     # - service: button.press
     #   target:
@@ -21,4 +16,4 @@ leaving:
     - service: notify.jarvis_phone
       data:
         title: "House secured"
-        message: "Lights off, TV off, vacuum heading home."
+        message: "Commissioned lights are off. Uncommissioned devices were not called."
