@@ -477,16 +477,26 @@ def init_db() -> None:
                 "INSERT OR IGNORE INTO meals(name,minutes,protein_g,calories,tags,avoided)"
                 " VALUES(?,?,?,?,?,?)",
                 m,
-            )
+        )
         for name, role, baseline in SEED_ACCOUNTS:
-            c.execute(
+            inserted = c.execute(
                 "INSERT OR IGNORE INTO accounts(name,role) VALUES(?,?)",
                 (name, role),
             )
             c.execute("UPDATE accounts SET role=? WHERE name=?", (role, name))
+            if inserted.rowcount:
+                c.execute(
+                    "UPDATE accounts SET balance=? WHERE name=?",
+                    (baseline, name),
+                )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='finance_commissioning_v3'"
+        ).fetchone() is None:
+            c.execute("UPDATE accounts SET balance=0 WHERE name='Relay'")
             c.execute(
-                "UPDATE accounts SET balance=? WHERE name=? AND balance=0",
-                (baseline, name),
+                "INSERT INTO settings(key,value)"
+                " VALUES('finance_commissioning_v3',?)",
+                (date.today().isoformat(),),
             )
         # Bills and debts seed only into an empty table: they are live
         # ledger data, so a row the user deleted must stay deleted across

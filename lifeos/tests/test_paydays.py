@@ -102,6 +102,19 @@ def test_reconcile_accepts_real_negative_account_balance(fresh_db):
     ) == {"ok": True}
 
 
+def test_zero_reconciled_balance_survives_restart(fresh_db):
+    from app.db import conn, init_db
+
+    with conn() as c:
+        c.execute("UPDATE accounts SET balance=0 WHERE name='Relay'")
+    init_db()
+    with conn() as c:
+        balance = c.execute(
+            "SELECT balance FROM accounts WHERE name='Relay'"
+        ).fetchone()["balance"]
+    assert balance == 0
+
+
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     from app.routers import budget
 
