@@ -20,6 +20,10 @@ INTERVAL = max(10, int(os.environ.get("JARVIS_HARDWARE_INTERVAL", "30")))
 HEARTBEAT_INTERVAL = max(
     60, int(os.environ.get("JARVIS_HARDWARE_HEARTBEAT_INTERVAL", "300"))
 )
+AUDIO_PROBE_INTERVAL = max(
+    60, int(os.environ.get("JARVIS_AUDIO_PROBE_INTERVAL", "300"))
+)
+_audio_cache: tuple[float, dict] = (0.0, {})
 
 
 def command(*args: str) -> tuple[bool, str]:
@@ -42,20 +46,59 @@ def read_first(pattern: str, default: str = "unknown") -> str:
         return default
 
 
-def audio_state(kind: str) -> tuple[str, dict]:
-    selector = "get-default-source" if kind == "microphone" else "get-default-sink"
-    ok, device = command("pactl", selector)
-    usable = ok and bool(device) and "null" not in device.lower()
-    normalized = device.lower()
-    jabra = any(marker in normalized for marker in ("jabra", "phs002w", "gn_audio"))
-    return (
-        "on" if usable else "unavailable",
-        {
-            "device": device or "none",
-            "endpoint": "Jabra PHS002W" if jabra else ("default audio" if usable else "none"),
-            "jabra_commissioned": jabra,
-        },
-    )
+def audio_snapshot() -> dict:
+    """Return detailed audio health, probing signal at most once per interval."""
+    global _audio_cache
+    now = time.monotonic()
+    should_probe = not _audio_cache[1] or now - _audio_cache[0] >= AUDIO_PROBE_INTERVAL
+    args = ["/usr/local/bin/jarvis-audio", "status"]
+    if should_probe:
+        args.append("--probe")
+    ok, output = command(*args)
+    if ok:
+        try:
+            current = json.loads(output)
+        except json.JSONDecodeError:
+            current = {}
+        if current:
+            if not should_probe and _audio_cache[1].get("signal"):
+                current["signal"] = _audio_cache[1]["signal"]
+            _audio_cache = (now if should_probe else _audio_cache[0], current)
+            return current
+    return _audio_cache[1]
+
+
+def audio_state(kind: str, audio: dict | None = None) -> tuple[str, dict]:
+    audio = audio or audio_snapshot()
+    if kind == "microphone":
+        usable = bool(audio.get("source_present"))
+        muted = audio.get("microphone_muted") is True
+        attributes = {
+            "device": audio.get("source", "none"),
+            "endpoint": audio.get("endpoint", "none"),
+            "muted": muted,
+            "volume_percent": audio.get("microphone_volume_percent"),
+            "pipewire": audio.get("pipewire", "unknown"),
+            "satellite": audio.get("satellite", "unknown"),
+            "wake_word": audio.get("wake_word", "hey_jarvis"),
+            "signal": audio.get("signal", {}),
+            "reason": audio.get("reason"),
+            "ready": bool(audio.get("ready")),
+            "privacy": audio.get(
+                "privacy", {"raw_audio_stored": False, "probe_retained": False}
+            ),
+        }
+        state = "off" if usable and muted else ("on" if usable else "unavailable")
+    else:
+        usable = bool(audio.get("sink_present"))
+        attributes = {
+            "device": audio.get("sink", "none"),
+            "endpoint": audio.get("endpoint", "none"),
+            "muted": audio.get("speaker_muted") is True,
+            "volume_percent": audio.get("speaker_volume_percent"),
+        }
+        state = "on" if usable else "unavailable"
+    return state, attributes
 
 
 def external_storage_state() -> tuple[str, dict]:
@@ -132,6 +175,7 @@ def snapshot() -> dict[str, tuple[str, dict]]:
             temperatures.append(float(Path(path).read_text().strip()) / 1000)
         except (OSError, ValueError):
             continue
+    audio = audio_snapshot()
     return {
         "sensor.x1_battery": (battery, {"unit": "%", "mains_online": mains}),
         "binary_sensor.x1_mains_power": (
@@ -142,8 +186,8 @@ def snapshot() -> dict[str, tuple[str, dict]]:
             f"{max(temperatures):.1f}" if temperatures else "unknown",
             {"unit": "°C"},
         ),
-        "binary_sensor.x1_microphone": audio_state("microphone"),
-        "binary_sensor.x1_speakers": audio_state("speakers"),
+        "binary_sensor.x1_microphone": audio_state("microphone", audio),
+        "binary_sensor.x1_speakers": audio_state("speakers", audio),
         "binary_sensor.x1_camera": camera_state(),
         "binary_sensor.x1_bluetooth": bluetooth_state(),
         "binary_sensor.x1_touchscreen": touchscreen_state(),

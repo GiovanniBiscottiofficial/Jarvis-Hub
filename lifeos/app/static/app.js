@@ -1525,6 +1525,31 @@ function renderHardwareTelemetry(hardware) {
       : "NODE NOMINAL";
 }
 
+function renderVoiceTelemetry(voice = {}) {
+  const ready = voice.ready === true;
+  const muted = voice.microphone_muted === true || voice.state === "muted";
+  const state = $("voice-io-state");
+  state.className = muted ? "voice-state-muted" : ready ? "voice-state-ready" : "voice-state-degraded";
+  state.textContent = muted ? "PRIVACY MUTED" : ready ? "LISTENING" : "VOICE DEGRADED";
+  commandText("voice-endpoint", String(voice.endpoint || "UNKNOWN").toUpperCase());
+  commandText("voice-wake-word", String(voice.wake_word || "hey_jarvis").replaceAll("_", " ").toUpperCase());
+  const signal = voice.signal && typeof voice.signal === "object" ? voice.signal : {};
+  const dbfs = Number(signal.dbfs);
+  const signalLabel = signal.tested
+    ? `${String(signal.signal || "unknown").toUpperCase()}${Number.isFinite(dbfs) ? ` · ${dbfs.toFixed(1)} DBFS` : ""}`
+    : "NOT TESTED";
+  commandText("voice-signal", signalLabel);
+  const pipeline = [voice.pipewire, voice.satellite, voice.assistant_state]
+    .filter(Boolean)
+    .map((value) => String(value).toUpperCase())
+    .join(" / ");
+  commandText("voice-pipeline", pipeline || "AWAITING");
+  commandText("voice-reason", voice.reason || "Voice telemetry awaiting detail.");
+  const privacy = voice.privacy && typeof voice.privacy === "object" ? voice.privacy : {};
+  commandText("voice-storage", privacy.raw_audio_stored === false ? "NO RAW AUDIO STORED" : "STORAGE POLICY UNKNOWN");
+  commandText("voice-mute", muted ? "MICROPHONE MUTED" : ready ? "MICROPHONE OPEN" : "MIC STATE UNKNOWN");
+}
+
 function formatPerceptionTime(value) {
   if (!value) return "NO OBSERVATION";
   const normalized = typeof value === "string" ? value.replace(" ", "T") : value;
@@ -1770,6 +1795,7 @@ async function loadCommandCenter() {
     renderCommandProposals(proposals);
     renderLifeOSPulse(lifeos);
     renderHardwareTelemetry(hardware);
+    renderVoiceTelemetry(context.voice || {});
     renderPerception(perception);
     renderCapabilities(capabilities);
     renderCommandEvents(context.recent_events || []);

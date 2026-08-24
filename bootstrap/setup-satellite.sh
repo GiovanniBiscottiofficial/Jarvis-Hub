@@ -50,28 +50,40 @@ sudo /opt/wyoming-satellite/venv/bin/pip install --upgrade pip wyoming-satellite
 # built-in mic array is not wired to the audio codec Linux can see (its ACPI
 # NHLT table is empty), so the codec's "internal mic" is electrical noise —
 # any cheap USB mic works instantly and this makes it the default on boot.
+sudo install -m 0755 "$REPO_DIR/bootstrap/jarvis-audio.py" /usr/local/bin/jarvis-audio
 sudo tee /usr/local/bin/jarvis-pick-mic >/dev/null <<'MIC'
 #!/bin/sh
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-jabra_source=$(pactl list short sources 2>/dev/null | grep -Ei 'jabra|phs002w|gn_audio' | grep -v monitor | head -1 | cut -f2)
-usb_source=$(pactl list short sources 2>/dev/null | grep -i usb | grep -v monitor | head -1 | cut -f2)
-jabra_sink=$(pactl list short sinks 2>/dev/null | grep -Ei 'jabra|phs002w|gn_audio' | head -1 | cut -f2)
-usb_sink=$(pactl list short sinks 2>/dev/null | grep -i usb | head -1 | cut -f2)
-source=${jabra_source:-$usb_source}
-sink=${jabra_sink:-$usb_sink}
-if [ -n "$source" ]; then
-  pactl set-default-source "$source"
-  wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0 2>/dev/null
-  logger -t jarvis-audio "Using voice microphone: $source"
-fi
-if [ -n "$sink" ]; then
-  pactl set-default-sink "$sink"
-  wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.85 2>/dev/null
-  logger -t jarvis-audio "Using voice speaker: $sink"
-fi
-exit 0
+exec /usr/local/bin/jarvis-audio select
 MIC
 sudo chmod +x /usr/local/bin/jarvis-pick-mic
+
+# Re-evaluate the preferred endpoints after USB hot-plug/resume. The selector is
+# idempotent: it changes defaults only when a better endpoint appears.
+sudo tee /etc/systemd/system/jarvis-audio-select.service >/dev/null <<EOF
+[Unit]
+Description=Select commissioned Jarvis microphone and speaker
+After=sound.target
+
+[Service]
+Type=oneshot
+User=${SAT_USER}
+Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "${SAT_USER}")
+ExecStart=/usr/local/bin/jarvis-audio select
+EOF
+sudo tee /etc/systemd/system/jarvis-audio-select.timer >/dev/null <<'EOF'
+[Unit]
+Description=Recover Jarvis audio endpoints after hot-plug or resume
+
+[Timer]
+OnBootSec=15
+OnUnitActiveSec=30
+AccuracySec=5
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
 
 sudo tee /etc/systemd/system/wyoming-satellite.service >/dev/null <<EOF
 [Unit]
@@ -176,7 +188,7 @@ sudo -u "${SAT_USER}" XDG_RUNTIME_DIR="$RUNDIR" wpctl set-volume @DEFAULT_AUDIO_
 echo "==> Enabling services..."
 sudo systemctl daemon-reload
 sudo systemctl enable --now wyoming-satellite.service go2rtc.service \
-  jarvis-hardware-monitor.service
+  jarvis-hardware-monitor.service jarvis-audio-select.timer
 
 echo ""
 echo "=========================================================="
@@ -206,4 +218,5 @@ echo ""
 echo " Logs if something's off:"
 echo "  journalctl -u wyoming-satellite -f    journalctl -u go2rtc -f"
 echo "  journalctl -u jarvis-hardware-monitor -f"
+echo "  jarvis-audio status --probe           jarvis-audio mute|unmute"
 echo "=========================================================="

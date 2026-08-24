@@ -468,11 +468,19 @@ bash bootstrap/setup-satellite.sh
   once more (host `localhost`, port **10700**), assign your Jarvis pipeline to the new
   satellite, and the laptop listens for "hey Jarvis" room-wide — answers come out its
   speakers.
-- **Validate the microphone before relying on it**: Linux support for the X1's internal
-  array varies by kernel, firmware, and audio profile. Run a real recording test after
-  installation. If it is noisy or unavailable, plug in a USB conference microphone;
-  the satellite setup prefers a usable capture source automatically. The built-in
-  speakers remain the normal response endpoint.
+- **Jabra-first audio with automatic recovery**: the selector prefers the commissioned
+  Jabra Speak 510 (PHS002W), falls back to another USB endpoint, and re-evaluates the
+  route every 30 seconds after unplug/replug, suspend, or PipeWire recovery. Inspect it
+  with `jarvis-audio status`; run `jarvis-audio status --probe` for a short in-memory
+  signal-level test. The probe writes no recording and retains no waveform.
+- **Microphone privacy is separate from quiet mode**: **Quiet mode** suppresses routine
+  announcements; `switch.x1_mute` stops the X1 satellite from listening. Toggle the
+  Microphone privacy tile in Home Assistant, or say “Hey Jarvis, mute your microphone.”
+  A muted satellite cannot hear an unmute request, so the X1 control remains the
+  dependable recovery path. Host diagnostics also support `jarvis-audio mute|unmute`.
+- **Voice readiness is end-to-end**: LifeOS reports the selected endpoint, PipeWire,
+  Wyoming satellite, wake word, privacy mute, volume, and last safe signal probe. A
+  device being connected no longer falsely means the whole listening chain is ready.
 - **Webcam → camera**: a local stream at `rtsp://<laptop-ip>:8556/x1_webcam`. Quick
   view: HA → Add Integration → **Generic Camera** with that URL. Person detection:
   uncomment the `x1_webcam` block in `frigate/config.yml` and run

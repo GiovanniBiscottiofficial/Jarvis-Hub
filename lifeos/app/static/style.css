@@ -252,6 +252,21 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .hardware-warning strong, .telemetry-warning { color: var(--warn) !important; }
 .hardware-unknown .hardware-marker { background: #6c8192; box-shadow: none; }
 .hardware-unknown strong, .telemetry-unknown { color: #8799a7 !important; }
+.voice-io { margin-top: 10px; padding: 12px; border: 1px solid rgba(79, 218, 247, .16); background: linear-gradient(120deg, rgba(8, 29, 43, .92), rgba(5, 15, 24, .95)); }
+.voice-io-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.voice-io-head span { color: #4caec5; font: 600 .53rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .17em; }
+.voice-io-head h3 { margin: 3px 0 0; color: #dbf6fb; font-size: .82rem; font-weight: 560; }
+.voice-io-head > strong { padding: 5px 8px; border: 1px solid currentColor; font: 650 .57rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .09em; white-space: nowrap; }
+.voice-state-ready { color: var(--good); }
+.voice-state-muted { color: #f4b85c; }
+.voice-state-degraded, .voice-state-awaiting { color: #869aa9; }
+.voice-io-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 10px 0 0; background: rgba(71, 202, 231, .1); }
+.voice-io-grid > div { min-width: 0; padding: 8px 9px; background: #07131f; }
+.voice-io-grid dt { color: #6d8799; font: 550 .52rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.voice-io-grid dd { overflow: hidden; margin: 4px 0 0; color: #bcecf5; font: 600 .65rem ui-monospace, SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.voice-reason { margin: 9px 1px; color: #94a9b6; font-size: .68rem; line-height: 1.35; }
+.voice-privacy { display: flex; flex-wrap: wrap; gap: 6px; }
+.voice-privacy span { min-height: 28px; display: inline-flex; align-items: center; padding: 4px 7px; border: 1px solid rgba(86, 204, 229, .13); color: #62b8ca; font: 600 .51rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .06em; }
 .proposal-row { min-height: 58px; padding: 8px 1px 8px 26px; border-bottom: 1px solid rgba(0, 212, 255, .075); }
 .proposal-row:last-child { border-bottom: 0; }
 .proposal-row strong { display: block; color: #e7f2fa; font-size: .78rem; line-height: 1.3; font-weight: 560; }
@@ -545,6 +560,9 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   .simulation-action { flex-direction: column; gap: 3px; }
   .simulation-action small { text-align: left; }
   .proposal-controls { min-width: 126px; }
+  .voice-io-head { align-items: stretch; flex-direction: column; }
+  .voice-io-head > strong { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .voice-io-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* Native-resolution X1 kiosk: use the 3000×2000 canvas instead of preserving

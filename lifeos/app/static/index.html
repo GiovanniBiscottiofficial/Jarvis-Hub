@@ -94,6 +94,24 @@
         <div id="command-hardware-list" class="hardware-grid" aria-live="polite">
           <div class="empty-state">Hardware telemetry pending</div>
         </div>
+        <section class="voice-io" aria-labelledby="voice-io-heading">
+          <div class="voice-io-head">
+            <div><span>VOICE I/O</span><h3 id="voice-io-heading">Jabra listening chain</h3></div>
+            <strong id="voice-io-state" class="voice-state-awaiting" aria-live="polite">AWAITING TELEMETRY</strong>
+          </div>
+          <dl class="voice-io-grid">
+            <div><dt>Endpoint</dt><dd id="voice-endpoint">—</dd></div>
+            <div><dt>Wake word</dt><dd id="voice-wake-word">HEY JARVIS</dd></div>
+            <div><dt>Capture</dt><dd id="voice-signal">NOT TESTED</dd></div>
+            <div><dt>Pipeline</dt><dd id="voice-pipeline">AWAITING</dd></div>
+          </dl>
+          <p id="voice-reason" class="voice-reason">Waiting for X1 voice health.</p>
+          <div class="voice-privacy" aria-label="Microphone privacy facts">
+            <span>LOCAL WAKE + SPEECH PIPELINE</span>
+            <span id="voice-storage">NO RAW AUDIO STORED</span>
+            <span id="voice-mute">MIC STATE UNKNOWN</span>
+          </div>
+        </section>
       </article>
 
       <article id="command-perception" class="tactical-panel command-perception perception-awaiting" aria-labelledby="perception-heading">

@@ -303,6 +303,18 @@ intents:
           - "quiet mode off"
           - "turn off quiet mode"
           - "unmute [the] announcements"
+  JarvisMicrophoneMute:
+    data:
+      - sentences:
+          - "mute your microphone [jarvis]"
+          - "stop listening [jarvis]"
+          - "turn off the microphone [jarvis]"
+  JarvisMicrophoneUnmute:
+    data:
+      - sentences:
+          - "unmute your microphone [jarvis]"
+          - "start listening [jarvis]"
+          - "turn on the microphone [jarvis]"
   JarvisThanks:
     data:
       - sentences:

@@ -512,6 +512,45 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "external_storage": devices.get("binary_sensor.x1_external_storage", "unknown"),
         "monitor": devices.get("binary_sensor.x1_hardware_monitor", "unknown"),
     }
+    microphone_fact = all_facts.get("hardware.microphone_details", {})
+    microphone_details = microphone_fact.get("value", {})
+    if not isinstance(microphone_details, dict):
+        microphone_details = {}
+    speaker_fact = all_facts.get("hardware.speaker_details", {})
+    speaker_details = speaker_fact.get("value", {})
+    if not isinstance(speaker_details, dict):
+        speaker_details = {}
+    satellite_state = devices.get("assist_satellite.x1", "unknown")
+    ha_mute_state = devices.get("switch.x1_mute", "unknown")
+    microphone_muted = bool(microphone_details.get("muted")) or ha_mute_state == "on"
+    voice_ready = (
+        hardware["microphone"] == "on"
+        and hardware["speakers"] == "on"
+        and not microphone_muted
+        and microphone_details.get("satellite", "online") == "online"
+        and satellite_state not in {"unavailable", "unknown"}
+    )
+    voice = {
+        "ready": voice_ready,
+        "state": "muted" if microphone_muted else ("ready" if voice_ready else "degraded"),
+        "reason": microphone_details.get("reason")
+        or ("Microphone privacy mute is on" if microphone_muted else "Voice telemetry awaiting detail"),
+        "endpoint": microphone_details.get("endpoint", "unknown"),
+        "device": microphone_details.get("device", "unknown"),
+        "microphone_muted": microphone_muted,
+        "microphone_volume_percent": microphone_details.get("volume_percent"),
+        "speaker_muted": speaker_details.get("muted"),
+        "speaker_volume_percent": speaker_details.get("volume_percent"),
+        "pipewire": microphone_details.get("pipewire", "unknown"),
+        "satellite": microphone_details.get("satellite", satellite_state),
+        "assistant_state": satellite_state,
+        "wake_word": microphone_details.get("wake_word", "hey_jarvis"),
+        "signal": microphone_details.get("signal", {}),
+        "last_checked_at": microphone_fact.get("updated_at"),
+        "privacy": microphone_details.get(
+            "privacy", {"raw_audio_stored": False, "probe_retained": False}
+        ),
+    }
     visual_presence = devices.get("binary_sensor.x1_visual_presence", "unknown")
     visual_fact = all_facts.get("device.binary_sensor.x1_visual_presence", {})
     observation = all_facts.get("perception.last_observation", {}).get("value", {})
@@ -605,6 +644,7 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         },
         "devices": devices,
         "hardware": hardware,
+        "voice": voice,
         "perception": perception,
         "telemetry": {
             "last_event_at": latest_event,
@@ -627,8 +667,8 @@ def capability_manifest(snapshot: dict[str, Any] | None = None) -> list[dict[str
         (
             "voice",
             "Voice I/O",
-            hardware["microphone"] == "on" and hardware["speakers"] == "on",
-            "Microphone and speakers",
+            bool(snapshot.get("voice", {}).get("ready")),
+            snapshot.get("voice", {}).get("reason", "Microphone, speakers, and voice satellite"),
         ),
         (
             "vision",
@@ -876,6 +916,10 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
         event_id = cursor.lastrowid
     if entity_id and state is not None:
         set_fact(_fact_key(str(entity_id)), str(state), source, float(event.get("confidence", 1)))
+        if source == "x1_hardware" and str(entity_id) == "binary_sensor.x1_microphone":
+            set_fact("hardware.microphone_details", attributes, source)
+        if source == "x1_hardware" and str(entity_id) == "binary_sensor.x1_speakers":
+            set_fact("hardware.speaker_details", attributes, source)
         if str(entity_id).startswith("light."):
             set_fact(
                 f"sanctuary.room_entity.{entity_id}",

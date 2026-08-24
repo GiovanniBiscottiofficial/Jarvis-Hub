@@ -141,6 +141,45 @@ def test_x1_hardware_events_are_projected_into_context(fresh_db):
     assert hardware["battery"] == "78"
 
 
+def test_voice_context_preserves_readiness_privacy_and_signal(fresh_db):
+    ingest_event(
+        {
+            "source": "x1_hardware",
+            "event_type": "hardware_state_changed",
+            "entity_id": "binary_sensor.x1_microphone",
+            "state": "on",
+            "attributes": {
+                "endpoint": "Jabra Speak 510",
+                "muted": False,
+                "volume_percent": 100,
+                "pipewire": "online",
+                "satellite": "online",
+                "wake_word": "hey_jarvis",
+                "signal": {"tested": True, "signal": "detected", "dbfs": -28.4},
+                "reason": "Listening locally for Hey Jarvis",
+                "privacy": {"raw_audio_stored": False, "probe_retained": False},
+            },
+        },
+        evaluate=False,
+    )
+    ingest_event(
+        {
+            "source": "x1_hardware",
+            "event_type": "hardware_state_changed",
+            "entity_id": "binary_sensor.x1_speakers",
+            "state": "on",
+            "attributes": {"muted": False, "volume_percent": 85},
+        },
+        evaluate=False,
+    )
+    event("assist_satellite.x1", "idle", evaluate=False)
+    voice = current_context()["voice"]
+    assert voice["ready"] is True
+    assert voice["endpoint"] == "Jabra Speak 510"
+    assert voice["signal"]["dbfs"] == -28.4
+    assert voice["privacy"]["raw_audio_stored"] is False
+
+
 def test_every_action_has_complete_explainable_policy(fresh_db):
     required = {
         "name",

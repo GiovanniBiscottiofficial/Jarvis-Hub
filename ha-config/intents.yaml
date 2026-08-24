@@ -326,6 +326,22 @@ JarvisQuietOff:
   speech:
     text: "Quiet mode off. Back to my usual commentary."
 
+JarvisMicrophoneMute:
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: switch.x1_mute
+  speech:
+    text: "Microphone privacy mute enabled. Use the X1 Voice I O control to let me hear again."
+
+JarvisMicrophoneUnmute:
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.x1_mute
+  speech:
+    text: "Microphone privacy mute disabled. I'm listening locally again, Giovanni."
+
 JarvisThanks:
   speech:
     text: >-

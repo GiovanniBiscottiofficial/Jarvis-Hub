@@ -866,6 +866,13 @@ views:
             name: Quiet mode
             color: cyan
           - type: tile
+            entity: switch.x1_mute
+            name: Microphone privacy
+            icon: mdi:microphone-off
+            color: amber
+            tap_action:
+              action: toggle
+          - type: tile
             entity: input_boolean.sleep_mode
             name: Sleep mode
             color: cyan
