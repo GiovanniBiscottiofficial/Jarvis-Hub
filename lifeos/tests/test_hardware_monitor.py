@@ -34,3 +34,29 @@ def test_hardware_events_use_lifeos_bearer_token(monkeypatch):
     assert monitor.publish("binary_sensor.x1_microphone", "on", "off", {}) is True
     assert captured["request"].get_header("Authorization") == "Bearer local-test-token"
     assert captured["timeout"] == 8
+
+
+def test_audio_snapshot_retains_failed_probe_until_next_probe(monkeypatch):
+    monitor = _load_monitor(monkeypatch)
+    monitor._audio_cache = (
+        monitor.time.monotonic(),
+        {
+            "ready": False,
+            "reason": "No microphone signal detected; check the Jabra mute button",
+            "signal": {"tested": True, "signal": "quiet", "dbfs": -96.0},
+        },
+    )
+    healthy_without_probe = {
+        "ready": True,
+        "reason": "Listening locally for Hey Jarvis",
+        "signal": {"tested": False, "signal": "not_tested", "dbfs": None},
+    }
+    monkeypatch.setattr(
+        monitor,
+        "command",
+        lambda *_args: (True, monitor.json.dumps(healthy_without_probe)),
+    )
+    result = monitor.audio_snapshot()
+    assert result["ready"] is False
+    assert result["signal"]["dbfs"] == -96.0
+    assert "No microphone signal" in result["reason"]

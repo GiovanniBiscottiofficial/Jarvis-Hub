@@ -63,6 +63,9 @@ def audio_snapshot() -> dict:
         if current:
             if not should_probe and _audio_cache[1].get("signal"):
                 current["signal"] = _audio_cache[1]["signal"]
+                if _audio_cache[1].get("ready") is False:
+                    current["ready"] = False
+                    current["reason"] = _audio_cache[1].get("reason")
             _audio_cache = (now if should_probe else _audio_cache[0], current)
             return current
     return _audio_cache[1]
