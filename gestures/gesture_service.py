@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Jarvis hand-gesture control for the X1 kiosk.
 
-Watches the webcam (via go2rtc's RTSP restream, so it shares the camera with
-Frigate/HA) with MediaPipe hand tracking and turns deliberate swipes into
-kiosk input:
+Watches the X1's local front camera with MediaPipe face and hand tracking,
+publishes privacy-minimized room presence, and turns deliberate open-hand
+swipes into kiosk input:
 
     swipe UP      -> screen slides up (scroll down)  = next YouTube Short
     swipe DOWN    -> screen slides down (scroll up)  = previous Short
@@ -27,7 +27,9 @@ import cv2
 import mediapipe as mp
 import websocket
 
-SOURCE = os.environ.get("GESTURE_SOURCE", "rtsp://127.0.0.1:8556/x1_webcam")
+from gesture_logic import classify_swipe, open_hand
+
+SOURCE = os.environ.get("GESTURE_SOURCE", "/dev/video4")
 DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
 PERCEPTION_STATUS_PATH = os.environ.get(
     "GESTURE_STATUS_PATH", "/run/jarvis/perception.json"
@@ -37,6 +39,7 @@ X_TRAVEL = float(os.environ.get("GESTURE_X_TRAVEL", "0.20"))
 Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.18"))
 WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
+MIN_SPEED = float(os.environ.get("GESTURE_MIN_SPEED", "0.24"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
 LIFEOS_URL = os.environ.get("LIFEOS_URL", "http://127.0.0.1:8090").rstrip("/")
 LIFEOS_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "")
@@ -46,6 +49,9 @@ PRESENCE_HEARTBEAT_S = float(os.environ.get("GESTURE_PRESENCE_HEARTBEAT_S", "300
 _perception_status = {
     "camera_available": False,
     "hand_present": False,
+    "person_present": False,
+    "presence_source": None,
+    "face_count": 0,
     "last_gesture": None,
     "app": None,
     "gesture_timestamp": None,
@@ -237,7 +243,8 @@ def open_capture() -> cv2.VideoCapture:
 def main() -> None:
     print(
         f"gesture service: source={SOURCE} devtools={DEVTOOLS_URL} "
-        f"travel={X_TRAVEL:.2f}/{Y_TRAVEL:.2f} window={WINDOW_S:.1f}s",
+        f"travel={X_TRAVEL:.2f}/{Y_TRAVEL:.2f} speed={MIN_SPEED:.2f} "
+        f"window={WINDOW_S:.1f}s",
         flush=True,
     )
     hands = mp.solutions.hands.Hands(
@@ -246,12 +253,17 @@ def main() -> None:
         min_detection_confidence=0.5,
         min_tracking_confidence=0.45,
     )
+    faces = mp.solutions.face_detection.FaceDetection(
+        model_selection=0,
+        min_detection_confidence=0.55,
+    )
     trail: deque[tuple[float, float, float]] = deque()  # (t, x, y)
     last_fire = 0.0
     cap = open_capture()
     skip = 0
     frames = 0
     hand_frames = 0
+    face_frames = 0
     last_status = time.monotonic()
     camera_online = False
     presence_state: bool | None = None
@@ -259,12 +271,28 @@ def main() -> None:
     last_presence_publish = 0.0
     status_hand_visible = False
     last_status_hand_seen = 0.0
-    write_perception_status(camera_available=False, hand_present=False)
+    status_person_visible = False
+    status_presence_source: str | None = None
+    status_face_count = 0
+    last_status_person_seen = 0.0
+    write_perception_status(
+        camera_available=False,
+        hand_present=False,
+        person_present=False,
+        presence_source=None,
+        face_count=0,
+    )
     while True:
         ok, frame = cap.read()
         if not ok:
             print("video source dropped; reconnecting...", flush=True)
-            write_perception_status(camera_available=False, hand_present=False)
+            write_perception_status(
+                camera_available=False,
+                hand_present=False,
+                person_present=False,
+                presence_source=None,
+                face_count=0,
+            )
             if camera_online:
                 publish_event(
                     "vision.camera_health",
@@ -275,6 +303,9 @@ def main() -> None:
                 )
                 camera_online = False
                 status_hand_visible = False
+                status_person_visible = False
+                status_presence_source = None
+                status_face_count = 0
             if presence_state:
                 publish_event(
                     "vision.presence_changed",
@@ -299,44 +330,85 @@ def main() -> None:
                 attributes={"stream": "x1_webcam"},
             )
             camera_online = True
-            write_perception_status(camera_available=True, hand_present=False)
+            write_perception_status(
+                camera_available=True,
+                hand_present=False,
+                person_present=False,
+                presence_source=None,
+                face_count=0,
+            )
         skip = (skip + 1) % 2
         frames += 1
         if skip:  # every other frame is plenty and halves CPU
             continue
         frame = cv2.flip(frame, 1)  # mirror: selfie-consistent directions
         small = cv2.resize(frame, (640, 360))
-        result = hands.process(cv2.cvtColor(small, cv2.COLOR_BGR2RGB))
+        rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+        result = hands.process(rgb)
+        face_result = faces.process(rgb) if frames % 6 == 0 else None
         now = time.monotonic()
         if now - last_status >= STATUS_INTERVAL_S:
             print(
                 f"vision: frames={frames} hand_frames={hand_frames} "
+                f"face_frames={face_frames} "
                 f"camera={'ok' if frames else 'waiting'}",
                 flush=True,
             )
             frames = 0
             hand_frames = 0
+            face_frames = 0
             last_status = now
             write_perception_status(
                 camera_available=camera_online,
                 hand_present=status_hand_visible,
+                person_present=status_person_visible,
+                presence_source=status_presence_source,
+                face_count=status_face_count,
             )
         hand_visible = bool(result.multi_hand_landmarks)
+        face_count = len(face_result.detections) if face_result and face_result.detections else 0
+        face_visible = face_count > 0
+        person_visible = hand_visible or face_visible
+        presence_source = "hand_landmarks" if hand_visible else "face_detection" if face_visible else None
+        if face_visible:
+            face_frames += 1
         if hand_visible:
             last_status_hand_seen = now
         if hand_visible and not status_hand_visible:
             status_hand_visible = True
-            write_perception_status(
-                camera_available=camera_online,
-                hand_present=True,
-            )
         elif status_hand_visible and now - last_status_hand_seen >= 0.75:
             status_hand_visible = False
+        if person_visible:
+            last_status_person_seen = now
+            next_source = "hand_landmarks" if hand_visible else "face_detection"
+            next_face_count = face_count if face_visible else status_face_count
+            if (
+                not status_person_visible
+                or status_presence_source != next_source
+                or status_face_count != next_face_count
+            ):
+                status_person_visible = True
+                status_presence_source = next_source
+                status_face_count = next_face_count
+                write_perception_status(
+                    camera_available=camera_online,
+                    hand_present=status_hand_visible,
+                    person_present=True,
+                    presence_source=status_presence_source,
+                    face_count=status_face_count,
+                )
+        elif status_person_visible and now - last_status_person_seen >= 1.5:
+            status_person_visible = False
+            status_presence_source = None
+            status_face_count = 0
             write_perception_status(
                 camera_available=camera_online,
-                hand_present=False,
+                hand_present=status_hand_visible,
+                person_present=False,
+                presence_source=None,
+                face_count=0,
             )
-        if hand_visible:
+        if person_visible:
             last_presence_seen = now
             if presence_state is not True or now - last_presence_publish >= PRESENCE_HEARTBEAT_S:
                 publish_event(
@@ -344,8 +416,13 @@ def main() -> None:
                     entity_id="binary_sensor.x1_visual_presence",
                     state="on",
                     previous_state="off" if presence_state is not True else "on",
-                    attributes={"signal": "hand_landmarks", "frames_stored": False},
-                    confidence=0.86,
+                    attributes={
+                        "signal": presence_source,
+                        "face_count": face_count,
+                        "identity_recognition": False,
+                        "frames_stored": False,
+                    },
+                    confidence=0.92 if face_visible else 0.86,
                 )
                 presence_state = True
                 last_presence_publish = now
@@ -360,6 +437,11 @@ def main() -> None:
             )
             presence_state = False
             last_presence_publish = now
+            write_perception_status(
+                person_present=False,
+                presence_source=None,
+                face_count=0,
+            )
         elif presence_state is False and now - last_presence_publish >= PRESENCE_HEARTBEAT_S:
             publish_event(
                 "vision.presence_heartbeat",
@@ -376,6 +458,10 @@ def main() -> None:
             continue
         hand_frames += 1
         landmarks = result.multi_hand_landmarks[0].landmark
+        points = [(point.x, point.y) for point in landmarks]
+        if not open_hand(points):
+            trail.clear()
+            continue
         palm = [landmarks[index] for index in (0, 5, 9, 13, 17)]
         palm_x = sum(point.x for point in palm) / len(palm)
         palm_y = sum(point.y for point in palm) / len(palm)
@@ -384,13 +470,12 @@ def main() -> None:
             trail.popleft()
         if now - last_fire < COOLDOWN_S or len(trail) < 5:
             continue
-        dx = trail[-1][1] - trail[0][1]
-        dy = trail[-1][2] - trail[0][2]
-        gesture = None
-        if abs(dy) >= Y_TRAVEL and abs(dy) > abs(dx) * 1.5:
-            gesture = "up" if dy < 0 else "down"
-        elif abs(dx) >= X_TRAVEL and abs(dx) > abs(dy) * 1.5:
-            gesture = "forward" if dx > 0 else "back"
+        gesture = classify_swipe(
+            trail,
+            x_travel=X_TRAVEL,
+            y_travel=Y_TRAVEL,
+            minimum_speed=MIN_SPEED,
+        )
         if gesture:
             try:
                 app = fire(gesture)

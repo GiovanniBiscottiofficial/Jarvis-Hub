@@ -1439,6 +1439,9 @@ function renderPerception(perception) {
     ? `CONFIDENCE ${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`
     : "CONFIDENCE —");
   commandText("perception-observed", formatPerceptionTime(perception.last_observation_at));
+  const signal = String(perception.presence_source || "awaiting").replaceAll("_", " ").toUpperCase();
+  const faceCount = Math.max(0, Number(perception.face_count) || 0);
+  commandText("perception-signal", `${signal} / ${faceCount} ${faceCount === 1 ? "FACE" : "FACES"}`);
   commandText("perception-gesture", gesture.gesture
     ? `${String(gesture.gesture).replaceAll("_", " ").toUpperCase()} / ${String(gesture.app || "BROWSER").toUpperCase()}`
     : "NONE / —");

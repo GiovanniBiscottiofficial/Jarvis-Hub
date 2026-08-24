@@ -488,6 +488,9 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
     }
     visual_presence = devices.get("binary_sensor.x1_visual_presence", "unknown")
     visual_fact = all_facts.get("device.binary_sensor.x1_visual_presence", {})
+    observation = all_facts.get("perception.last_observation", {}).get("value", {})
+    if not isinstance(observation, dict):
+        observation = {}
     gesture = all_facts.get("perception.last_gesture", {})
     perception_link = "awaiting_signal"
     observation_at = visual_fact.get("updated_at")
@@ -505,6 +508,8 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "link_state": perception_link,
         "confidence": visual_fact.get("confidence", 0.0),
         "last_observation_at": observation_at,
+        "presence_source": observation.get("signal"),
+        "face_count": int(observation.get("face_count") or 0),
         "last_gesture": gesture.get("value"),
         "last_gesture_at": gesture.get("updated_at"),
         "privacy": {
@@ -878,6 +883,21 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
             {
                 "gesture": str(attributes["gesture"]),
                 "app": str(attributes.get("app") or "unknown"),
+            },
+            source,
+            float(event.get("confidence", 1)),
+        )
+    if event_type in {
+        "vision.presence_changed",
+        "vision.presence_heartbeat",
+    }:
+        set_fact(
+            "perception.last_observation",
+            {
+                "state": str(state or "unknown"),
+                "signal": attributes.get("signal"),
+                "face_count": int(attributes.get("face_count") or 0),
+                "identity_recognition": False,
             },
             source,
             float(event.get("confidence", 1)),

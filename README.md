@@ -491,11 +491,14 @@ bash bootstrap/setup-satellite.sh
   speakers, Bluetooth, touch, battery, mains power, and temperature only when their
   state changes, plus a five-minute health heartbeat so stale links can be detected.
   They appear in the Command Center and event timeline.
-- **Webcam → hand-gesture control**: `bash bootstrap/setup-gestures.sh` and the
+- **Webcam → local presence + hand-gesture control**: `bash bootstrap/setup-gestures.sh`
+  auto-selects the X1's real UVC front camera (instead of an Intel IPU processing
+  node). Face-or-hand presence feeds situational context locally without identity
+  recognition or frame storage, and the
   kiosk obeys swipes at the camera — **up** = next Short (screen slides up),
   **down** = previous, **forward** (hand to your right) = skip/next video,
   **back** (hand to your left) = last screen. Needs decent lighting and a
-  deliberate swipe 2–6 ft from the camera. Tune `GESTURE_X_TRAVEL`,
+  deliberate open-hand swipe 2–6 ft from the camera. Tune `GESTURE_X_TRAVEL`,
   `GESTURE_Y_TRAVEL`, or `GESTURE_COOLDOWN_S` in `docker-compose.yml` and
   watch detections with `docker logs -f gestures`. The dispatcher recognizes
   YouTube/Shorts, Spotify, Plex, and generic HTML5 players; it uses each app's

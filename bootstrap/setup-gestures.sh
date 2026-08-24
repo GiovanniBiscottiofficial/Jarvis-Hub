@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Hand-gesture control for the X1 kiosk: swipe at the webcam to drive the
-# screen (next/previous Short, skip video, go back). MediaPipe hand tracking
-# runs in its own container (it needs Python <=3.12) watching the go2rtc
-# webcam stream, so it shares the camera with HA/Frigate.
+# screen (next/previous Short, skip video, go back). MediaPipe face and hand
+# tracking runs locally in its own container and never stores camera frames.
 # Run AFTER setup-satellite.sh (webcam RTSP) and the X11 kiosk setup:
 #   bash bootstrap/setup-gestures.sh
 set -euo pipefail
@@ -10,8 +9,28 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_DIR"
 
-if ! systemctl is-active --quiet go2rtc; then
-  echo "!! go2rtc isn't running — run 'bash bootstrap/setup-satellite.sh' first." >&2
+detect_webcam() {
+  for dev in /dev/video*; do
+    [ -e "$dev" ] || continue
+    if udevadm info -q property -n "$dev" 2>/dev/null | grep -q "ID_USB_DRIVER=uvcvideo" \
+       && v4l2-ctl -d "$dev" --list-formats-ext 2>/dev/null | grep -q "Video Capture"; then
+      echo "$dev"
+      return 0
+    fi
+  done
+  return 1
+}
+
+command -v v4l2-ctl >/dev/null || {
+  echo "!! v4l2-ctl is required; run bootstrap/setup-satellite.sh first." >&2
+  exit 1
+}
+CAMERA_DEVICE="${X1_CAMERA_DEVICE:-}"
+if [ -z "$CAMERA_DEVICE" ]; then
+  CAMERA_DEVICE="$(detect_webcam || true)"
+fi
+if [ -z "$CAMERA_DEVICE" ] || [ ! -r "$CAMERA_DEVICE" ]; then
+  echo "!! No readable X1 UVC camera was found." >&2
   exit 1
 fi
 
@@ -29,8 +48,9 @@ fi
 echo "==> Preparing the local kiosk perception channel..."
 sudo install -d -m 0755 /run/jarvis
 
-echo "==> Building + starting the gesture container (first build ~2 min)..."
-docker compose --profile gestures up -d --build
+echo "==> Building + starting perception on ${CAMERA_DEVICE} (first build ~2 min)..."
+X1_CAMERA_DEVICE="$CAMERA_DEVICE" GESTURE_SOURCE="$CAMERA_DEVICE" \
+  docker compose --profile gestures up -d --build
 sleep 4
 docker logs --tail 12 gestures || true
 
@@ -47,6 +67,7 @@ echo " Watch it react:   docker logs -f gestures"
 echo " Kiosk indicator:   /run/jarvis/perception.json"
 echo " Gesture actions use Chromium DevTools on loopback port 9222;"
 echo " no Wayland/X11 socket or privileged input access is required."
+echo " Face or hand presence improves room awareness without identifying anyone."
 echo " LifeOS receives presence/gesture metadata only. Camera frames stay local"
 echo " and are never written to the LifeOS database."
 echo " Too touchy? Set GESTURE_X_TRAVEL/Y_TRAVEL (fraction of the"

@@ -194,7 +194,11 @@ def test_local_vision_projects_privacy_minimized_perception(fresh_db):
             "state": "on",
             "previous_state": "off",
             "confidence": 0.86,
-            "attributes": {"signal": "hand_landmarks", "frames_stored": False},
+            "attributes": {
+                "signal": "hand_landmarks",
+                "face_count": 1,
+                "frames_stored": False,
+            },
         },
         evaluate=False,
     )
@@ -215,6 +219,8 @@ def test_local_vision_projects_privacy_minimized_perception(fresh_db):
     perception = current_context()["perception"]
     assert perception["room_occupied"] is True
     assert perception["confidence"] == pytest.approx(0.86)
+    assert perception["presence_source"] == "hand_landmarks"
+    assert perception["face_count"] == 1
     assert perception["last_gesture"] == {"gesture": "forward", "app": "plex"}
     assert perception["privacy"] == {
         "processing": "local",

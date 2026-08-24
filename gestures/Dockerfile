@@ -9,6 +9,6 @@ RUN apt-get update \
 RUN pip install --no-cache-dir \
   mediapipe==0.10.21 opencv-python-headless websocket-client==1.8.0
 
-COPY gesture_service.py /app/gesture_service.py
+COPY gesture_service.py gesture_logic.py /app/
 
 CMD ["python", "-u", "/app/gesture_service.py"]
