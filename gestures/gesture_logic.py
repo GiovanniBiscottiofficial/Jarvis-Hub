@@ -120,11 +120,12 @@ def classify_swipe(
     minimum_speed: float,
 ) -> str | None:
     """Classify the strongest recent motion segment, ignoring stationary dwell."""
-    if len(trail) < 5:
+    samples = list(trail)
+    if len(samples) < 5:
         return None
-    end_time, end_x, end_y = trail[-1]
+    end_time, end_x, end_y = samples[-1]
     best: tuple[float, str] | None = None
-    for start_time, start_x, start_y in trail[:-3]:
+    for start_time, start_x, start_y in samples[:-3]:
         duration = end_time - start_time
         if duration < 0.12 or duration > 0.78:
             continue

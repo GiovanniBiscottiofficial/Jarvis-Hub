@@ -1,3 +1,5 @@
+from collections import deque
+
 from gesture_logic import PoseLatch, classify_swipe, find_frame_by_port, hand_pose, open_hand
 
 
@@ -28,6 +30,16 @@ def test_swipe_ignores_stationary_dwell_before_motion():
         (0.50, 0.56, 0.51),
         (0.60, 0.68, 0.51),
     ]
+    assert classify_swipe(
+        samples,
+        x_travel=0.20,
+        y_travel=0.18,
+        minimum_speed=0.18,
+    ) == "forward"
+
+
+def test_swipe_accepts_the_workers_live_deque_trail():
+    samples = deque(trail(0.30, 0.01))
     assert classify_swipe(
         samples,
         x_travel=0.20,
