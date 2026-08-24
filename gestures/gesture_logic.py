@@ -10,7 +10,6 @@ from urllib.parse import urlparse
 
 STATIC_POSE_ACTIONS = {
     "pinch": "play_pause",
-    "fist": "mute",
     "thumb_up": "volume_up",
     "thumb_down": "volume_down",
 }

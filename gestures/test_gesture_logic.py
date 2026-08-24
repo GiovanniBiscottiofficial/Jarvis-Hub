@@ -91,6 +91,13 @@ def test_pose_latch_requires_hold_release_and_rearm():
     assert latch.update("pinch", 3.7, 0.65) == "play_pause"
 
 
+def test_fist_is_observed_but_never_executes_an_audio_action():
+    latch = PoseLatch()
+    assert hand_pose(pose_points()) == "fist"
+    assert latch.update("fist", 1.0, 0.65) is None
+    assert latch.update("fist", 2.0, 0.65) is None
+
+
 def test_gesture_worker_declares_kiosk_only_safety_boundary():
     worker = (__import__("pathlib").Path(__file__).with_name("gesture_service.py")).read_text()
     assert '"house_action_execution": False' in worker
