@@ -1,4 +1,4 @@
-from gesture_logic import PoseLatch, classify_swipe, hand_pose, open_hand
+from gesture_logic import PoseLatch, classify_swipe, find_frame_by_port, hand_pose, open_hand
 
 
 def trail(dx: float, dy: float, duration: float = 0.5):
@@ -85,3 +85,24 @@ def test_gesture_worker_declares_kiosk_only_safety_boundary():
     assert '"kiosk_action_executed": True' in worker
     for protected in ("light.turn_", "lock.", "alarm_control_panel.", "switch.turn_"):
         assert protected not in worker
+
+
+def test_lifeos_frame_is_found_inside_home_assistant_frame_tree():
+    tree = {
+        "frame": {"id": "ha", "url": "http://localhost:8123/lifeos-app/app"},
+        "childFrames": [
+            {
+                "frame": {"id": "lifeos", "url": "http://localhost:8090/?embedded=home-assistant"}
+            }
+        ],
+    }
+    assert find_frame_by_port(tree, 8090)["id"] == "lifeos"
+    assert find_frame_by_port(tree, 32400) is None
+
+
+def test_lifeos_gestures_declare_tab_navigation_and_frame_context():
+    worker = (__import__("pathlib").Path(__file__).with_name("gesture_service.py")).read_text()
+    assert "Page.createIsolatedWorld" in worker
+    assert "NEXT LIFEOS TAB" in worker
+    assert "PREVIOUS LIFEOS TAB" in worker
+    assert "(current + step + tabs.length) % tabs.length" in worker

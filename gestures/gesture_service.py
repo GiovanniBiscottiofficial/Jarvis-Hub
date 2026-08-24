@@ -27,7 +27,13 @@ import cv2
 import mediapipe as mp
 import websocket
 
-from gesture_logic import PoseLatch, STATIC_POSE_ACTIONS, classify_swipe, hand_pose
+from gesture_logic import (
+    PoseLatch,
+    STATIC_POSE_ACTIONS,
+    classify_swipe,
+    find_frame_by_port,
+    hand_pose,
+)
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "/dev/video4")
 DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
@@ -46,6 +52,7 @@ VOLUME_STEP = float(os.environ.get("GESTURE_VOLUME_STEP", "0.10"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
 LIFEOS_URL = os.environ.get("LIFEOS_URL", "http://127.0.0.1:8090").rstrip("/")
 LIFEOS_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "")
+LIFEOS_PORT = urlparse(LIFEOS_URL).port or 8090
 PRESENCE_CLEAR_S = float(os.environ.get("GESTURE_PRESENCE_CLEAR_S", "8"))
 PRESENCE_HEARTBEAT_S = float(os.environ.get("GESTURE_PRESENCE_HEARTBEAT_S", "300"))
 
@@ -125,6 +132,20 @@ def active_page() -> dict:
     pages = [target for target in targets if target.get("type") == "page"]
     if not pages:
         raise RuntimeError("Chromium has no controllable page")
+    for page in pages:
+        socket_url = page.get("webSocketDebuggerUrl")
+        if not socket_url:
+            continue
+        try:
+            focus = cdp(
+                "Runtime.evaluate",
+                {"expression": "document.hasFocus()", "returnByValue": True},
+                socket_url,
+            )
+            if focus.get("result", {}).get("value") is True:
+                return page
+        except Exception:
+            continue
     return pages[0]
 
 
@@ -223,10 +244,17 @@ FEEDBACK_LABELS = {
     "seek_back": f"SEEK -{SEEK_SECONDS}s",
     "volume_up": "VOLUME +10%",
     "volume_down": "VOLUME -10%",
+    "tab_next": "NEXT LIFEOS TAB",
+    "tab_previous": "PREVIOUS LIFEOS TAB",
 }
 
 
-def show_feedback(socket_url: str, gesture: str, app: str) -> None:
+def show_feedback(
+    socket_url: str,
+    gesture: str,
+    app: str,
+    context_id: int | None = None,
+) -> None:
     label = f"{FEEDBACK_LABELS.get(gesture, gesture.upper())} · {app.upper()}"
     expression = f"""
 (() => {{
@@ -248,17 +276,26 @@ def show_feedback(socket_url: str, gesture: str, app: str) -> None:
   window.__jarvisGestureFeedbackTimer = setTimeout(() => {{ node.style.opacity = '0'; }}, 1200);
 }})()
 """
-    cdp("Runtime.evaluate", {"expression": expression}, socket_url)
+    params = {"expression": expression}
+    if context_id is not None:
+        params["contextId"] = context_id
+    cdp("Runtime.evaluate", params, socket_url)
 
 
-def dispatch_media_action(socket_url: str, gesture: str) -> None:
+def dispatch_media_action(
+    socket_url: str,
+    gesture: str,
+    context_id: int | None = None,
+) -> None:
+    params = {
+        "expression": MEDIA_CONTROL % (json.dumps(gesture), SEEK_SECONDS, VOLUME_STEP),
+        "returnByValue": True,
+    }
+    if context_id is not None:
+        params["contextId"] = context_id
     result = cdp(
         "Runtime.evaluate",
-        {
-            "expression": MEDIA_CONTROL
-            % (json.dumps(gesture), SEEK_SECONDS, VOLUME_STEP),
-            "returnByValue": True,
-        },
+        params,
         socket_url,
     )
     if result.get("result", {}).get("value", ""):
@@ -272,6 +309,45 @@ def dispatch_media_action(socket_url: str, gesture: str) -> None:
         "seek_forward": ("ArrowRight", "ArrowRight", 39),
     }[gesture]
     dispatch_key(socket_url, *fallback)
+
+
+LIFEOS_TAB_CONTROL = r"""
+((step) => {
+  const tabs = [...document.querySelectorAll('button.tab[data-tab]')].filter((tab) => {
+    const style = getComputedStyle(tab);
+    const box = tab.getBoundingClientRect();
+    return !tab.disabled && style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0;
+  });
+  if (!tabs.length) return '';
+  const active = tabs.findIndex((tab) => tab.classList.contains('active'));
+  const current = active >= 0 ? active : 0;
+  const next = (current + step + tabs.length) % tabs.length;
+  tabs[next].click();
+  tabs[next].focus({preventScroll: true});
+  return tabs[next].dataset.tab || tabs[next].textContent.trim();
+})(%d)
+"""
+
+
+def page_control_context(socket_url: str) -> tuple[int | None, str, str]:
+    """Use the LifeOS iframe's isolated world when it is mounted in HA."""
+    try:
+        frame_tree = cdp("Page.getFrameTree", socket_url=socket_url).get("frameTree", {})
+        lifeos_frame = find_frame_by_port(frame_tree, LIFEOS_PORT)
+        if lifeos_frame:
+            isolated_world = cdp(
+                "Page.createIsolatedWorld",
+                {
+                    "frameId": lifeos_frame["id"],
+                    "worldName": "jarvis-gesture-control",
+                },
+                socket_url,
+            )
+            return isolated_world["executionContextId"], "lifeos", lifeos_frame.get("url", "")
+    except Exception as error:
+        # A frame may be between navigations; preserve control of the outer page.
+        print(f"LifeOS frame discovery deferred: {error}", flush=True)
+    return None, "", ""
 
 
 def record_gesture(gesture: str, app: str, confidence: float) -> None:
@@ -298,17 +374,20 @@ def record_gesture(gesture: str, app: str, confidence: float) -> None:
 def fire(gesture: str) -> str:
     page = active_page()
     socket_url = page["webSocketDebuggerUrl"]
-    parsed = urlparse(page.get("url", ""))
+    context_id, framed_app, framed_url = page_control_context(socket_url)
+    parsed = urlparse(framed_url or page.get("url", ""))
     host = parsed.hostname or "local"
-    app = (
-        "youtube"
-        if "youtube.com" in host
-        else "spotify"
-        if "spotify.com" in host
-        else "plex"
-        if "plex.tv" in host or parsed.port == 32400
-        else "browser"
-    )
+    if framed_app or parsed.port == LIFEOS_PORT:
+        app = "lifeos"
+    elif "youtube.com" in host:
+        app = "youtube"
+    elif "spotify.com" in host:
+        app = "spotify"
+    elif "plex.tv" in host or parsed.port == 32400:
+        app = "plex"
+    else:
+        app = "browser"
+    feedback_gesture = gesture
     if gesture in {
         "play_pause",
         "mute",
@@ -317,7 +396,7 @@ def fire(gesture: str) -> str:
         "volume_up",
         "volume_down",
     }:
-        dispatch_media_action(socket_url, gesture)
+        dispatch_media_action(socket_url, gesture, context_id)
     elif gesture in {"up", "down"}:
         if app == "youtube" and parsed.path.startswith("/shorts"):
             key = "ArrowDown" if gesture == "up" else "ArrowUp"
@@ -325,37 +404,40 @@ def fire(gesture: str) -> str:
             dispatch_key(socket_url, key, key, virtual_key)
         else:
             direction = 1 if gesture == "up" else -1
-            cdp(
-                "Runtime.evaluate",
-                {
-                    "expression": (
-                        "window.scrollBy({top:window.innerHeight*"
-                        f"{direction}*0.92,behavior:'smooth'}})"
-                    )
-                },
-                socket_url,
-            )
+            params = {
+                "expression": (
+                    "window.scrollBy({top:window.innerHeight*"
+                    f"{direction}*0.92,behavior:'smooth'}})"
+                )
+            }
+            if context_id is not None:
+                params["contextId"] = context_id
+            cdp("Runtime.evaluate", params, socket_url)
     elif gesture == "forward":
-        result = cdp(
-            "Runtime.evaluate",
-            {"expression": NEXT_CONTROL, "returnByValue": True},
-            socket_url,
-        )
+        expression = LIFEOS_TAB_CONTROL % 1 if app == "lifeos" else NEXT_CONTROL
+        params = {"expression": expression, "returnByValue": True}
+        if context_id is not None:
+            params["contextId"] = context_id
+        result = cdp("Runtime.evaluate", params, socket_url)
         clicked = result.get("result", {}).get("value", "")
-        if not clicked:
+        if app == "lifeos" and clicked:
+            feedback_gesture = "tab_next"
+        elif not clicked:
             dispatch_key(socket_url, "MediaTrackNext", "MediaTrackNext", 176)
             if app == "youtube":
                 dispatch_key(socket_url, "ArrowDown", "ArrowDown", 40)
     elif gesture == "back":
-        cdp(
-            "Runtime.evaluate",
-            {"expression": "window.history.back()"},
-            socket_url,
-        )
+        expression = LIFEOS_TAB_CONTROL % -1 if app == "lifeos" else "window.history.back()"
+        params = {"expression": expression, "returnByValue": True}
+        if context_id is not None:
+            params["contextId"] = context_id
+        cdp("Runtime.evaluate", params, socket_url)
+        if app == "lifeos":
+            feedback_gesture = "tab_previous"
     else:
         raise ValueError(f"unsupported gesture action: {gesture}")
     try:
-        show_feedback(socket_url, gesture, app)
+        show_feedback(socket_url, feedback_gesture, app, context_id)
     except Exception as error:
         print(f"gesture feedback failed: {error}", flush=True)
     print(f"gesture: {gesture} -> {app}", flush=True)

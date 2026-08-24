@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from math import hypot
+from urllib.parse import urlparse
 
 
 STATIC_POSE_ACTIONS = {
@@ -13,6 +14,21 @@ STATIC_POSE_ACTIONS = {
     "thumb_up": "volume_up",
     "thumb_down": "volume_down",
 }
+
+
+def find_frame_by_port(frame_tree: dict, port: int) -> dict | None:
+    """Return the first frame using *port*, including nested child frames."""
+    frame = frame_tree.get("frame", {})
+    try:
+        if urlparse(frame.get("url", "")).port == port:
+            return frame
+    except ValueError:
+        pass
+    for child in frame_tree.get("childFrames", ()):
+        match = find_frame_by_port(child, port)
+        if match:
+            return match
+    return None
 
 
 @dataclass
