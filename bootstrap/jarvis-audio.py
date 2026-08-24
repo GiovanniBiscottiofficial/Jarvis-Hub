@@ -152,10 +152,17 @@ def status(probe: bool) -> dict[str, Any]:
     }
     if probe and source_present and not source_muted:
         data["signal"] = probe_signal()
+        signal = data["signal"]
+        if signal.get("signal") == "unavailable" or (
+            isinstance(signal.get("dbfs"), (int, float)) and signal["dbfs"] <= -85
+        ):
+            data["ready"] = False
     if not source_present:
         data["reason"] = "No usable microphone endpoint"
     elif source_muted:
         data["reason"] = "Microphone privacy mute is on"
+    elif probe and not data["ready"] and data["signal"].get("tested"):
+        data["reason"] = "No microphone signal detected; check the Jabra mute button"
     elif not satellite:
         data["reason"] = "Wyoming voice satellite is offline"
     elif not sink_present:

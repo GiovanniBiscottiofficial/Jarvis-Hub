@@ -39,6 +39,21 @@ def test_signal_probe_uses_memory_and_reports_level(monkeypatch):
     assert -31 < result["dbfs"] < -29
 
 
+def test_status_rejects_digital_silence(monkeypatch):
+    audio = load_audio()
+    monkeypatch.setattr(audio, "default_endpoint", lambda kind: f"jabra-{kind}")
+    monkeypatch.setattr(audio, "volume", lambda _kind: (100.0, False))
+    monkeypatch.setattr(audio, "service_active", lambda _name: True)
+    monkeypatch.setattr(
+        audio,
+        "probe_signal",
+        lambda: {"tested": True, "signal": "quiet", "dbfs": -96.0},
+    )
+    result = audio.status(True)
+    assert result["ready"] is False
+    assert result["reason"] == "No microphone signal detected; check the Jabra mute button"
+
+
 def test_selector_changes_only_nonpreferred_defaults(monkeypatch):
     audio = load_audio()
     monkeypatch.setattr(
