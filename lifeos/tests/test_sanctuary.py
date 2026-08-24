@@ -263,6 +263,25 @@ def test_timeline_and_calibration_gate_are_declared():
     assert "lighting_persists_until: weekday_sunrise" in automation
 
 
+def test_schedule_commissioning_persists_and_missed_phases_are_recovered():
+    configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text()
+    automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()
+    enabled_block = configuration.split("sanctuary_automations_enabled:", 1)[1].split(
+        "sanctuary_calibration_ready:", 1
+    )[0]
+    calibrated_block = configuration.split("sanctuary_calibration_ready:", 1)[1].split(
+        "sanctuary_manual_hold:", 1
+    )[0]
+
+    assert "initial: false" not in enabled_block
+    assert "initial: false" not in calibrated_block
+    assert "id: sanctuary_schedule_reconciliation" in automation
+    assert "event: start" in automation
+    assert "to: \"on\"" in automation
+    for boundary in ("'06:30'", "'07:20'", "'20:00'", "'21:00'", "'22:00'"):
+        assert boundary in automation
+
+
 def test_context_event_bridge_is_authenticated_and_json_safe():
     configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text()
     mirror = (REPO_ROOT / "ha-config/automations/context_engine.yaml").read_text()

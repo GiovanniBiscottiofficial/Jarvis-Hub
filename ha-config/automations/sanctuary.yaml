@@ -2,6 +2,136 @@
 # All scheduled lifestyle behavior is gated by
 # input_boolean.sanctuary_automations_enabled (OFF by default) and Manual Hold.
 
+- id: sanctuary_schedule_reconciliation
+  alias: "Sanctuary: restore the correct scheduled profile"
+  description: >-
+    Re-enters the current Sanctuary phase after Home Assistant restarts or
+    Giovanni enables the commissioned schedule. Normal time triggers remain
+    authoritative; this only recovers a phase that would otherwise be missed.
+  mode: restart
+  trigger:
+    - platform: homeassistant
+      event: start
+      id: startup
+    - platform: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      to: "on"
+      id: schedule_enabled
+    - platform: state
+      entity_id: input_boolean.sanctuary_calibration_ready
+      to: "on"
+      id: calibration_verified
+  condition:
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_calibration_ready
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+    - condition: state
+      entity_id: person.giovanni_biscotti
+      state: home
+    - condition: template
+      value_template: >-
+        {{ states('input_select.sanctuary_mode') not in
+           ['Manual Hold', 'Emergency', 'Guest', 'Date Night', 'Vacation'] }}
+  action:
+    - if:
+        - condition: template
+          value_template: "{{ trigger.id == 'startup' }}"
+      then:
+        - delay: "00:00:15"
+    - variables:
+        clock: "{{ now().strftime('%H:%M') }}"
+        weekday: "{{ now().weekday() < 5 }}"
+        sunday: "{{ now().weekday() == 6 }}"
+    - choose:
+        - conditions: "{{ weekday and '06:30' <= clock < '08:00' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Morning
+                source: schedule
+                reason: Recovered the active weekday Sunrise phase
+            - if:
+                - condition: template
+                  value_template: "{{ clock >= '06:40' }}"
+              then:
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: bedroom, brightness: 32, kelvin: 2900, transition: 30}
+            - if:
+                - condition: template
+                  value_template: "{{ clock >= '06:50' }}"
+              then:
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: bathroom, brightness: 60, kelvin: 3400, transition: 30}
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: office, brightness: 28, kelvin: 3300, transition: 30}
+            - if:
+                - condition: template
+                  value_template: "{{ clock >= '07:00' }}"
+              then:
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: bedroom, brightness: 55, kelvin: 3500, transition: 30}
+                - service: script.sanctuary_apply_room_lighting
+                  data:
+                    area: bathroom
+                    brightness: >-
+                      {{ states('input_number.sanctuary_bathroom_grooming_brightness') | int(80) }}
+                    kelvin: 3600
+                    transition: 30
+                - service: script.sanctuary_apply_room_lighting
+                  data:
+                    area: office
+                    brightness: >-
+                      {{ states('input_number.sanctuary_office_work_brightness') | int(40) }}
+                    kelvin: 3600
+                    transition: 30
+            - if:
+                - condition: template
+                  value_template: "{{ clock >= '07:20' }}"
+              then:
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: hallway, brightness: 30, kelvin: 3200}
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: dinning_room, brightness: 35, kelvin: 3200}
+                - service: script.sanctuary_apply_room_lighting
+                  data: {area: entry, brightness: 40, kelvin: 3200}
+        - conditions: "{{ '20:00' <= clock < '21:00' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Shower
+                source: schedule
+                reason: Recovered the active 8 PM Shower phase
+        - conditions: "{{ '21:00' <= clock < '22:00' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Wind Down
+                source: schedule
+                reason: Recovered the active Wind Down phase
+        - conditions: "{{ clock >= '22:00' or clock < '06:30' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Thunderstorm
+                source: schedule
+                reason: Recovered the protected nightly Thunderstorm phase
+        - conditions: "{{ sunday and '12:00' <= clock < '14:00' }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Cleaning
+                source: schedule
+                reason: Recovered the Sunday cleaning window
+
 - id: sanctuary_weekday_morning
   alias: "Sanctuary: calibrated weekday morning sequence"
   mode: queued

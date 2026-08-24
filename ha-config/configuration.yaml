@@ -246,11 +246,9 @@ input_boolean:
   sanctuary_automations_enabled:
     name: Sanctuary scheduled automations
     icon: mdi:home-automation
-    initial: false
   sanctuary_calibration_ready:
     name: Sanctuary room calibration verified
     icon: mdi:check-decagram
-    initial: false
   sanctuary_manual_hold:
     name: Sanctuary manual hold
     icon: mdi:hand-back-right
