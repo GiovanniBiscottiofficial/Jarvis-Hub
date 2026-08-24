@@ -180,6 +180,37 @@ def test_voice_context_preserves_readiness_privacy_and_signal(fresh_db):
     assert voice["privacy"]["raw_audio_stored"] is False
 
 
+def test_verified_host_satellite_is_ready_before_ha_entity_sync(fresh_db):
+    ingest_event(
+        {
+            "source": "x1_hardware",
+            "event_type": "hardware_state_changed",
+            "entity_id": "binary_sensor.x1_microphone",
+            "state": "on",
+            "attributes": {
+                "ready": True,
+                "muted": False,
+                "satellite": "online",
+                "reason": "Listening locally for Hey Jarvis",
+            },
+        },
+        evaluate=False,
+    )
+    ingest_event(
+        {
+            "source": "x1_hardware",
+            "event_type": "hardware_state_changed",
+            "entity_id": "binary_sensor.x1_speakers",
+            "state": "on",
+            "attributes": {"muted": False},
+        },
+        evaluate=False,
+    )
+    voice = current_context()["voice"]
+    assert voice["assistant_state"] == "unknown"
+    assert voice["ready"] is True
+
+
 def test_every_action_has_complete_explainable_policy(fresh_db):
     required = {
         "name",

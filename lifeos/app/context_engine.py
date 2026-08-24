@@ -529,7 +529,7 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         and not microphone_muted
         and microphone_details.get("ready", True) is True
         and microphone_details.get("satellite", "online") == "online"
-        and satellite_state not in {"unavailable", "unknown"}
+        and satellite_state != "unavailable"
     )
     voice = {
         "ready": voice_ready,
