@@ -252,6 +252,17 @@ def test_sanctuary_yaml_never_targets_protected_domains():
     assert "entry_internet_power" not in script
 
 
+def test_room_lighting_wakes_unknown_bulbs_but_skips_unavailable_devices():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    apply_room = script.split("sanctuary_apply_room_lighting:", 1)[1].split(
+        "sanctuary_start_thunderstorm_media:", 1
+    )[0]
+
+    assert "rejectattr('state', 'eq', 'unavailable')" in apply_room
+    assert "['unavailable', 'unknown']" not in apply_room
+    assert apply_room.count("continue_on_error: true") >= 3
+
+
 def test_timeline_and_calibration_gate_are_declared():
     automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()
     for time in ("06:30:00", "06:40:00", "06:50:00", "07:00:00", "07:20:00"):

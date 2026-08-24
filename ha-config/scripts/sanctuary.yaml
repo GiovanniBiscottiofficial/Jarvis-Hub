@@ -54,7 +54,7 @@ sanctuary_apply_room_lighting:
              | select('match', '^light\\.') | list }}
         available_lights: >-
           {{ expand(candidate_lights)
-             | rejectattr('state', 'in', ['unavailable', 'unknown'])
+             | rejectattr('state', 'eq', 'unavailable')
              | map(attribute='entity_id') | list }}
         temperature_lights: >-
           {% set ns = namespace(ids=[]) %}
@@ -82,6 +82,7 @@ sanctuary_apply_room_lighting:
         - conditions: "{{ available_lights | count > 0 and brightness_value | int > 0 }}"
           sequence:
             - service: light.turn_on
+              continue_on_error: true
               target:
                 entity_id: "{{ available_lights }}"
               data:
@@ -91,6 +92,7 @@ sanctuary_apply_room_lighting:
         - conditions: "{{ temperature_lights | count > 0 and kelvin_value | int > 0 }}"
           sequence:
             - service: light.turn_on
+              continue_on_error: true
               target:
                 entity_id: "{{ temperature_lights }}"
               data:
@@ -100,6 +102,7 @@ sanctuary_apply_room_lighting:
         - conditions: "{{ color_lights | count > 0 and hue_value | float >= 0 }}"
           sequence:
             - service: light.turn_on
+              continue_on_error: true
               target:
                 entity_id: "{{ color_lights }}"
               data:
