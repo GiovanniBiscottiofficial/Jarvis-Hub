@@ -103,19 +103,30 @@ def classify_swipe(
     y_travel: float,
     minimum_speed: float,
 ) -> str | None:
-    """Classify one dominant, deliberate palm trajectory in normalized coordinates."""
+    """Classify the strongest recent motion segment, ignoring stationary dwell."""
     if len(trail) < 5:
         return None
-    duration = trail[-1][0] - trail[0][0]
-    if duration <= 0:
-        return None
-    dx = trail[-1][1] - trail[0][1]
-    dy = trail[-1][2] - trail[0][2]
-    distance = hypot(dx, dy)
-    if distance / duration < minimum_speed:
-        return None
-    if abs(dy) >= y_travel and abs(dy) > abs(dx) * 1.5:
-        return "up" if dy < 0 else "down"
-    if abs(dx) >= x_travel and abs(dx) > abs(dy) * 1.5:
-        return "forward" if dx > 0 else "back"
-    return None
+    end_time, end_x, end_y = trail[-1]
+    best: tuple[float, str] | None = None
+    for start_time, start_x, start_y in trail[:-3]:
+        duration = end_time - start_time
+        if duration < 0.12 or duration > 0.78:
+            continue
+        dx = end_x - start_x
+        dy = end_y - start_y
+        speed = hypot(dx, dy) / duration
+        if speed < minimum_speed:
+            continue
+        gesture = None
+        travel = 0.0
+        if abs(dy) >= y_travel and abs(dy) > abs(dx) * 1.5:
+            gesture = "up" if dy < 0 else "down"
+            travel = abs(dy) / y_travel
+        elif abs(dx) >= x_travel and abs(dx) > abs(dy) * 1.5:
+            gesture = "forward" if dx > 0 else "back"
+            travel = abs(dx) / x_travel
+        if gesture:
+            score = travel + min(speed, 2.0) * 0.1
+            if best is None or score > best[0]:
+                best = (score, gesture)
+    return best[1] if best else None

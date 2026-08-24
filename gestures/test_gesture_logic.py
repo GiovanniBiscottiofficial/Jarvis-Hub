@@ -19,6 +19,23 @@ def test_swipes_require_direction_distance_and_speed():
     assert classify_swipe(trail(0.25, 0.22), **options) is None
 
 
+def test_swipe_ignores_stationary_dwell_before_motion():
+    samples = [
+        (0.00, 0.40, 0.50),
+        (0.15, 0.40, 0.50),
+        (0.30, 0.40, 0.50),
+        (0.40, 0.45, 0.50),
+        (0.50, 0.56, 0.51),
+        (0.60, 0.68, 0.51),
+    ]
+    assert classify_swipe(
+        samples,
+        x_travel=0.20,
+        y_travel=0.18,
+        minimum_speed=0.18,
+    ) == "forward"
+
+
 def test_open_hand_requires_three_extended_fingers():
     points = [(0.5, 0.9)] * 21
     for pip, tip in ((6, 8), (10, 12), (14, 16), (18, 20)):
