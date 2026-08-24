@@ -940,17 +940,17 @@ views:
             heading: Hub (X1)
             icon: mdi:laptop
           - type: tile
-            entity: sensor.processor_use
+            entity: sensor.system_monitor_processor_use
             name: CPU
             icon: mdi:chip
             color: cyan
           - type: tile
-            entity: sensor.memory_use_percent
+            entity: sensor.system_monitor_memory_usage
             name: Memory
             icon: mdi:memory
             color: cyan
           - type: tile
-            entity: sensor.disk_use_percent
+            entity: sensor.system_monitor_disk_usage
             name: Disk
             icon: mdi:harddisk
             color: cyan
@@ -962,8 +962,8 @@ views:
           - type: history-graph
             hours_to_show: 24
             entities:
-              - sensor.processor_use
-              - sensor.memory_use_percent
+              - sensor.system_monitor_processor_use
+              - sensor.system_monitor_memory_usage
       - type: grid
         cards:
           - type: heading

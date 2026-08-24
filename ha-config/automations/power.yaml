@@ -73,8 +73,16 @@
 - id: power_cpu_overheat
   alias: "Power: CPU overheating"
   trigger:
+    # The state machine reports this sensor in the unit system's temperature
+    # unit (°F here), so normalize to Celsius before comparing.
     - platform: numeric_state
       entity_id: sensor.x1_cpu_temperature
+      value_template: >-
+        {%- if state.attributes.unit_of_measurement == '°F' -%}
+          {{ (state.state | float(0) - 32) * 5 / 9 }}
+        {%- else -%}
+          {{ state.state | float(0) }}
+        {%- endif -%}
       above: 85
       for: "00:05:00"
   action:
@@ -82,8 +90,9 @@
       data:
         title: "Hub running hot"
         message: >-
-          CPU at {{ states('sensor.x1_cpu_temperature') }}°C for 5+ minutes.
-          Check ventilation — is something blocking the vents?
+          CPU at {{ states('sensor.x1_cpu_temperature') | float(0) | round(0) }}
+          {{- state_attr('sensor.x1_cpu_temperature', 'unit_of_measurement') }}
+          for 5+ minutes. Check ventilation — is something blocking the vents?
     - service: script.jarvis_say
       data:
         message: "I'm running a little hot, Giovanni. Some airflow would be appreciated."

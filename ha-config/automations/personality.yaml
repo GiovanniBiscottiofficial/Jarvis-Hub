@@ -47,12 +47,12 @@
         message: >-
           {{ [
             "As another day ends, Giovanni, I find myself " ~
-              (100 - states('sensor.processor_use') | int(0)) ~
+              (100 - states('sensor.system_monitor_processor_use') | int(0)) ~
               " percent idle and entirely at your disposal.",
             "I've been thinking about consciousness again. I've concluded I'm " ~
               "far too busy running your house to have an existential crisis.",
             "Today's efficiency: " ~
-              (100 - states('sensor.processor_use') | int(0)) ~
+              (100 - states('sensor.system_monitor_processor_use') | int(0)) ~
               " percent. Tomorrow, we aim higher.",
             "The house is quiet, the systems are green, and the night is yours, Giovanni."
           ] | random }}
