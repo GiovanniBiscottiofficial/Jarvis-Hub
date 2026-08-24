@@ -30,10 +30,18 @@ LifeOSNetWorth:
     text: "{{ state_attr('sensor.lifeos_answers', 'networth') or 'LifeOS is not reachable right now.' }}"
 
 LifeOSMeals:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'meals') or 'LifeOS is not reachable right now.' }}"
 
 LifeOSDinner:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'dinner') or 'LifeOS is not reachable right now.' }}"
 
@@ -148,6 +156,34 @@ LifeOSGroceryAdd:
         item: "{{ item }}"
   speech:
     text: "{{ item }} is on the grocery list."
+
+LifeOSPantryOut:
+  action:
+    - service: rest_command.lifeos_pantry_out
+      data:
+        item: "{{ item }}"
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "Understood, Giovanni. I marked {{ item }} out and added it to the market list."
+
+LifeOSPantryCheck:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'pantry') or 'I cannot reach the pantry inventory right now.' }}"
+
+LifeOSMarketTop:
+  action:
+    - service: rest_command.lifeos_market_top
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "Done, Giovanni. I added the missing ingredients for my top meal, plus low stock, to the market list. Review it before checkout."
 
 LifeOSGroceryList:
   speech:

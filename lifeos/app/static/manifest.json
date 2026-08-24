@@ -1,7 +1,7 @@
 {
-  "name": "LifeOS — Jarvis Hub",
-  "short_name": "LifeOS",
-  "description": "Body Ops + Vault Flow, powered by the Jarvis Hub.",
+  "name": "Jarvis — Sanctuary Intelligence",
+  "short_name": "Jarvis",
+  "description": "Jarvis command, LifeOS intelligence, Body Ops, pantry, and Budget & Vault.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

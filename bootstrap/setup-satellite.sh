@@ -44,18 +44,29 @@ sudo python3 -m venv /opt/wyoming-satellite/venv
 sudo /opt/wyoming-satellite/venv/bin/pip install --upgrade pip \
   wyoming-satellite webrtc-noise-gain==1.2.3
 
-# Prefer a USB microphone whenever one is plugged in. The X1 Tablet Gen 3's
+# Prefer the commissioned Jabra PHS002W speakerphone, then any USB endpoint.
+# The X1 Tablet Gen 3's
 # built-in mic array is not wired to the audio codec Linux can see (its ACPI
 # NHLT table is empty), so the codec's "internal mic" is electrical noise —
 # any cheap USB mic works instantly and this makes it the default on boot.
 sudo tee /usr/local/bin/jarvis-pick-mic >/dev/null <<'MIC'
 #!/bin/sh
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-usb=$(pactl list short sources 2>/dev/null | grep -i usb | grep -v monitor | head -1 | cut -f2)
-if [ -n "$usb" ]; then
-  pactl set-default-source "$usb"
+jabra_source=$(pactl list short sources 2>/dev/null | grep -Ei 'jabra|phs002w|gn_audio' | grep -v monitor | head -1 | cut -f2)
+usb_source=$(pactl list short sources 2>/dev/null | grep -i usb | grep -v monitor | head -1 | cut -f2)
+jabra_sink=$(pactl list short sinks 2>/dev/null | grep -Ei 'jabra|phs002w|gn_audio' | head -1 | cut -f2)
+usb_sink=$(pactl list short sinks 2>/dev/null | grep -i usb | head -1 | cut -f2)
+source=${jabra_source:-$usb_source}
+sink=${jabra_sink:-$usb_sink}
+if [ -n "$source" ]; then
+  pactl set-default-source "$source"
   wpctl set-volume @DEFAULT_AUDIO_SOURCE@ 1.0 2>/dev/null
-  logger -t jarvis-pick-mic "Using USB mic: $usb"
+  logger -t jarvis-audio "Using voice microphone: $source"
+fi
+if [ -n "$sink" ]; then
+  pactl set-default-sink "$sink"
+  wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.85 2>/dev/null
+  logger -t jarvis-audio "Using voice speaker: $sink"
 fi
 exit 0
 MIC

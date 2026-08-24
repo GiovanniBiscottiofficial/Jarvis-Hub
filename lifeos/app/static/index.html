@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>LifeOS</title>
+<title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="LifeOS">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -15,7 +15,7 @@
 </head>
 <body>
 <header class="app-header">
-  <div class="brand-lockup"><h1>LifeOS</h1><span>PRIVATE NODE</span></div>
+  <div class="brand-lockup"><h1>Jarvis</h1><span>LIFEOS · PRIVATE</span></div>
   <div class="nav-rail">
     <nav aria-label="Primary navigation">
       <button class="tab" data-tab="command">Command</button>
@@ -193,7 +193,7 @@
     </div>
 
     <div class="card meals-card">
-      <h2>Meal suggestions <span class="muted">(5–15 min, from pantry)</span></h2>
+      <h2>Chef Jarvis <span class="muted">(pantry-aware meal suggestions)</span></h2>
       <div id="suggestions"></div>
     </div>
 
@@ -262,14 +262,21 @@
       <div id="photo-msg" class="muted"></div>
       <div id="photo-review" class="photo-review" hidden></div>
     </div>
-    <div class="card">
-      <h2>Pantry</h2>
-      <p class="card-note">Local inventory used for meal planning. Add an item here or sync a commissioned Grocy node.</p>
+    <div class="card chef-card">
+      <div class="chef-heading"><div><span class="chef-kicker">JARVIS / CULINARY INTELLIGENCE</span><h2>Chef Jarvis</h2></div><span id="chef-readiness" class="chef-state">ASSESSING PANTRY</span></div>
+      <p class="card-note">Suggestions use what is actually in stock, Giovanni's exclusions, protein goals, preparation time, and explicit feedback.</p>
+      <div id="chef-suggestions" class="chef-suggestions" aria-live="polite"><div class="empty-state">Building tonight's options…</div></div>
+      <div id="chef-status" class="inline-status muted" role="status" aria-live="polite"></div>
+    </div>
+    <div class="card pantry-card">
+      <div class="chef-heading"><div><span class="chef-kicker">STOCK / LOCAL</span><h2>Pantry &amp; market list</h2></div><span id="pantry-readiness" class="chef-state">LOADING</span></div>
+      <p class="card-note">Tell Jarvis what arrived or tap “Ran out” when it is gone. Grocy remains an optional inventory bridge.</p>
       <div class="pantry-composer" aria-label="Add pantry item">
         <label>Item<input id="pantry-item" autocomplete="off" placeholder="Chicken breast"></label>
         <label>Quantity<input id="pantry-qty" type="number" min="0" step="0.1" value="1"></label>
         <label>Unit<input id="pantry-unit" autocomplete="off" placeholder="lb, cans, servings"></label>
         <label>Protein / serving<input id="pantry-protein" type="number" min="0" step="0.1" placeholder="grams"></label>
+        <label>Department<select id="pantry-category"><option>Produce</option><option>Meat</option><option>Seafood</option><option>Dairy</option><option>Canned Goods</option><option>Pantry</option><option selected>Other</option></select></label>
         <button id="pantry-add-btn">Add to pantry</button>
       </div>
       <div id="pantry-status" class="inline-status muted" role="status" aria-live="polite"></div>
@@ -277,8 +284,9 @@
       <div class="row pantry-tools">
         <button id="pantry-sync-btn" class="secondary">Sync from Grocy</button>
       </div>
-      <h2>Grocery suggestions</h2>
-      <div id="grocery" class="muted">–</div>
+      <div class="market-heading"><div><span class="chef-kicker">FOOD LION / PLAN</span><h2>Market list</h2></div><button id="market-build-btn" class="secondary">Add low stock</button></div>
+      <p class="card-note">Prices are planning estimates, never live quotes. Jarvis will not place an order without your explicit review.</p>
+      <div id="grocery" class="market-list muted">Loading market list…</div>
     </div>
     </div>
   </section>

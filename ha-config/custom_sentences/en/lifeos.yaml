@@ -34,6 +34,8 @@ intents:
           - "what can I make [for dinner]"
           - "what should I eat"
           - "meal ideas"
+          - "what can you make with what we have"
+          - "Chef Jarvis what do you recommend"
   LifeOSDinner:
     data:
       - sentences:
@@ -141,8 +143,26 @@ intents:
       - sentences:
           - "add {item} to [the] grocery list"
           - "put {item} on [the] grocery list"
+  LifeOSPantryOut:
+    data:
+      - sentences:
           - "we're out of {item}"
           - "we are out of {item}"
+          - "I ran out of {item}"
+          - "mark {item} out"
+  LifeOSPantryCheck:
+    data:
+      - sentences:
+          - "what do we have [in the pantry]"
+          - "what's in stock"
+          - "pantry check"
+          - "what are we low on"
+  LifeOSMarketTop:
+    data:
+      - sentences:
+          - "build [the] market list for dinner"
+          - "add [the] ingredients for dinner [to the market list]"
+          - "build [the] grocery list for your top meal"
   LifeOSGroceryList:
     data:
       - sentences:

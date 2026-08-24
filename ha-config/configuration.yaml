@@ -224,6 +224,18 @@ rest_command:
       "state":{{ (state | string | tojson) if state is not none else 'null' }},
       "previous_state":{{ (previous_state | string | tojson) if previous_state is not none else 'null' }},
       "attributes":{{ attributes | tojson }}}
+  lifeos_pantry_out:
+    url: http://localhost:8090/api/pantry/items/out
+    method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
+    content_type: application/json
+    payload: '{"item": {{ item | tojson }}}'
+  lifeos_market_top:
+    url: http://localhost:8090/api/pantry/market-list/top
+    method: POST
+    headers:
+      Authorization: !secret lifeos_api_authorization
 
 # Example: SSH power commands for Mac/Linux computers (uncomment + edit)
 # shell_command:
@@ -417,7 +429,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, spending, grocery, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, pantry, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
   # Month-to-date spending from the LifeOS ledger (voice-logged spends)
   - resource: http://localhost:8090/api/vault/spending
     headers:

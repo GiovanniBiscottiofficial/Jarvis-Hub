@@ -109,7 +109,11 @@ CREATE TABLE IF NOT EXISTS pantry (
     qty REAL NOT NULL DEFAULT 0,
     unit TEXT NOT NULL DEFAULT '',
     protein_g_per_serving REAL NOT NULL DEFAULT 0,
-    grocy_product_id INTEGER
+    grocy_product_id INTEGER,
+    category TEXT NOT NULL DEFAULT 'other',
+    low_stock_threshold REAL NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    last_depleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -171,8 +175,26 @@ CREATE TABLE IF NOT EXISTS grocery_list (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     item TEXT NOT NULL,
-    done INTEGER NOT NULL DEFAULT 0
+    done INTEGER NOT NULL DEFAULT 0,
+    qty REAL NOT NULL DEFAULT 1,
+    unit TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'manual',
+    reason TEXT NOT NULL DEFAULT '',
+    department TEXT NOT NULL DEFAULT 'Other',
+    estimated_price REAL,
+    recipe_id TEXT
 );
+
+CREATE TABLE IF NOT EXISTS chef_feedback (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    recipe_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('liked','cooked','skipped')),
+    profile_id INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_chef_feedback_recipe
+    ON chef_feedback(profile_id, recipe_id, ts DESC);
 
 CREATE TABLE IF NOT EXISTS webhook_events (
     event_id TEXT PRIMARY KEY,
@@ -393,6 +415,21 @@ def _migrate(c: sqlite3.Connection) -> None:
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
         "weighins": [("source", "TEXT NOT NULL DEFAULT 'manual'")],
+        "pantry": [
+            ("category", "TEXT NOT NULL DEFAULT 'other'"),
+            ("low_stock_threshold", "REAL NOT NULL DEFAULT 1"),
+            ("updated_at", "TEXT"),
+            ("last_depleted_at", "TEXT"),
+        ],
+        "grocery_list": [
+            ("qty", "REAL NOT NULL DEFAULT 1"),
+            ("unit", "TEXT NOT NULL DEFAULT ''"),
+            ("source", "TEXT NOT NULL DEFAULT 'manual'"),
+            ("reason", "TEXT NOT NULL DEFAULT ''"),
+            ("department", "TEXT NOT NULL DEFAULT 'Other'"),
+            ("estimated_price", "REAL"),
+            ("recipe_id", "TEXT"),
+        ],
     }
     for table, adds in simple_adds.items():
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}

@@ -7,9 +7,9 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from ..chef import chef_summary
 from ..db import active_profile, conn, get_setting
 from ..paydays import payday_schedule, scheduled_bill_due_date
-from ..suggestions import suggest_meals
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
 from .vaultflow import week_spending
@@ -106,7 +106,7 @@ def morning_briefing():
     total = sum(a["balance"] for a in accounts)
     bills_total = sum(b["amount"] for b in bills)
     leftover = total - bills_total
-    meals = suggest_meals(limit=2)
+    meals = chef_summary()["suggestions"][:2]
     weather = _weather()
 
     paydays = payday_schedule(count=2)
@@ -391,9 +391,11 @@ def ask():
     steps = steps_row["count"] if steps_row else 0
     steps_speech = f"{steps:,} steps today against a {prof['step_target']:,} target."
 
-    meals = suggest_meals(limit=2)
+    chef = chef_summary()
+    meals = chef["suggestions"][:2]
     meals_speech = (
-        "You could make " + " or ".join(m["name"] for m in meals) + "."
+        "Chef Jarvis recommends " + " or ".join(m["name"] for m in meals) + ". "
+        + meals[0]["why"]
         if meals
         else "No pantry-matched meals right now — log some pantry items."
     )
@@ -409,6 +411,11 @@ def ask():
         if grocery
         else "The grocery list is empty."
     )
+    pantry_speech = (
+        f"I have {chef['pantry']['items']} pantry items recorded. "
+        f"{chef['pantry']['out']} are out and {chef['pantry']['low']} are low. "
+        + (f"My best current meal is {meals[0]['name']}." if meals else "Add inventory so I can plan accurately.")
+    )
 
     water_target = int(get_setting("water_target_glasses") or 8)
     water_speech = (
@@ -418,7 +425,7 @@ def ask():
 
     dinner_speech = (
         (
-            "You could make " + " or ".join(m["name"] for m in meals)
+            "Chef Jarvis recommends " + " or ".join(m["name"] for m in meals)
             if meals
             else "Nothing pantry-matched tonight — sweet potatoes and grilled "
             "chicken never miss"
@@ -477,6 +484,7 @@ def ask():
         "meals": meals_speech,
         "spending": spending_speech,
         "grocery": grocery_speech,
+        "pantry": pantry_speech,
         "water": water_speech,
         "water_count": water,
         "water_target": water_target,

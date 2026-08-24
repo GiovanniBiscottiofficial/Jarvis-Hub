@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import active_profile, conn, get_setting, init_db
+from .chef import chef_summary
 from .routers import (
     bodyops,
     budget,
@@ -24,7 +25,6 @@ from .routers import (
     webhooks,
 )
 from .routers.bodyops import protein_today, streak, water_today
-from .suggestions import suggest_meals
 
 app = FastAPI(title="LifeOS", version="0.2.0")
 
@@ -213,7 +213,7 @@ def today():
             "date": date.today().isoformat(),
             "profile": prof["name"],
             "step_target": prof["step_target"],
-            "meal_suggestions": suggest_meals(),
+            "meal_suggestions": chef_summary(max_minutes=15)["suggestions"][:3],
             "protein": {"today_g": protein, "target_g": target},
             "steps_today": steps_row["count"] if steps_row else 0,
             "water": {

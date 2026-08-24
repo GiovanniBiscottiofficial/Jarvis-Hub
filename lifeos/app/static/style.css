@@ -626,9 +626,36 @@ body:has(#budget.active) main { max-width: 1540px; }
 .briefing-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
 .briefing-controls .pill { margin-top: 10px; }
 .briefing-controls .secondary { min-height: 44px; }
-.pantry-composer { display: grid; grid-template-columns: 1.2fr .55fr .75fr .9fr auto; gap: 8px; align-items: end; }
+.pantry-composer { display: grid; grid-template-columns: 1.2fr .55fr .75fr .9fr .85fr auto; gap: 8px; align-items: end; }
 .pantry-composer button { min-height: 44px; white-space: nowrap; }
 .inventory-list { margin-top: 8px; }
+.body-grid .chef-card,.body-grid .pantry-card { grid-column: span 2; }
+.chef-heading,.market-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.chef-heading h2,.market-heading h2 { margin-top: 5px; }
+.chef-kicker,.chef-state { color: #6e93a8; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .13em; text-transform: uppercase; }
+.chef-state { color: #76e5ae; padding: 7px 9px; border: 1px solid rgba(118,229,174,.25); background: rgba(118,229,174,.06); white-space: nowrap; }
+.chef-suggestions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.chef-option { min-width: 0; padding: 15px; border: 1px solid rgba(76,210,239,.14); border-left: 2px solid rgba(76,210,239,.62); background: linear-gradient(135deg,rgba(15,40,56,.74),rgba(6,19,30,.9)); }
+.chef-option-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.chef-option h3 { color: #edf9fc; font-size: 1rem; line-height: 1.25; margin: 5px 0 0; }
+.chef-rank,.chef-coverage { color: #6e93a8; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; }
+.chef-coverage { color: #70e9ff; white-space: nowrap; }
+.chef-metrics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+.chef-metrics span { color: #a9becb; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; padding: 5px 7px; border: 1px solid rgba(109,172,194,.14); }
+.chef-why { min-height: 42px; color: #8ca3b2; font-size: .72rem; line-height: 1.45; overflow-wrap: anywhere; }
+.chef-actions { display: grid; grid-template-columns: 1.35fr 1fr .6fr .6fr; gap: 7px; }
+.chef-actions button { min-height: 46px; padding: 8px 10px; font-size: .67rem; }
+.inventory-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.inventory-actions button { min-height: 44px; }
+.danger-subtle { border-color: rgba(243,163,163,.2) !important; color: #d9a4a4 !important; }
+.market-heading { align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(65,196,226,.1); }
+.market-heading h2 { border: 0 !important; padding: 0 !important; }
+.market-group { margin-top: 12px; }
+.market-group h3 { color: #70e9ff; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; text-transform: uppercase; }
+.market-row { min-height: 54px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 2px; border-bottom: 1px solid rgba(75,205,234,.09); }
+.market-row span { min-width: 0; }
+.market-row small { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+.market-row button { min-width: 84px; }
 .scale-readiness { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; margin-top: 12px; padding: 13px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); overflow-wrap: anywhere; }
 .scale-readiness .scale-state { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
 .scale-readiness .scale-route { color: #c4d8e0; font-size: .76rem; }
@@ -654,6 +681,7 @@ body:has(#budget.active) main { max-width: 1540px; }
   .finance-grid > .card:not(.paycheck-card):not(.spending-card):not(.runway-card):not(.bills-card):not(.accounts-card):not(.goals-card) { grid-column: span 6; }
   .pantry-composer { grid-template-columns: 1fr 1fr; }
   .pantry-composer button { grid-column: 1/-1; }
+  .chef-actions { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 650px) {
   .finance-grid { display: flex; flex-direction: column; }
@@ -671,6 +699,13 @@ body:has(#budget.active) main { max-width: 1540px; }
   .finance-state { max-width: 130px; }
   .briefing-controls { grid-template-columns: 1fr; }
   .briefing-controls .secondary { width: 100%; }
+  .chef-suggestions { grid-template-columns: 1fr; }
+  .chef-heading,.market-heading { flex-direction: column; }
+  .chef-state { white-space: normal; }
+  .chef-actions { grid-template-columns: 1fr; }
+  .inventory-row,.market-row { grid-template-columns: 1fr; }
+  .inventory-actions { justify-content: stretch; }
+  .inventory-actions button,.market-row button { width: 100%; }
 }
 @media (min-width: 2200px) and (min-height: 1400px) {
   body:has(#budget.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }

@@ -45,7 +45,46 @@ def audio_state(kind: str) -> tuple[str, dict]:
     selector = "get-default-source" if kind == "microphone" else "get-default-sink"
     ok, device = command("pactl", selector)
     usable = ok and bool(device) and "null" not in device.lower()
-    return ("on" if usable else "unavailable", {"device": device or "none"})
+    normalized = device.lower()
+    jabra = any(marker in normalized for marker in ("jabra", "phs002w", "gn_audio"))
+    return (
+        "on" if usable else "unavailable",
+        {
+            "device": device or "none",
+            "endpoint": "Jabra PHS002W" if jabra else ("default audio" if usable else "none"),
+            "jabra_commissioned": jabra,
+        },
+    )
+
+
+def external_storage_state() -> tuple[str, dict]:
+    """Report removable/data mounts without moving or deleting any files."""
+    mounts = []
+    try:
+        lines = Path("/proc/mounts").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        lines = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 3:
+            continue
+        device, mountpoint, filesystem = fields[:3]
+        if not mountpoint.startswith(("/media/", "/mnt/", "/run/media/")):
+            continue
+        try:
+            stats = os.statvfs(mountpoint)
+            mounts.append(
+                {
+                    "device": device,
+                    "mountpoint": mountpoint,
+                    "filesystem": filesystem,
+                    "total_gb": round(stats.f_frsize * stats.f_blocks / 1073741824, 1),
+                    "free_gb": round(stats.f_frsize * stats.f_bavail / 1073741824, 1),
+                }
+            )
+        except OSError:
+            continue
+    return ("on" if mounts else "unavailable", {"mounts": mounts, "count": len(mounts)})
 
 
 def camera_state() -> tuple[str, dict]:
@@ -107,6 +146,7 @@ def snapshot() -> dict[str, tuple[str, dict]]:
         "binary_sensor.x1_camera": camera_state(),
         "binary_sensor.x1_bluetooth": bluetooth_state(),
         "binary_sensor.x1_touchscreen": touchscreen_state(),
+        "binary_sensor.x1_external_storage": external_storage_state(),
     }
 
 

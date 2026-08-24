@@ -185,16 +185,24 @@ async function loadToday() {
     row.className = "row";
     const eat = document.createElement("button");
     eat.textContent = "Eat it";
-    eat.onclick = async () => { await api("/api/body/meals/log", "POST", { name: m.name }); loadToday(); };
-    const sometimes = document.createElement("button");
-    sometimes.className = "secondary";
-    sometimes.textContent = "Sometimes";
-    sometimes.onclick = () => override(m.name, "sometimes");
-    const today = document.createElement("button");
-    today.className = "secondary";
-    today.textContent = "Today";
-    today.onclick = () => override(m.name, "today");
-    row.append(eat, sometimes, today);
+    eat.onclick = async () => {
+      await api("/api/body/meals/log", "POST", { name: m.name, protein_g: m.protein_g, calories: m.calories });
+      if (m.id) await api("/api/pantry/chef/feedback", "POST", { recipe_id: m.id, action: "cooked" });
+      loadToday();
+    };
+    if (m.id) {
+      const like = el("button", "secondary", "Like");
+      like.onclick = () => recordChefFeedback(m.id, "liked", `${m.name} moved up in your preferences.`);
+      const skip = el("button", "secondary", "Skip");
+      skip.onclick = () => recordChefFeedback(m.id, "skipped", `${m.name} will rank lower for now.`);
+      row.append(eat, like, skip);
+    } else {
+      const sometimes = el("button", "secondary", "Sometimes");
+      sometimes.onclick = () => override(m.name, "sometimes");
+      const today = el("button", "secondary", "Today");
+      today.onclick = () => override(m.name, "today");
+      row.append(eat, sometimes, today);
+    }
     div.appendChild(row);
     sug.appendChild(div);
   });
@@ -375,11 +383,106 @@ async function loadWorkouts() {
   });
 }
 
+function renderChefSuggestions(chef) {
+  const container = $("chef-suggestions");
+  container.replaceChildren();
+  $("chef-readiness").textContent = chef.suggestions.length ? `${chef.suggestions.length} OPTIONS READY` : "PANTRY INPUT NEEDED";
+  if (!chef.suggestions.length) {
+    container.appendChild(el("div", "empty-state", "Add pantry items and Jarvis will build safe options around what is available."));
+    return;
+  }
+  chef.suggestions.forEach((recipe, index) => {
+    const card = document.createElement("article");
+    card.className = "chef-option";
+    const head = document.createElement("div");
+    head.className = "chef-option-head";
+    const title = document.createElement("div");
+    title.append(el("span", "chef-rank", `${String(index + 1).padStart(2, "0")} · ${recipe.tier}`), el("h3", "", recipe.name));
+    head.append(title, el("strong", "chef-coverage", `${recipe.stock_coverage}% STOCKED`));
+    const metrics = document.createElement("div");
+    metrics.className = "chef-metrics";
+    metrics.append(el("span", "", `${recipe.minutes} MIN`), el("span", "", `${recipe.protein_g}G PROTEIN`), el("span", "", `${recipe.calories} CAL`));
+    const missing = recipe.missing.length
+      ? `Missing: ${recipe.missing.map((item) => item.name).join(", ")}`
+      : "Ready from current stock";
+    const actions = document.createElement("div");
+    actions.className = "chef-actions";
+    const market = el("button", "secondary", recipe.missing.length ? "Add missing to market list" : "Market list ready");
+    market.disabled = !recipe.missing.length;
+    market.onclick = async () => {
+      market.disabled = true;
+      try {
+        const result = await api("/api/pantry/market-list/build", "POST", { recipe_ids: [recipe.id], include_low_stock: false });
+        $("chef-status").textContent = `${result.added} item${result.added === 1 ? "" : "s"} added for ${recipe.name}. ${result.checkout}`;
+        loadPantry();
+      } catch (error) { $("chef-status").textContent = error.message; market.disabled = false; }
+    };
+    const cooked = el("button", "", "Cooked & log");
+    cooked.onclick = async () => {
+      cooked.disabled = true;
+      try {
+        await api("/api/body/meals/log", "POST", { name: recipe.name, protein_g: recipe.protein_g, calories: recipe.calories });
+        await api("/api/pantry/chef/feedback", "POST", { recipe_id: recipe.id, action: "cooked" });
+        $("chef-status").textContent = `${recipe.name} logged. Jarvis will use that choice when ranking future meals.`;
+        loadPantry(); loadToday();
+      } catch (error) { $("chef-status").textContent = error.message; cooked.disabled = false; }
+    };
+    const liked = el("button", "secondary", "Like");
+    liked.onclick = () => recordChefFeedback(recipe.id, "liked", `${recipe.name} moved up in your preferences.`);
+    const skip = el("button", "secondary", "Skip");
+    skip.onclick = () => recordChefFeedback(recipe.id, "skipped", `${recipe.name} will rank lower for now.`);
+    actions.append(market, cooked, liked, skip);
+    card.append(head, metrics, el("p", "chef-why", `${recipe.why} ${missing}`), actions);
+    container.appendChild(card);
+  });
+}
+
+async function recordChefFeedback(recipeId, action, message) {
+  try {
+    await api("/api/pantry/chef/feedback", "POST", { recipe_id: recipeId, action });
+    $("chef-status").textContent = message;
+    loadPantry();
+  } catch (error) { $("chef-status").textContent = error.message; }
+}
+
+function renderMarketList(items) {
+  const grocery = $("grocery");
+  grocery.replaceChildren();
+  if (!items.length) {
+    grocery.appendChild(el("div", "empty-state", "Market list clear · mark pantry items out or add missing recipe ingredients."));
+    return;
+  }
+  const groups = new Map();
+  items.forEach((item) => {
+    const department = item.department || "Other";
+    if (!groups.has(department)) groups.set(department, []);
+    groups.get(department).push(item);
+  });
+  groups.forEach((departmentItems, department) => {
+    const group = document.createElement("section");
+    group.className = "market-group";
+    group.appendChild(el("h3", "", department));
+    departmentItems.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "market-row";
+      const details = document.createElement("span");
+      details.append(el("strong", "", item.item), el("small", "muted", `${item.qty || 1} ${item.unit || "item"} · ${item.reason || item.source || "Market list"}${item.estimated_price != null ? ` · est. $${Number(item.estimated_price).toFixed(2)}` : ""}`));
+      const done = el("button", "secondary", "Got it");
+      done.onclick = async () => { await api("/api/pantry/grocery/remove", "POST", { item: item.item }); loadPantry(); };
+      row.append(details, done);
+      group.appendChild(row);
+    });
+    grocery.appendChild(group);
+  });
+}
+
 async function loadPantry() {
   const pantryEl = $("pantry");
   pantryEl.textContent = "Loading inventory…";
   try {
-    const [p, g] = await Promise.all([api("/api/pantry"), api("/api/pantry/grocery-suggestions")]);
+    const [p, market, chef] = await Promise.all([api("/api/pantry"), api("/api/pantry/grocery"), api("/api/pantry/chef")]);
+    renderChefSuggestions(chef);
+    $("pantry-readiness").textContent = `${p.items.length} ITEMS · ${chef.pantry.out} OUT · ${chef.pantry.low} LOW`;
     pantryEl.replaceChildren();
     if (!p.items.length) {
       pantryEl.appendChild(el("div", "empty-state", p.grocy_configured
@@ -391,7 +494,19 @@ async function loadPantry() {
         line.className = "inventory-row";
         const identity = el("span", "", item.name);
         identity.appendChild(el("small", "muted", `${item.qty} ${item.unit || "units"} · ${item.protein_g_per_serving || 0}g protein/serving`));
-        const remove = el("button", "secondary", "Remove");
+        const actions = document.createElement("div");
+        actions.className = "inventory-actions";
+        const out = el("button", "secondary", "Ran out");
+        out.disabled = Number(item.qty) <= 0;
+        out.onclick = async () => {
+          out.disabled = true;
+          try {
+            await api(`/api/pantry/items/${item.id}/out`, "POST");
+            $("pantry-status").textContent = `${item.name} marked out and added to the market list.`;
+            loadPantry();
+          } catch (error) { $("pantry-status").textContent = error.message; out.disabled = false; }
+        };
+        const remove = el("button", "secondary danger-subtle", "Remove");
         remove.onclick = async () => {
           remove.disabled = true;
           try {
@@ -400,21 +515,15 @@ async function loadPantry() {
             loadPantry();
           } catch (error) { $("pantry-status").textContent = error.message; remove.disabled = false; }
         };
-        line.append(identity, remove);
+        actions.append(out, remove);
+        line.append(identity, actions);
         pantryEl.appendChild(line);
       });
     }
-    const grocery = $("grocery");
-    grocery.replaceChildren(el("div", "muted", `Avg ${g.avg_daily_protein_g}g/day vs ${g.target_g}g target`));
-    if (!g.suggestions.length) grocery.appendChild(el("div", "empty-state", "No grocery additions suggested"));
-    g.suggestions.forEach((suggestion) => {
-      const line = document.createElement("div");
-      line.className = "line";
-      line.append(el("span", "", suggestion.name), el("span", "muted", `${suggestion.protein_g_per_serving}g/serving`));
-      grocery.appendChild(line);
-    });
+    renderMarketList(market);
   } catch (error) {
     pantryEl.replaceChildren(el("div", "empty-state error-state", `Pantry unavailable · ${error.message}`));
+    $("chef-suggestions").replaceChildren(el("div", "empty-state error-state", `Chef Jarvis unavailable · ${error.message}`));
   }
 }
 
@@ -633,6 +742,18 @@ $("pantry-sync-btn").onclick = async () => {
   finally { button.disabled = false; }
 };
 
+$("market-build-btn").onclick = async () => {
+  const button = $("market-build-btn");
+  button.disabled = true;
+  $("pantry-status").textContent = "Jarvis is checking low and depleted stock…";
+  try {
+    const result = await api("/api/pantry/market-list/build", "POST", { recipe_ids: [], include_low_stock: true });
+    $("pantry-status").textContent = `${result.added} low-stock item${result.added === 1 ? "" : "s"} reviewed. ${result.checkout}`;
+    loadPantry();
+  } catch (error) { $("pantry-status").textContent = error.message; }
+  finally { button.disabled = false; }
+};
+
 $("pantry-add-btn").onclick = async () => {
   const name = $("pantry-item").value.trim();
   const qty = Number($("pantry-qty").value);
@@ -645,7 +766,10 @@ $("pantry-add-btn").onclick = async () => {
   button.disabled = true;
   $("pantry-status").textContent = `Adding ${name}…`;
   try {
-    await api("/api/pantry/items", "POST", { name, qty, unit: $("pantry-unit").value.trim(), protein_g_per_serving: protein });
+    await api("/api/pantry/items", "POST", {
+      name, qty, unit: $("pantry-unit").value.trim(), protein_g_per_serving: protein,
+      category: $("pantry-category").value, low_stock_threshold: 1,
+    });
     $("pantry-status").textContent = `${name} saved to local pantry inventory.`;
     $("pantry-item").value = ""; $("pantry-qty").value = "1"; $("pantry-unit").value = ""; $("pantry-protein").value = "";
     loadPantry();
@@ -1345,6 +1469,7 @@ function renderHardwareTelemetry(hardware) {
     ["microphone", "Microphone"],
     ["speakers", "Speakers"],
     ["touchscreen", "Touchscreen"],
+    ["external_storage", "External storage"],
     ["battery", "Battery"],
     ["mains", "Mains power"],
     ["temperature", "CPU temperature"],

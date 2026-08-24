@@ -332,6 +332,18 @@ def lifeos_snapshot() -> dict[str, Any]:
                 "SELECT id,kind,text FROM nudges WHERE resolved=0 ORDER BY id DESC LIMIT 5"
             ).fetchall()
         ]
+        pantry_items = [
+            dict(row) for row in c.execute(
+                "SELECT name,qty,unit,category,low_stock_threshold,last_depleted_at"
+                " FROM pantry ORDER BY name"
+            ).fetchall()
+        ]
+        market_list = [
+            dict(row) for row in c.execute(
+                "SELECT item,qty,unit,department,reason FROM grocery_list"
+                " WHERE done=0 ORDER BY department,item LIMIT 50"
+            ).fetchall()
+        ]
 
     steps = steps_row["count"] if steps_row else 0
     water = water_row["glasses"] if water_row else 0
@@ -361,6 +373,13 @@ def lifeos_snapshot() -> dict[str, Any]:
         priorities.append({"domain": "vault", "label": f"{len(due_soon)} bill(s) need attention"})
     if any(not workout["done"] for workout in workouts):
         priorities.append({"domain": "body", "label": "Planned workout remains open"})
+    depleted = [item for item in pantry_items if float(item["qty"]) <= 0]
+    low_stock = [
+        item for item in pantry_items
+        if 0 < float(item["qty"]) <= float(item["low_stock_threshold"] or 1)
+    ]
+    if depleted:
+        priorities.append({"domain": "food", "label": f"{len(depleted)} pantry item(s) are out"})
     priorities.extend({"domain": nudge["kind"], "label": nudge["text"]} for nudge in nudges[:2])
 
     progress = [
@@ -388,6 +407,12 @@ def lifeos_snapshot() -> dict[str, Any]:
             "bills_due_soon": due_soon,
             "bills_due_total": bills_total,
             "left_after_due_bills": accounts_total - bills_total,
+        },
+        "food": {
+            "pantry_item_count": len(pantry_items),
+            "out_of_stock": [item["name"] for item in depleted],
+            "low_stock": [item["name"] for item in low_stock],
+            "market_list": market_list,
         },
         "priorities": priorities[:6],
     }
@@ -484,6 +509,7 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "camera": devices.get("binary_sensor.x1_camera", "unknown"),
         "bluetooth": devices.get("binary_sensor.x1_bluetooth", "unknown"),
         "touchscreen": devices.get("binary_sensor.x1_touchscreen", "unknown"),
+        "external_storage": devices.get("binary_sensor.x1_external_storage", "unknown"),
         "monitor": devices.get("binary_sensor.x1_hardware_monitor", "unknown"),
     }
     visual_presence = devices.get("binary_sensor.x1_visual_presence", "unknown")
@@ -618,6 +644,7 @@ def capability_manifest(snapshot: dict[str, Any] | None = None) -> list[dict[str
             "Powered Bluetooth adapter",
         ),
         ("touch", "Touch command surface", hardware["touchscreen"] == "on", "Touchscreen input"),
+        ("storage", "External storage", hardware["external_storage"] == "on", "Mounted external drive"),
         ("automation", "Home control", bool(HA_TOKEN), "HOME_ASSISTANT_TOKEN"),
         ("lifeos", "LifeOS intelligence", True, "Body Ops and Vault Flow data"),
     ]
