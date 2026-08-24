@@ -41,8 +41,9 @@ sudo rfkill unblock bluetooth 2>/dev/null || true
 echo "==> Installing wyoming-satellite..."
 sudo mkdir -p /opt/wyoming-satellite
 sudo python3 -m venv /opt/wyoming-satellite/venv
-sudo /opt/wyoming-satellite/venv/bin/pip install --upgrade pip \
-  wyoming-satellite webrtc-noise-gain==1.2.3
+# Jabra performs echo/noise processing in hardware. The optional WebRTC
+# extension is not required and currently does not build on Python 3.14.
+sudo /opt/wyoming-satellite/venv/bin/pip install --upgrade pip wyoming-satellite
 
 # Prefer the commissioned Jabra PHS002W speakerphone, then any USB endpoint.
 # The X1 Tablet Gen 3's
@@ -89,9 +90,7 @@ ExecStart=/opt/wyoming-satellite/venv/bin/python -m wyoming_satellite \\
   --mic-command 'arecord -r 16000 -c 1 -f S16_LE -t raw' \\
   --snd-command 'aplay -r 22050 -c 1 -f S16_LE -t raw' \\
   --wake-uri tcp://127.0.0.1:10400 \\
-  --wake-word-name hey_jarvis \
-  --mic-auto-gain 5 \
-  --mic-noise-suppression 2
+  --wake-word-name hey_jarvis
 Restart=always
 RestartSec=5
 
