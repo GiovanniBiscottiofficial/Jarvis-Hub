@@ -101,9 +101,13 @@ EOF
 # ---------- Webcam: go2rtc (RTSP stream for Frigate / HA) ----------
 echo "==> Installing go2rtc (webcam -> RTSP)..."
 sudo mkdir -p /opt/go2rtc
-sudo curl -fsSL -o /opt/go2rtc/go2rtc \
+# Download beside the running binary, then atomically replace it. Writing
+# directly to an executable that systemd is currently running can fail with
+# curl error 23 (text file busy) and risks leaving a partial binary.
+sudo curl -fsSL -o /opt/go2rtc/go2rtc.new \
   https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64
-sudo chmod +x /opt/go2rtc/go2rtc
+sudo chmod +x /opt/go2rtc/go2rtc.new
+sudo mv /opt/go2rtc/go2rtc.new /opt/go2rtc/go2rtc
 
 sudo tee /opt/go2rtc/go2rtc.yaml >/dev/null <<EOF
 api:
