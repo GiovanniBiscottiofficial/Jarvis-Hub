@@ -158,6 +158,7 @@ After=network-online.target sound.target bluetooth.service docker.service
 User=${SAT_USER}
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "${SAT_USER}")
 Environment=LIFEOS_EVENTS_URL=http://127.0.0.1:8090/api/events
+EnvironmentFile=-${REPO_DIR}/.env
 ExecStart=/usr/bin/python3 /opt/jarvis/hardware-monitor.py
 Restart=always
 RestartSec=10

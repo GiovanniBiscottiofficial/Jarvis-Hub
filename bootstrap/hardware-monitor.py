@@ -15,6 +15,7 @@ import urllib.request
 from pathlib import Path
 
 EVENTS_URL = os.environ.get("LIFEOS_EVENTS_URL", "http://127.0.0.1:8090/api/events")
+API_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "").strip()
 INTERVAL = max(10, int(os.environ.get("JARVIS_HARDWARE_INTERVAL", "30")))
 HEARTBEAT_INTERVAL = max(
     60, int(os.environ.get("JARVIS_HARDWARE_HEARTBEAT_INTERVAL", "300"))
@@ -161,9 +162,10 @@ def publish(entity_id: str, state: str, previous: str | None, attributes: dict) 
             "attributes": attributes,
         }
     ).encode()
-    request = urllib.request.Request(
-        EVENTS_URL, data=body, headers={"Content-Type": "application/json"}
-    )
+    headers = {"Content-Type": "application/json"}
+    if API_TOKEN:
+        headers["Authorization"] = f"Bearer {API_TOKEN}"
+    request = urllib.request.Request(EVENTS_URL, data=body, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=8) as response:
             return 200 <= response.status < 300
