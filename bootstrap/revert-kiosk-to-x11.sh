@@ -152,12 +152,17 @@ def poll_perception():
                 not isinstance(gesture_at, bool)
                 and isinstance(gesture_at, (int, float))
                 and -1 <= time.time() - gesture_at <= GESTURE_FEEDBACK_S
-                and gesture in {"up", "down", "forward", "back"}
+                and gesture in {
+                    "up", "down", "forward", "back", "play_pause", "mute",
+                    "seek_forward", "seek_back", "volume_up", "volume_down",
+                }
                 and app in {"youtube", "spotify", "plex", "browser"}
             ):
-                action = {"forward": "NEXT", "back": "BACK"}.get(
-                    gesture, gesture.upper()
-                )
+                action = {
+                    "forward": "NEXT", "back": "BACK", "play_pause": "PLAY/PAUSE",
+                    "mute": "MUTE", "seek_forward": "SEEK +10", "seek_back": "SEEK -10",
+                    "volume_up": "VOLUME +", "volume_down": "VOLUME -",
+                }.get(gesture, gesture.upper())
                 color, copy = GREEN, f"{action} \u00b7 {app.upper()}"
             elif status.get("hand_present") is True:
                 color, copy = GREEN, "HAND SEEN"

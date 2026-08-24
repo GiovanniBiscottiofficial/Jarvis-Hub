@@ -27,7 +27,7 @@ import cv2
 import mediapipe as mp
 import websocket
 
-from gesture_logic import classify_swipe, open_hand
+from gesture_logic import PoseLatch, STATIC_POSE_ACTIONS, classify_swipe, hand_pose
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "/dev/video4")
 DEVTOOLS_URL = os.environ.get("GESTURE_DEVTOOLS_URL", "http://127.0.0.1:9222")
@@ -40,6 +40,9 @@ Y_TRAVEL = float(os.environ.get("GESTURE_Y_TRAVEL", "0.18"))
 WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
 MIN_SPEED = float(os.environ.get("GESTURE_MIN_SPEED", "0.24"))
+POSE_HOLD_S = float(os.environ.get("GESTURE_POSE_HOLD_S", "0.65"))
+SEEK_SECONDS = int(os.environ.get("GESTURE_SEEK_SECONDS", "10"))
+VOLUME_STEP = float(os.environ.get("GESTURE_VOLUME_STEP", "0.10"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
 LIFEOS_URL = os.environ.get("LIFEOS_URL", "http://127.0.0.1:8090").rstrip("/")
 LIFEOS_TOKEN = os.environ.get("LIFEOS_API_TOKEN", "")
@@ -133,7 +136,10 @@ def cdp(method: str, params: dict | None = None, socket_url: str | None = None) 
     )
     try:
         socket.send(json.dumps({"id": 1, "method": method, "params": params or {}}))
-        response = json.loads(socket.recv())
+        while True:
+            response = json.loads(socket.recv())
+            if response.get("id") == 1:
+                break
         if "error" in response:
             raise RuntimeError(response["error"].get("message", "DevTools command failed"))
         return response.get("result", {})
@@ -180,6 +186,114 @@ NEXT_CONTROL = r"""
 })()
 """
 
+MEDIA_CONTROL = r"""
+((action, seekSeconds, volumeStep) => {
+  const candidates = [...document.querySelectorAll('video, audio')];
+  const media = candidates.find((element) => {
+    const box = element.getBoundingClientRect();
+    return !element.ended && box.width > 0 && box.height > 0;
+  }) || candidates.find((element) => !element.ended);
+  if (!media) return '';
+  if (action === 'play_pause') {
+    if (media.paused) media.play().catch(() => {}); else media.pause();
+  } else if (action === 'mute') {
+    media.muted = !media.muted;
+  } else if (action === 'seek_forward') {
+    media.currentTime = Math.min(media.duration || Infinity, media.currentTime + seekSeconds);
+  } else if (action === 'seek_back') {
+    media.currentTime = Math.max(0, media.currentTime - seekSeconds);
+  } else if (action === 'volume_up') {
+    media.muted = false;
+    media.volume = Math.min(1, media.volume + volumeStep);
+  } else if (action === 'volume_down') {
+    media.volume = Math.max(0, media.volume - volumeStep);
+  }
+  return media.tagName.toLowerCase();
+})(%s, %d, %.3f)
+"""
+
+FEEDBACK_LABELS = {
+    "up": "SCROLL / NEXT",
+    "down": "SCROLL / PREVIOUS",
+    "forward": "NEXT",
+    "back": "BACK",
+    "play_pause": "PLAY / PAUSE",
+    "mute": "MUTE / UNMUTE",
+    "seek_forward": f"SEEK +{SEEK_SECONDS}s",
+    "seek_back": f"SEEK -{SEEK_SECONDS}s",
+    "volume_up": "VOLUME +10%",
+    "volume_down": "VOLUME -10%",
+}
+
+
+def show_feedback(socket_url: str, gesture: str, app: str) -> None:
+    label = f"{FEEDBACK_LABELS.get(gesture, gesture.upper())} · {app.upper()}"
+    expression = f"""
+(() => {{
+  const id = 'jarvis-gesture-feedback';
+  let node = document.getElementById(id);
+  if (!node) {{
+    node = document.createElement('div');
+    node.id = id;
+    Object.assign(node.style, {{position:'fixed',left:'50%',top:'16%',transform:'translateX(-50%)',
+      zIndex:'2147483647',padding:'18px 26px',border:'1px solid #5be7ff',borderRadius:'12px',
+      background:'rgba(4,14,25,.94)',color:'#dffaff',font:'700 18px/1.2 ui-monospace,monospace',
+      letterSpacing:'.09em',boxShadow:'0 0 32px rgba(45,210,255,.35)',pointerEvents:'none',
+      transition:'opacity .2s ease'}});
+    document.documentElement.appendChild(node);
+  }}
+  node.textContent = {json.dumps(label)};
+  node.style.opacity = '1';
+  clearTimeout(window.__jarvisGestureFeedbackTimer);
+  window.__jarvisGestureFeedbackTimer = setTimeout(() => {{ node.style.opacity = '0'; }}, 1200);
+}})()
+"""
+    cdp("Runtime.evaluate", {"expression": expression}, socket_url)
+
+
+def dispatch_media_action(socket_url: str, gesture: str) -> None:
+    result = cdp(
+        "Runtime.evaluate",
+        {
+            "expression": MEDIA_CONTROL
+            % (json.dumps(gesture), SEEK_SECONDS, VOLUME_STEP),
+            "returnByValue": True,
+        },
+        socket_url,
+    )
+    if result.get("result", {}).get("value", ""):
+        return
+    fallback = {
+        "play_pause": ("MediaPlayPause", "MediaPlayPause", 179),
+        "mute": ("AudioVolumeMute", "AudioVolumeMute", 173),
+        "volume_down": ("AudioVolumeDown", "AudioVolumeDown", 174),
+        "volume_up": ("AudioVolumeUp", "AudioVolumeUp", 175),
+        "seek_back": ("ArrowLeft", "ArrowLeft", 37),
+        "seek_forward": ("ArrowRight", "ArrowRight", 39),
+    }[gesture]
+    dispatch_key(socket_url, *fallback)
+
+
+def record_gesture(gesture: str, app: str, confidence: float) -> None:
+    write_perception_status(
+        camera_available=True,
+        hand_present=True,
+        last_gesture=gesture,
+        app=app,
+        gesture_timestamp=time.time(),
+    )
+    publish_event(
+        "vision.gesture",
+        attributes={
+            "gesture": gesture,
+            "app": app,
+            "frames_stored": False,
+            "kiosk_action_executed": True,
+            "house_action_execution": False,
+        },
+        confidence=confidence,
+    )
+
 
 def fire(gesture: str) -> str:
     page = active_page()
@@ -195,7 +309,16 @@ def fire(gesture: str) -> str:
         if "plex.tv" in host or parsed.port == 32400
         else "browser"
     )
-    if gesture in {"up", "down"}:
+    if gesture in {
+        "play_pause",
+        "mute",
+        "seek_forward",
+        "seek_back",
+        "volume_up",
+        "volume_down",
+    }:
+        dispatch_media_action(socket_url, gesture)
+    elif gesture in {"up", "down"}:
         if app == "youtube" and parsed.path.startswith("/shorts"):
             key = "ArrowDown" if gesture == "up" else "ArrowUp"
             virtual_key = 40 if gesture == "up" else 38
@@ -223,12 +346,18 @@ def fire(gesture: str) -> str:
             dispatch_key(socket_url, "MediaTrackNext", "MediaTrackNext", 176)
             if app == "youtube":
                 dispatch_key(socket_url, "ArrowDown", "ArrowDown", 40)
-    else:
+    elif gesture == "back":
         cdp(
             "Runtime.evaluate",
             {"expression": "window.history.back()"},
             socket_url,
         )
+    else:
+        raise ValueError(f"unsupported gesture action: {gesture}")
+    try:
+        show_feedback(socket_url, gesture, app)
+    except Exception as error:
+        print(f"gesture feedback failed: {error}", flush=True)
     print(f"gesture: {gesture} -> {app}", flush=True)
     return app
 
@@ -259,6 +388,8 @@ def main() -> None:
     )
     trail: deque[tuple[float, float, float]] = deque()  # (t, x, y)
     last_fire = 0.0
+    pose_latch = PoseLatch()
+    trail_pose: str | None = None
     cap = open_capture()
     skip = 0
     frames = 0
@@ -459,9 +590,31 @@ def main() -> None:
         hand_frames += 1
         landmarks = result.multi_hand_landmarks[0].landmark
         points = [(point.x, point.y) for point in landmarks]
-        if not open_hand(points):
+        pose = hand_pose(points)
+        latched_action = pose_latch.update(
+            pose,
+            now,
+            POSE_HOLD_S,
+            can_fire=now - last_fire >= COOLDOWN_S,
+        )
+        if pose in STATIC_POSE_ACTIONS:
             trail.clear()
+            trail_pose = None
+            if latched_action:
+                try:
+                    app = fire(latched_action)
+                    record_gesture(latched_action, app, confidence=0.88)
+                    last_fire = now
+                except Exception as error:
+                    print(f"gesture dispatch failed: {error}", flush=True)
             continue
+        if pose not in {"open", "two_finger"}:
+            trail.clear()
+            trail_pose = None
+            continue
+        if trail_pose != pose:
+            trail.clear()
+            trail_pose = pose
         palm = [landmarks[index] for index in (0, 5, 9, 13, 17)]
         palm_x = sum(point.x for point in palm) / len(palm)
         palm_y = sum(point.y for point in palm) / len(palm)
@@ -476,26 +629,17 @@ def main() -> None:
             y_travel=Y_TRAVEL,
             minimum_speed=MIN_SPEED,
         )
+        if pose == "two_finger":
+            gesture = {
+                "forward": "seek_forward",
+                "back": "seek_back",
+                "up": "volume_up",
+                "down": "volume_down",
+            }.get(gesture)
         if gesture:
             try:
                 app = fire(gesture)
-                write_perception_status(
-                    camera_available=True,
-                    hand_present=True,
-                    last_gesture=gesture,
-                    app=app,
-                    gesture_timestamp=time.time(),
-                )
-                publish_event(
-                    "vision.gesture",
-                    attributes={
-                        "gesture": gesture,
-                        "app": app,
-                        "frames_stored": False,
-                        "action_execution": False,
-                    },
-                    confidence=0.82,
-                )
+                record_gesture(gesture, app, confidence=0.84)
                 last_fire = now
             except Exception as error:
                 print(f"gesture dispatch failed: {error}", flush=True)

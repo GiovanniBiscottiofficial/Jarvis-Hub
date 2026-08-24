@@ -503,6 +503,10 @@ bash bootstrap/setup-satellite.sh
   watch detections with `docker logs -f gestures`. The dispatcher recognizes
   YouTube/Shorts, Spotify, Plex, and generic HTML5 players; it uses each app's
   visible Next/Skip control first, then falls back to browser media keys.
+  Pinch-and-hold toggles play/pause, fist-and-hold toggles mute, thumb up/down
+  adjusts volume, and two-finger swipes seek or adjust volume. Static poses must
+  remain stable for 650 ms and fully release before re-arming. Every accepted
+  command receives a large local on-screen confirmation; ambiguous poses do nothing.
 - **Local perception → LifeOS context**: the same worker publishes camera health,
   hand-presence transitions, and recognized gesture metadata to LifeOS. Frames stay
   inside the worker and are never stored by LifeOS; identity recognition is disabled.
