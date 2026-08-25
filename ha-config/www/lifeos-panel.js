@@ -35,11 +35,14 @@ class JarvisLifeOSPanel extends HTMLElement {
         return;
       }
       try {
-        await this._hass.callService("script", "jarvis_say", {
+        const speechJob = this._hass.callService("script", "jarvis_say", {
           message,
           urgent: true,
         });
         reply.postMessage({ ok: true, output: "home_assistant" });
+        Promise.resolve(speechJob).catch((error) => {
+          console.error("LifeOS briefing speaker job failed", error);
+        });
       } catch (error) {
         reply.postMessage({
           ok: false,

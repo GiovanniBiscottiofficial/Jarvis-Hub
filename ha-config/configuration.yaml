@@ -49,7 +49,7 @@ panel_custom:
     sidebar_title: LifeOS
     sidebar_icon: mdi:heart-pulse
     url_path: lifeos-app
-    module_url: /local/lifeos-panel.js?v=4
+    module_url: /local/lifeos-panel.js?v=5
 
 # Phone notifications route through this group: alerts land in the HA UI
 # (persistent notifications) and on the paired Companion-app phone.

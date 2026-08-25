@@ -98,8 +98,11 @@
       return;
     }
     try {
-      await hass.callService('script', 'jarvis_say', { message, urgent: true });
+      const speechJob = hass.callService('script', 'jarvis_say', { message, urgent: true });
       reply.postMessage({ ok: true, output: 'home_assistant' });
+      Promise.resolve(speechJob).catch((error) => {
+        console.error('LifeOS briefing speaker job failed', error);
+      });
     } catch (error) {
       reply.postMessage({
         ok: false,
