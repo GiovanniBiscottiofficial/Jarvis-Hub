@@ -27,11 +27,16 @@ class JarvisLifeOSPanel extends HTMLElement {
         return;
       }
       if (event.data.type !== "lifeos-speak-request") return;
-      const reply = event.ports && event.ports[0];
+      const requestId = String(event.data.requestId || "").slice(0, 160);
       const message = String(event.data.message || "").trim().slice(0, 12000);
-      if (!reply) return;
+      if (!requestId) return;
+      const reply = (payload) => event.source.postMessage({
+        type: "lifeos-speak-result",
+        requestId,
+        ...payload,
+      }, event.origin);
       if (!this._hass || !message) {
-        reply.postMessage({ ok: false, error: "Home Assistant voice bridge is unavailable." });
+        reply({ ok: false, error: "Home Assistant voice bridge is unavailable." });
         return;
       }
       try {
@@ -39,12 +44,12 @@ class JarvisLifeOSPanel extends HTMLElement {
           message,
           urgent: true,
         });
-        reply.postMessage({ ok: true, output: "home_assistant" });
+        reply({ ok: true, output: "home_assistant" });
         Promise.resolve(speechJob).catch((error) => {
           console.error("LifeOS briefing speaker job failed", error);
         });
       } catch (error) {
-        reply.postMessage({
+        reply({
           ok: false,
           error: error instanceof Error ? error.message : "Jarvis speaker call failed.",
         });

@@ -299,30 +299,35 @@ function homeAssistantParentOrigin() {
 
 function speakThroughHomeAssistant(speech) {
   const parentOrigin = homeAssistantParentOrigin();
-  if (!parentOrigin || window.parent === window || typeof MessageChannel === "undefined") {
+  if (!parentOrigin || window.parent === window) {
     return Promise.resolve(false);
   }
   return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    const timer = window.setTimeout(() => {
-      channel.port1.close();
-      resolve(false);
-    }, 8000);
-    channel.port1.onmessage = (event) => {
+    const requestId = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `briefing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const finish = (result) => {
       window.clearTimeout(timer);
-      channel.port1.close();
-      resolve(Boolean(event.data && event.data.ok));
+      window.removeEventListener("message", onReply);
+      resolve(result);
     };
+    const onReply = (event) => {
+      if (event.source !== window.parent || event.origin !== parentOrigin) return;
+      if (!event.data || event.data.type !== "lifeos-speak-result") return;
+      if (event.data.requestId !== requestId) return;
+      finish(Boolean(event.data.ok));
+    };
+    const timer = window.setTimeout(() => {
+      finish(false);
+    }, 8000);
+    window.addEventListener("message", onReply);
     try {
       window.parent.postMessage(
-        { type: "lifeos-speak-request", message: speech },
+        { type: "lifeos-speak-request", requestId, message: speech },
         parentOrigin,
-        [channel.port2],
       );
     } catch (_) {
-      window.clearTimeout(timer);
-      channel.port1.close();
-      resolve(false);
+      finish(false);
     }
   });
 }
