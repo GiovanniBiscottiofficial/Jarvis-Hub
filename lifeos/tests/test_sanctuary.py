@@ -278,6 +278,26 @@ def test_thunderstorm_explicitly_dims_every_commissioned_night_path_area():
     thunderstorm = script.split("Thunderstorm:", 1)[1].split("Date Night:", 1)[0]
     for area in ("bedroom", "bathroom", "hallway", "dinning_room", "entry", "office"):
         assert f"area: {area}" in thunderstorm
+    assert "hue:" not in thunderstorm
+    assert thunderstorm.count("kelvin: 2200") >= 6
+
+
+def test_evening_profiles_avoid_tuya_hs_mode_brightness_reset():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()
+    recipes = script.split("room_recipes:", 1)[1].split(
+        "- condition: template", 1
+    )[0]
+    shower = script.split("requested_mode == 'Shower'", 1)[1].split(
+        "requested_mode in room_recipes", 1
+    )[0]
+
+    assert "hue:" not in recipes
+    assert "hue:" not in shower
+    stronger_wind_down = automation.split("trigger.id == 'stronger_wind_down'", 1)[1].split(
+        "trigger.id == 'thunderstorm'", 1
+    )[0]
+    assert "hue:" not in stronger_wind_down
 
 
 def test_timeline_and_calibration_gate_are_declared():

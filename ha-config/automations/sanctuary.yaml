@@ -371,8 +371,7 @@
               data:
                 area: bedroom
                 brightness: 6
-                hue: 220
-                saturation: 42
+                kelvin: 2200
                 transition: 120
             - service: script.sanctuary_apply_room_lighting
               data:

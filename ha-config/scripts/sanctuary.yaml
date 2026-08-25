@@ -260,23 +260,23 @@ sanctuary_activate_mode:
             - {area: office, brightness: 55, kelvin: 4000}
             - {area: hallway, brightness: 10, kelvin: 2800}
           Create:
-            - {area: office, brightness: 42, hue: 220, saturation: 42}
-            - {area: hallway, brightness: 12, hue: 220, saturation: 28}
+            - {area: office, brightness: 42, kelvin: 3600}
+            - {area: hallway, brightness: 12, kelvin: 3000}
           Studio:
-            - {area: office, brightness: 65, hue: 205, saturation: 55}
-            - {area: hallway, brightness: 18, hue: 205, saturation: 35}
+            - {area: office, brightness: 65, kelvin: 4200}
+            - {area: hallway, brightness: 18, kelvin: 3600}
           Wind Down:
-            - {area: bedroom, brightness: 10, hue: 220, saturation: 38, transition: 90}
+            - {area: bedroom, brightness: 10, kelvin: 2200, transition: 90}
             - {area: bathroom, brightness: 8, kelvin: 2400, transition: 60}
             - {area: hallway, brightness: 5, kelvin: 2300, transition: 60}
             - {area: dinning_room, brightness: 8, kelvin: 2400, transition: 60}
           Thunderstorm:
-            - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, hue: 220, saturation: 48, transition: 120}
+            - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, kelvin: 2200, transition: 120}
             - {area: bathroom, brightness_helper: input_number.sanctuary_bathroom_night_brightness, kelvin: 2200, transition: 90}
             - {area: hallway, brightness_helper: input_number.sanctuary_hallway_night_brightness, kelvin: 2200, transition: 90}
             - {area: dinning_room, brightness_helper: input_number.sanctuary_dining_area_night_brightness, kelvin: 2200, transition: 90}
             - {area: entry, brightness_helper: input_number.sanctuary_entry_night_brightness, kelvin: 2200, transition: 90}
-            - {area: office, brightness: 1, hue: 220, saturation: 38, transition: 90}
+            - {area: office, brightness: 1, kelvin: 2200, transition: 90}
           Date Night:
             - {area: dinning_room, brightness: 8, kelvin: 2200, transition: 30}
             - {area: living_room, brightness: 12, kelvin: 2300, transition: 30}
@@ -376,8 +376,7 @@ sanctuary_activate_mode:
               data:
                 area: bathroom
                 brightness: 35
-                hue: 282
-                saturation: 58
+                kelvin: 2700
                 transition: 20
             - choose:
                 - conditions: "{{ not private_shower }}"
@@ -395,8 +394,7 @@ sanctuary_activate_mode:
                             data:
                               area: "{{ repeat.item }}"
                               brightness: 12
-                              hue: 282
-                              saturation: 42
+                              kelvin: 2400
                               transition: 30
         - conditions: "{{ requested_mode in room_recipes }}"
           sequence:
