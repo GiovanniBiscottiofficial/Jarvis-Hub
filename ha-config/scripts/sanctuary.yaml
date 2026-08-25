@@ -96,6 +96,7 @@ sanctuary_apply_room_lighting:
               target:
                 entity_id: "{{ temperature_lights }}"
               data:
+                brightness_pct: "{{ [1, [brightness_value | int, 100] | min] | max }}"
                 color_temp_kelvin: "{{ kelvin_value }}"
                 transition: "{{ transition_value }}"
     - choose:
@@ -106,6 +107,7 @@ sanctuary_apply_room_lighting:
               target:
                 entity_id: "{{ color_lights }}"
               data:
+                brightness_pct: "{{ [1, [brightness_value | int, 100] | min] | max }}"
                 hs_color:
                   - "{{ hue_value }}"
                   - "{{ saturation_value }}"
@@ -270,6 +272,11 @@ sanctuary_activate_mode:
             - {area: dinning_room, brightness: 8, kelvin: 2400, transition: 60}
           Thunderstorm:
             - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, hue: 220, saturation: 48, transition: 120}
+            - {area: bathroom, brightness_helper: input_number.sanctuary_bathroom_night_brightness, kelvin: 2200, transition: 90}
+            - {area: hallway, brightness_helper: input_number.sanctuary_hallway_night_brightness, kelvin: 2200, transition: 90}
+            - {area: dinning_room, brightness_helper: input_number.sanctuary_dining_area_night_brightness, kelvin: 2200, transition: 90}
+            - {area: entry, brightness_helper: input_number.sanctuary_entry_night_brightness, kelvin: 2200, transition: 90}
+            - {area: office, brightness: 1, hue: 220, saturation: 38, transition: 90}
           Date Night:
             - {area: dinning_room, brightness: 8, kelvin: 2200, transition: 30}
             - {area: living_room, brightness: 12, kelvin: 2300, transition: 30}
@@ -417,17 +424,6 @@ sanctuary_activate_mode:
             - service: input_boolean.turn_on
               target:
                 entity_id: input_boolean.sleep_mode
-            - choose:
-                - conditions: >-
-                    {{ has_value('light.bathroom_bathroom_light_5') }}
-                  sequence:
-                    - service: light.turn_on
-                      target:
-                        entity_id: light.bathroom_bathroom_light_5
-                      data:
-                        brightness_pct: >-
-                          {{ states('input_number.sanctuary_bathroom_night_brightness') | int(1) }}
-                        transition: 30
             - service: script.sanctuary_start_thunderstorm_media
               data:
                 source: "{{ transition_source }}"

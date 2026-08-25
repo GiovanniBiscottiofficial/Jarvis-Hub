@@ -263,6 +263,23 @@ def test_room_lighting_wakes_unknown_bulbs_but_skips_unavailable_devices():
     assert apply_room.count("continue_on_error: true") >= 3
 
 
+def test_tuya_color_calls_keep_the_requested_dim_level():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    apply_room = script.split("sanctuary_apply_room_lighting:", 1)[1].split(
+        "sanctuary_start_thunderstorm_media:", 1
+    )[0]
+    assert apply_room.count("brightness_pct:") >= 3
+    assert "color_temp_kelvin:" in apply_room
+    assert "hs_color:" in apply_room
+
+
+def test_thunderstorm_explicitly_dims_every_commissioned_night_path_area():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    thunderstorm = script.split("Thunderstorm:", 1)[1].split("Date Night:", 1)[0]
+    for area in ("bedroom", "bathroom", "hallway", "dinning_room", "entry", "office"):
+        assert f"area: {area}" in thunderstorm
+
+
 def test_timeline_and_calibration_gate_are_declared():
     automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()
     for time in ("06:30:00", "06:40:00", "06:50:00", "07:00:00", "07:20:00"):
