@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<iframe id="app" title="LifeOS" allow="camera; microphone"></iframe>
+<iframe id="app" title="LifeOS" allow="camera; microphone; autoplay"></iframe>
 <script>
   'use strict';
   const app = document.getElementById('app');
@@ -81,10 +81,31 @@
   // LifeOS may install its message listener after the iframe load event.  A
   // request/reply handshake makes the bridge reliable without persisting the
   // Home Assistant token in the URL or browser storage.
-  window.addEventListener('message', (event) => {
+  window.addEventListener('message', async (event) => {
     if (event.source !== app.contentWindow || event.origin !== appOrigin) return;
-    if (!event.data || event.data.type !== 'lifeos-auth-request') return;
-    sendHomeAssistantSession();
+    if (!event.data) return;
+    if (event.data.type === 'lifeos-auth-request') {
+      sendHomeAssistantSession();
+      return;
+    }
+    if (event.data.type !== 'lifeos-speak-request') return;
+    const reply = event.ports && event.ports[0];
+    const message = String(event.data.message || '').trim().slice(0, 12000);
+    if (!reply) return;
+    const hass = locateHass();
+    if (!hass || !message) {
+      reply.postMessage({ ok: false, error: 'Home Assistant voice bridge is unavailable.' });
+      return;
+    }
+    try {
+      await hass.callService('script', 'jarvis_say', { message, urgent: true });
+      reply.postMessage({ ok: true, output: 'home_assistant' });
+    } catch (error) {
+      reply.postMessage({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Jarvis speaker call failed.'
+      });
+    }
   });
 
   app.addEventListener('load', () => {

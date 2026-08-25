@@ -90,6 +90,24 @@ def test_embedded_browser_auth_uses_home_assistant_handshake_without_prompt():
     assert "host.docker.internal:host-gateway" in compose
 
 
+def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
+    app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
+    wrapper = (REPO_ROOT / "ha-config/www/lifeos.html").read_text(encoding="utf-8")
+    panel = (REPO_ROOT / "ha-config/www/lifeos-panel.js").read_text(encoding="utf-8")
+    configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text(encoding="utf-8")
+
+    for source in (app_script, wrapper, panel):
+        assert "lifeos-speak-request" in source
+    for host in (wrapper, panel):
+        assert "jarvis_say" in host
+        assert "urgent: true" in host
+    assert "new MessageChannel()" in app_script
+    assert "speakThroughHomeAssistant(speech)" in app_script
+    assert 'allow="camera; microphone; autoplay"' in wrapper
+    assert 'this._frame.allow = "camera; microphone; autoplay"' in panel
+    assert "lifeos-panel.js?v=3" in configuration
+
+
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))
 def test_every_sanctuary_mode_is_side_effect_free_in_simulation(fresh_db, mode):
     before = current_context()

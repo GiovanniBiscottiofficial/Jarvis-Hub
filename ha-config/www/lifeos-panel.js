@@ -14,14 +14,37 @@ class JarvisLifeOSPanel extends HTMLElement {
     `;
     this._frame = document.createElement("iframe");
     this._frame.title = "LifeOS";
-    this._frame.allow = "camera; microphone";
+    this._frame.allow = "camera; microphone; autoplay";
     this._frame.src = `${this._appOrigin}/?embedded=home-assistant`;
     this.shadowRoot.append(style, this._frame);
 
-    this._onMessage = (event) => {
+    this._onMessage = async (event) => {
       if (event.source !== this._frame.contentWindow || event.origin !== this._appOrigin) return;
-      if (!event.data || event.data.type !== "lifeos-auth-request") return;
-      this._sendSession();
+      if (!event.data) return;
+      if (event.data.type === "lifeos-auth-request") {
+        this._sendSession();
+        return;
+      }
+      if (event.data.type !== "lifeos-speak-request") return;
+      const reply = event.ports && event.ports[0];
+      const message = String(event.data.message || "").trim().slice(0, 12000);
+      if (!reply) return;
+      if (!this._hass || !message) {
+        reply.postMessage({ ok: false, error: "Home Assistant voice bridge is unavailable." });
+        return;
+      }
+      try {
+        await this._hass.callService("script", "jarvis_say", {
+          message,
+          urgent: true,
+        });
+        reply.postMessage({ ok: true, output: "home_assistant" });
+      } catch (error) {
+        reply.postMessage({
+          ok: false,
+          error: error instanceof Error ? error.message : "Jarvis speaker call failed.",
+        });
+      }
     };
     this._onLoad = () => this._beginSessionDelivery();
   }

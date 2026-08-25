@@ -280,6 +280,53 @@ async function withTimeout(promise, milliseconds, message) {
   } finally { window.clearTimeout(timer); }
 }
 
+function homeAssistantParentOrigin() {
+  try {
+    if (!document.referrer) return null;
+    const origin = new URL(document.referrer).origin;
+    return origin !== window.location.origin ? origin : null;
+  } catch (_) { return null; }
+}
+
+function speakThroughHomeAssistant(speech) {
+  const parentOrigin = homeAssistantParentOrigin();
+  if (!parentOrigin || window.parent === window || typeof MessageChannel === "undefined") {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = window.setTimeout(() => {
+      channel.port1.close();
+      resolve(false);
+    }, 8000);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timer);
+      channel.port1.close();
+      resolve(Boolean(event.data && event.data.ok));
+    };
+    try {
+      window.parent.postMessage(
+        { type: "lifeos-speak-request", message: speech },
+        parentOrigin,
+        [channel.port2],
+      );
+    } catch (_) {
+      window.clearTimeout(timer);
+      channel.port1.close();
+      resolve(false);
+    }
+  });
+}
+
+function primeBrowserSpeech() {
+  if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+  try {
+    const unlock = new SpeechSynthesisUtterance(" ");
+    unlock.volume = 0;
+    window.speechSynthesis.speak(unlock);
+  } catch (_) { /* Home Assistant speech remains the primary embedded path. */ }
+}
+
 function speakFullBriefing(speech, trigger) {
   const run = ++briefingRunId;
   const chunks = briefingChunks(speech);
@@ -336,6 +383,7 @@ function speakFullBriefing(speech, trigger) {
 $("briefing-stop-btn").onclick = stopBriefing;
 $("briefing-btn").onclick = async () => {
   const trigger = $("briefing-btn");
+  primeBrowserSpeech();
   trigger.disabled = true;
   $("briefing-status").textContent = "Preparing Giovanni’s full briefing…";
   try {
@@ -344,6 +392,12 @@ $("briefing-btn").onclick = async () => {
     $("briefing").textContent = speech || "No briefing text was returned.";
     if (!speech) {
       $("briefing-status").textContent = "Briefing is empty. Try again after LifeOS finishes syncing.";
+      return;
+    }
+    if (await speakThroughHomeAssistant(speech)) {
+      $("briefing-stop-btn").disabled = true;
+      $("briefing-status").textContent = "Briefing sent to Jarvis · speaking through the X1 speakers.";
+      trigger.disabled = false;
       return;
     }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
