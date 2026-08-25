@@ -15,7 +15,8 @@ class JarvisLifeOSPanel extends HTMLElement {
     this._frame = document.createElement("iframe");
     this._frame.title = "LifeOS";
     this._frame.allow = "camera; microphone; autoplay";
-    this._frame.src = `${this._appOrigin}/?embedded=home-assistant`;
+    const parentOrigin = encodeURIComponent(window.location.origin);
+    this._frame.src = `${this._appOrigin}/?embedded=home-assistant&parent_origin=${parentOrigin}`;
     this.shadowRoot.append(style, this._frame);
 
     this._onMessage = async (event) => {

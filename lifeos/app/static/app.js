@@ -282,6 +282,15 @@ async function withTimeout(promise, milliseconds, message) {
 
 function homeAssistantParentOrigin() {
   try {
+    const declared = new URLSearchParams(window.location.search).get("parent_origin");
+    if (declared) {
+      const parsed = new URL(declared);
+      if (
+        ["http:", "https:"].includes(parsed.protocol)
+        && parsed.hostname === window.location.hostname
+        && parsed.origin !== window.location.origin
+      ) return parsed.origin;
+    }
     if (!document.referrer) return null;
     const origin = new URL(document.referrer).origin;
     return origin !== window.location.origin ? origin : null;

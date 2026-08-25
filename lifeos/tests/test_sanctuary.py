@@ -105,7 +105,11 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "speakThroughHomeAssistant(speech)" in app_script
     assert 'allow="camera; microphone; autoplay"' in wrapper
     assert 'this._frame.allow = "camera; microphone; autoplay"' in panel
-    assert "lifeos-panel.js?v=3" in configuration
+    assert "parent_origin=" in wrapper
+    assert "parent_origin=" in panel
+    assert 'get("parent_origin")' in app_script
+    assert "app.js?v=2" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert "lifeos-panel.js?v=4" in configuration
 
 
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))

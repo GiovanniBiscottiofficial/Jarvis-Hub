@@ -117,7 +117,7 @@
       retryTimer = null;
     }, 10000);
   });
-  app.src = appOrigin + '/?embedded=home-assistant';
+  app.src = appOrigin + '/?embedded=home-assistant&parent_origin=' + encodeURIComponent(window.location.origin);
 </script>
 </body>
 </html>
