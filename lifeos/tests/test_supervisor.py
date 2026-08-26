@@ -45,6 +45,40 @@ def test_three_failures_trigger_one_allowlisted_repair(monkeypatch, tmp_path):
     assert actions == [["docker", "restart", "lifeos"]]
 
 
+def test_voice_probe_prefers_continuous_runtime_without_reviving_wyoming(
+    monkeypatch, tmp_path
+):
+    supervisor = load_supervisor(monkeypatch, tmp_path)
+    calls = []
+
+    def fake_run(action, timeout=15):
+        calls.append(action)
+        if action[:2] == ["docker", "inspect"]:
+            return True, "healthy"
+        return False, "inactive"
+
+    monkeypatch.setattr(supervisor, "run", fake_run)
+    healthy, detail = supervisor.probe(("voice_runtime",))
+
+    assert healthy is True
+    assert detail == "Linux Voice Assistant healthy"
+    assert not any("wyoming-satellite.service" in action for action in calls)
+    assert supervisor.repair_command("voice_satellite", ["voice_runtime"]) == [
+        "docker", "restart", "linux-voice-assistant"
+    ]
+
+
+def test_voice_repair_falls_back_to_wyoming_only_when_lva_is_absent(
+    monkeypatch, tmp_path
+):
+    supervisor = load_supervisor(monkeypatch, tmp_path)
+    monkeypatch.setattr(supervisor, "run", lambda _action: (False, "missing"))
+
+    assert supervisor.repair_command("voice_satellite", ["voice_runtime"]) == [
+        "systemctl", "restart", "wyoming-satellite.service"
+    ]
+
+
 def test_network_and_storage_never_auto_repair(monkeypatch, tmp_path):
     supervisor = load_supervisor(monkeypatch, tmp_path)
     checks = all_healthy(supervisor)
