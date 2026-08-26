@@ -137,6 +137,14 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert overview["safe_to_spend"] == round(
         overview["paycheck_in"]["onepay"] - overview["allocated"], 2
     )
+    assets = {asset["name"]: asset for asset in overview["assets"]}
+    assert assets["401(k)"]["balance"] == 527.45
+    assert assets["401(k)"]["ytd_contributions"] == 491.64
+    assert assets["401(k)"]["lifetime_contributions"] == 491.64
+    assert assets["Roth IRA"]["balance"] == 419.29
+    assert assets["Roth IRA"]["ytd_contributions"] == 393.32
+    assert assets["Roth IRA"]["lifetime_contributions"] == 393.32
+    assert assets["401(k)"]["as_of"] == "2026-08-25"
 
 
 def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):

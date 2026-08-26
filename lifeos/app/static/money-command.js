@@ -240,7 +240,8 @@
     if (button.dataset.confirm !== "armed") {
       button.dataset.confirm = "armed";
       button.textContent = closing ? "Confirm cycle close" : `Confirm ${currency(mission.amount)} deposit`;
-      status.textContent = closing ? "This records the current OnePay balance as the cycle close." : `${currency(mission.distribution.truliant)} goes to Truliant and ${currency(mission.distribution.onepay)} goes to OnePay. Relay stays unchanged.`;
+      const retirement = mission.payroll_contributions.map((asset) => `${asset.name} ${currency(asset.contribution)}`).join(" · ");
+      status.textContent = closing ? "This records the current OnePay balance as the cycle close." : `${currency(mission.distribution.truliant)} goes to Truliant and ${currency(mission.distribution.onepay)} goes to OnePay. Payroll retirement: ${retirement}. Relay stays unchanged.`;
       return;
     }
     button.disabled = true;
@@ -260,7 +261,7 @@
       append(identity, node("span", "money-label", `${mission.label.toUpperCase()} · ${mission.period}`), node("strong", "", `${localDate(mission.date)} · ${mission.days_away} days`));
       append(head, identity, node("span", "money-state", mission.status.toUpperCase()));
       const facts = node("div", "money-mission-facts");
-      [["Paycheck", mission.amount], ["OnePay remainder", mission.distribution.onepay], ["Truliant fixed split", mission.distribution.truliant], ["Relay direct deposit", mission.distribution.relay], ["Bills", mission.bill_total], ["OnePay after planned bills", mission.planned_remaining]].forEach(([label, value]) => {
+      [["Paycheck", mission.amount], ["OnePay remainder", mission.distribution.onepay], ["Truliant fixed split", mission.distribution.truliant], ["Payroll retirement", mission.payroll_contribution_total], ["Relay direct deposit", mission.distribution.relay], ["Bills", mission.bill_total], ["OnePay after planned bills", mission.planned_remaining]].forEach(([label, value]) => {
         const fact = node("div", ""); append(fact, node("span", "", label), node("strong", "", currency(value))); facts.appendChild(fact);
       });
       const bills = node("div", "money-mission-bills");
@@ -269,7 +270,8 @@
       const controls = node("div", "money-mission-controls");
       const action = node("button", "", mission.status === "planned" ? "Fund paycheck" : mission.status === "funded" ? "Close paycheck" : "Cycle closed");
       action.disabled = mission.status === "closed";
-      const status = node("span", "money-row-status", mission.status === "planned" ? `$309.00 → Truliant · ${currency(mission.distribution.onepay)} → OnePay · Relay unchanged. Confirmation required.` : mission.status === "funded" ? "Close after balances are verified." : `Closed at ${currency(mission.closing_balance)}`);
+      const retirement = mission.payroll_contributions.map((asset) => `${asset.name} ${currency(asset.contribution)}`).join(" · ");
+      const status = node("span", "money-row-status", mission.status === "planned" ? `$309.00 → Truliant · ${currency(mission.distribution.onepay)} → OnePay · ${retirement} → retirement · Relay unchanged. Confirmation required.` : mission.status === "funded" ? "Close after balances are verified." : `Closed at ${currency(mission.closing_balance)}`);
       action.addEventListener("click", () => paycheckAction(mission, action, status));
       append(controls, action, status);
       append(item, head, facts, bills, controls);
@@ -439,7 +441,7 @@
     if (!grid || byId("money-command-center")) return;
     const style = document.createElement("link");
     style.rel = "stylesheet";
-    style.href = "money-command.css?v=3";
+    style.href = "money-command.css?v=4";
     document.head.appendChild(style);
     const root = node("div", "money-command-center");
     root.id = "money-command-center";

@@ -29,7 +29,7 @@ ACTION_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "finance.fund_paycheck": {
         "name": "Fund a paycheck mission",
-        "description": "Credit one confirmed paycheck exactly once: $309 to Truliant, the remainder to OnePay, and nothing directly to Relay.",
+        "description": "Credit one confirmed paycheck exactly once: $309 to Truliant, the remainder to OnePay, nothing directly to Relay, and post configured payroll retirement contributions.",
         "risk": "high", "scope": "finance", "reversible": False,
         "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
         "remote_execution": False, "service": "lifeos.internal", "target": None,

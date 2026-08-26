@@ -139,20 +139,33 @@ def test_paycheck_funding_and_close_are_confirmed_and_idempotent(fresh_db):
     payday = payday_schedule(count=1)[0]
     with conn() as c:
         before = {row["name"]: row["balance"] for row in c.execute("SELECT name,balance FROM accounts")}
+        assets_before = {row["name"]: dict(row) for row in c.execute("SELECT * FROM assets")}
     preview = fund_paycheck(payday["period"], FundPaycheckIn())
     assert preview["requires_confirmation"] is True
     assert preview["preview"]["distribution"]["Truliant"]["deposit"] == 309.00
     assert preview["preview"]["distribution"]["OnePay"]["deposit"] == 1755.24
     assert preview["preview"]["distribution"]["Relay"]["deposit"] == 0
+    assert preview["preview"]["payroll_contribution_total"] == 49.18
+    assert {asset["name"]: asset["contribution"] for asset in preview["preview"]["payroll_contributions"]} == {
+        "401(k)": 24.59,
+        "Roth IRA": 24.59,
+    }
     funded = fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
     assert funded["funded"]["amount"] == 2064.24
     with conn() as c:
         after = {row["name"]: row["balance"] for row in c.execute("SELECT name,balance FROM accounts")}
         deposits = [dict(row) for row in c.execute("SELECT amount,account_id FROM deposits WHERE source=?", (f"paycheck_funding:{payday['period']}",))]
+        assets_after = {row["name"]: dict(row) for row in c.execute("SELECT * FROM assets")}
     assert after["Truliant"] == pytest.approx(before["Truliant"] + 309.00)
     assert after["OnePay"] == pytest.approx(before["OnePay"] + 1755.24)
     assert after["Relay"] == before["Relay"]
     assert sorted(row["amount"] for row in deposits) == [309.00, 1755.24]
+    for name in ("401(k)", "Roth IRA"):
+        assert assets_after[name]["balance"] == pytest.approx(assets_before[name]["balance"] + 24.59)
+        assert assets_after[name]["ytd_contributions"] == pytest.approx(assets_before[name]["ytd_contributions"] + 24.59)
+        assert assets_after[name]["lifetime_contributions"] == pytest.approx(assets_before[name]["lifetime_contributions"] + 24.59)
+        assert assets_after[name]["as_of"] == payday["date"]
+    assert assets_after["HSA"]["balance"] == assets_before["HSA"]["balance"]
     with pytest.raises(HTTPException) as duplicate:
         fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
     assert duplicate.value.status_code == 409

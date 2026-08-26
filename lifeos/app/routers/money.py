@@ -70,6 +70,30 @@ def _paycheck_split() -> dict[str, float]:
     return {"net": net, "onepay": round(net - truliant, 2), "truliant": truliant, "relay": 0.0}
 
 
+def _payroll_asset_preview(c, payday: str) -> list[dict]:
+    pay_year = payday[:4]
+    rows = []
+    for asset in c.execute(
+        "SELECT * FROM assets WHERE kind='retirement' AND per_paycheck>0 ORDER BY name"
+    ).fetchall():
+        contribution = round(float(asset["per_paycheck"]), 2)
+        same_year = str(asset["as_of"] or "")[:4] == pay_year
+        ytd_before = float(asset["ytd_contributions"]) if same_year else 0.0
+        rows.append({
+            "id": asset["id"],
+            "name": asset["name"],
+            "contribution": contribution,
+            "balance_before": float(asset["balance"]),
+            "balance_after": round(float(asset["balance"]) + contribution, 2),
+            "ytd_before": ytd_before,
+            "ytd_after": round(ytd_before + contribution, 2),
+            "lifetime_before": float(asset["lifetime_contributions"]),
+            "lifetime_after": round(float(asset["lifetime_contributions"]) + contribution, 2),
+            "as_of": payday,
+        })
+    return rows
+
+
 def _fingerprint(account_id: int, posted: str, direction: str, amount: float, merchant: str, external_id: str = "") -> str:
     material = "|".join((str(account_id), posted, direction, f"{amount:.2f}", merchant.strip().lower(), external_id.strip()))
     return hashlib.sha256(material.encode()).hexdigest()
@@ -190,10 +214,13 @@ def _mission_rows(c, count: int = 6) -> list[dict]:
         bill_total = round(sum(float(bill["amount"]) for bill in bills), 2)
         split = _paycheck_split()
         net = split["net"]
+        payroll_assets = _payroll_asset_preview(c, payday["date"])
         missions.append({
             **payday,
             "amount": net,
             "distribution": split,
+            "payroll_contributions": payroll_assets,
+            "payroll_contribution_total": round(sum(row["contribution"] for row in payroll_assets), 2),
             "status": cycle["status"] if cycle else "planned",
             "account_id": cycle["account_id"] if cycle else None,
             "opening_balance": cycle["opening_balance"] if cycle else None,
@@ -377,6 +404,7 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
         split = _paycheck_split()
         onepay = accounts["OnePay"]
         truliant = accounts["Truliant"]
+        payroll_assets = _payroll_asset_preview(c, payday["date"])
         preview = {
             "period": period,
             "amount": split["net"],
@@ -393,6 +421,8 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
                 },
                 "Relay": {"deposit": 0.0, "purpose": "savings buckets only"},
             },
+            "payroll_contributions": payroll_assets,
+            "payroll_contribution_total": round(sum(row["contribution"] for row in payroll_assets), 2),
         }
         if not body.confirm:
             return {"ok": False, "requires_confirmation": True, "preview": preview}
@@ -404,6 +434,15 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
                 "INSERT INTO deposits(amount,account_id,source) VALUES(?,?,?)",
                 (allocation["deposit"], account["id"], f"paycheck_funding:{period}"),
             )
+        for asset in payroll_assets:
+            c.execute(
+                "UPDATE assets SET balance=?,ytd_contributions=?,"
+                " lifetime_contributions=?,as_of=? WHERE id=?",
+                (
+                    asset["balance_after"], asset["ytd_after"],
+                    asset["lifetime_after"], asset["as_of"], asset["id"],
+                ),
+            )
         c.execute(
             "INSERT INTO paycheck_cycles(period,paycheck,payday,status,account_id,amount,opening_balance,funded_at)"
             " VALUES(?,?,?,'funded',?,?,?,datetime('now','localtime'))"
@@ -414,9 +453,15 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
         )
         _audit(
             c, "finance.fund_paycheck", "high", True, period,
-            {name: {"balance": accounts[name]["balance"]} for name in ("OnePay", "Truliant")},
-            {"distribution": preview["distribution"], "deposit": split["net"]},
-            "Giovanni confirmed fixed $309 Truliant deposit; paycheck remainder to OnePay; Relay unchanged",
+            {
+                "accounts": {name: {"balance": accounts[name]["balance"]} for name in ("OnePay", "Truliant")},
+                "retirement": [{"name": asset["name"], "balance": asset["balance_before"], "ytd": asset["ytd_before"]} for asset in payroll_assets],
+            },
+            {
+                "distribution": preview["distribution"], "deposit": split["net"],
+                "retirement": payroll_assets,
+            },
+            "Giovanni confirmed bank split and configured payroll retirement contributions; Relay unchanged",
         )
         return {"ok": True, "funded": preview}
 
