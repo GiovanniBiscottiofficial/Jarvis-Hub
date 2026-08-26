@@ -378,6 +378,19 @@ def test_timeline_and_calibration_gate_are_declared():
     assert "lighting_persists_until: weekday_sunrise" in automation
 
 
+def test_night_profile_recovers_after_tuya_bulbs_reconnect():
+    automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()
+    recovery = automation.split("sanctuary_night_light_reconnect_recovery", 1)[1].split(
+        "sanctuary_sunday_cleaning", 1
+    )[0]
+    assert "old.state in ['unknown', 'unavailable']" in recovery
+    assert "new.state in ['on', 'off']" in recovery
+    assert "['Wind Down', 'Thunderstorm']" in recovery
+    assert "mode: restart" in recovery
+    assert "script.sanctuary_apply_deep_wind_down" in recovery
+    assert "mode: Thunderstorm" in recovery
+
+
 def test_schedule_commissioning_persists_and_missed_phases_are_recovered():
     configuration = (REPO_ROOT / "ha-config/configuration.yaml").read_text()
     automation = (REPO_ROOT / "ha-config/automations/sanctuary.yaml").read_text()

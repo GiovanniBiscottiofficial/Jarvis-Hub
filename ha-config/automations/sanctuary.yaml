@@ -397,6 +397,55 @@
                 mode: Thunderstorm
                 lighting_persists_until: weekday_sunrise
 
+- id: sanctuary_night_light_reconnect_recovery
+  alias: "Sanctuary: restore night profile after a bulb reconnects"
+  description: >-
+    Coalesces Tuya reconnect events and reapplies the authoritative evening
+    profile. This prevents a bulb that was offline at transition time from
+    retaining an earlier bright level.
+  mode: restart
+  trigger:
+    - platform: event
+      event_type: state_changed
+  condition:
+    - condition: state
+      entity_id: input_boolean.sanctuary_automations_enabled
+      state: "on"
+    - condition: state
+      entity_id: input_boolean.sanctuary_manual_hold
+      state: "off"
+    - condition: template
+      value_template: >-
+        {% set entity = trigger.event.data.entity_id | default('') %}
+        {% set old = trigger.event.data.old_state %}
+        {% set new = trigger.event.data.new_state %}
+        {{ entity.startswith('light.') and old is not none and new is not none
+           and old.state in ['unknown', 'unavailable']
+           and new.state in ['on', 'off']
+           and states('input_select.sanctuary_mode') in ['Wind Down', 'Thunderstorm'] }}
+  action:
+    - delay: "00:00:08"
+    - choose:
+        - conditions: >-
+            {{ is_state('input_select.sanctuary_mode', 'Wind Down')
+               and now().strftime('%H:%M') >= '21:30' }}
+          sequence:
+            - service: script.sanctuary_apply_deep_wind_down
+        - conditions: "{{ is_state('input_select.sanctuary_mode', 'Wind Down') }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Wind Down
+                source: recovery
+                reason: Restored Wind Down after a light reconnected
+        - conditions: "{{ is_state('input_select.sanctuary_mode', 'Thunderstorm') }}"
+          sequence:
+            - service: script.sanctuary_activate_mode
+              data:
+                mode: Thunderstorm
+                source: recovery
+                reason: Restored protected Thunderstorm lighting after a light reconnected
+
 - id: sanctuary_sunday_cleaning
   alias: "Sanctuary: Sunday cleaning readiness"
   mode: single
