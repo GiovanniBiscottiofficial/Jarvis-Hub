@@ -2,6 +2,11 @@
   "use strict";
 
   const state = { loading: false, loaded: false, data: null };
+  const dailyStaples = [
+    { name: "Atkins protein shake", protein_g: 15, short: "Atkins shake" },
+    { name: "Barebells protein bar", protein_g: 20, short: "Barebells bar" },
+    { name: "Two tuna packs", protein_g: 30, short: "2 tuna packs" },
+  ];
   const byId = (id) => document.getElementById(id);
   const node = (tag, className, text) => {
     const item = document.createElement(tag);
@@ -15,6 +20,10 @@
   };
   const formatNumber = (value, suffix = "") =>
     value === null || value === undefined ? "Awaiting data" : `${Number(value).toLocaleString()}${suffix}`;
+  const localDateKey = (value = new Date()) => {
+    const dateValue = value instanceof Date ? value : new Date(value);
+    return `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, "0")}-${String(dateValue.getDate()).padStart(2, "0")}`;
+  };
 
   function metric(label, value, note) {
     const box = node("div", "bodyops-metric");
@@ -213,6 +222,99 @@
     return card;
   }
 
+  function loggedTodayCount(loop, name) {
+    const today = localDateKey();
+    return (loop.timeline || []).filter((event) =>
+      event.kind === "meal"
+      && event.label === name
+      && String(event.ts).slice(0, 10) === today
+    ).length;
+  }
+
+  function renderTodayPicture(loop) {
+    const root = byId("today-bodyops-picture");
+    if (!root) return;
+    const header = node("div", "today-bodyops-header");
+    const title = node("div", "");
+    append(title, node("span", "bodyops-kicker", "BODY OPS / LIVE"),
+      node("h2", "", "Today’s operating range"),
+      node("p", "", "The same readiness and adaptive plan used inside Body Ops."));
+    const score = node("div", `today-readiness band-${loop.readiness.band}`);
+    append(score, node("strong", "", String(loop.readiness.score)),
+      node("span", "", `${loop.readiness.band.toUpperCase()} · ${loop.readiness.confidence_percent}% CONFIDENCE`));
+    append(header, title, score);
+
+    const facts = node("div", "today-bodyops-facts");
+    append(facts,
+      metric("Protein", `${loop.today.protein_g.toFixed(0)} / ${loop.targets.protein_g} g`, `${loop.completion.protein_percent}% complete`),
+      metric("Movement", `${(loop.today.steps || 0).toLocaleString()} / ${loop.targets.steps.toLocaleString()}`, loop.targets.workout_guidance),
+      metric("Hydration", `${loop.today.water_glasses || 0} / ${loop.targets.water_glasses}`, `${loop.completion.water_percent}% complete`),
+      metric("Vitamins", loop.completion.vitamins_taken ? "Complete" : "Pending", loop.morning.vitamins));
+
+    const lower = node("div", "today-bodyops-lower");
+    const chef = node("div", "today-bodyops-chef");
+    append(chef, node("span", "bodyops-label", "CHEF JARVIS / DINNER"));
+    if (loop.morning.dinner) {
+      append(chef, node("strong", "", loop.morning.dinner.name), node("p", "", loop.morning.dinner.prep));
+    } else {
+      chef.appendChild(node("p", "bodyops-empty", "Update the pantry so Jarvis can select dinner."));
+    }
+
+    const actions = node("div", "today-bodyops-actions");
+    append(actions, node("span", "bodyops-label", "DAILY STAPLES / ONE TAP"),
+      node("p", "bodyops-note", "Fast logging for your regular weekday protein. Each press creates one separate meal entry."));
+    const buttons = node("div", "today-staples");
+    dailyStaples.forEach((staple) => {
+      const count = loggedTodayCount(loop, staple.name);
+      const button = node("button", "today-staple");
+      button.type = "button";
+      button.dataset.meal = staple.name;
+      append(button, node("strong", "", `${staple.short} · ${staple.protein_g}g`),
+        node("span", "", count ? `${count} logged today · tap to log another` : "Tap to log"));
+      button.addEventListener("click", () => logStaple(button, staple));
+      buttons.appendChild(button);
+    });
+    actions.appendChild(buttons);
+    const logStatus = node("div", "bodyops-inline-status", "Ready to log.");
+    logStatus.id = "today-staples-status";
+    logStatus.setAttribute("role", "status");
+    logStatus.setAttribute("aria-live", "polite");
+    actions.appendChild(logStatus);
+    append(lower, chef, actions);
+
+    const footer = node("div", "today-bodyops-footer");
+    const open = node("button", "secondary", "Open full Body Ops");
+    open.type = "button";
+    open.addEventListener("click", () => {
+      const tab = document.querySelector('[data-tab="body"]');
+      if (tab) tab.click();
+    });
+    append(footer, node("span", "", loop.readiness.medical_policy), open);
+    root.replaceChildren(header, facts, lower, footer);
+  }
+
+  async function logStaple(button, staple) {
+    const status = byId("today-staples-status");
+    const buttons = document.querySelectorAll(".today-staple");
+    buttons.forEach((item) => { item.disabled = true; });
+    if (status) status.textContent = `Logging ${staple.short}…`;
+    try {
+      await api("/api/body/meals/log", "POST", {
+        name: staple.name,
+        protein_g: staple.protein_g,
+        calories: 0,
+      });
+      if (status) status.textContent = `${staple.short} logged: +${staple.protein_g} g protein.`;
+      state.loaded = false;
+      if (typeof loadToday === "function") await loadToday();
+      await load(true);
+    } catch (error) {
+      if (status) status.textContent = error && error.message ? error.message : `${staple.short} could not be logged.`;
+      buttons.forEach((item) => { item.disabled = false; });
+      button.focus();
+    }
+  }
+
   function render(loop) {
     const root = byId("bodyops-command-loop");
     if (!root) return;
@@ -231,6 +333,7 @@
     append(policy, node("strong", "", "Your data, with provenance."),
       node("span", "", "Stored locally. Measured and self-reported signals stay labeled. Missing entries are unknown—not failures. Body Ops provides wellness guidance, never medical diagnosis."));
     root.replaceChildren(header, grid, policy);
+    renderTodayPicture(loop);
   }
 
   function renderError(message) {
@@ -290,18 +393,26 @@
 
   function initialize() {
     const bodyGrid = document.querySelector("#body .body-grid");
-    if (!bodyGrid || byId("bodyops-command-loop")) return;
+    const todayGrid = document.querySelector("#today .today-grid");
+    if (!bodyGrid || !todayGrid || byId("bodyops-command-loop")) return;
     const style = document.createElement("link");
     style.rel = "stylesheet";
-    style.href = "bodyops-enhanced.css?v=1";
+    style.href = "bodyops-enhanced.css?v=2";
     document.head.appendChild(style);
     const root = node("div", "bodyops-command-loop");
     root.id = "bodyops-command-loop";
     root.setAttribute("aria-live", "polite");
     bodyGrid.insertBefore(root, bodyGrid.firstChild);
+    const todayPicture = node("article", "card today-bodyops-card");
+    todayPicture.id = "today-bodyops-picture";
+    todayPicture.setAttribute("aria-live", "polite");
+    todayPicture.appendChild(node("div", "bodyops-loading", "Jarvis is assembling today’s Body Ops picture…"));
+    todayGrid.insertBefore(todayPicture, todayGrid.firstChild);
     const tab = document.querySelector('[data-tab="body"]');
     if (tab) tab.addEventListener("click", () => load(true));
-    if (byId("body").classList.contains("active")) load();
+    const todayTab = document.querySelector('[data-tab="today"]');
+    if (todayTab) todayTab.addEventListener("click", () => load(true));
+    load();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialize);

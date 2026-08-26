@@ -56,6 +56,26 @@
 .bodyops-policy { display: flex; gap: 14px; padding: 14px 18px; border: 1px solid rgba(95,125,112,.35); color: var(--muted, #aeb7b8); font-size: .82rem; line-height: 1.45; }
 .bodyops-policy strong { color: #c8cece; white-space: nowrap; }
 .bodyops-error button { min-height: 48px; margin-top: 12px; }
+.today-grid { grid-template-areas: "bodyops bodyops bodyops" "brief progress priorities" "meals progress priorities" "meals nudges vault"; }
+.today-bodyops-card { grid-area: bodyops; display: grid; gap: 18px; }
+.today-bodyops-header { display: flex; align-items: center; justify-content: space-between; gap: 22px; }
+.today-bodyops-header h2 { margin: 4px 0; color: #edf9fc !important; border: 0 !important; padding: 0 !important; font-size: clamp(1.2rem, 2vw, 1.8rem) !important; letter-spacing: normal !important; }
+.today-bodyops-header p { margin: 0; color: var(--muted, #8f9a9c); }
+.today-readiness { display: grid; min-width: 155px; text-align: right; }
+.today-readiness strong { color: #d9b871; font-size: clamp(2rem, 3vw, 3.2rem); line-height: 1; }
+.today-readiness span { color: var(--muted, #8f9a9c); font-size: .65rem; letter-spacing: .1em; }
+.today-bodyops-facts { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.today-bodyops-lower { display: grid; grid-template-columns: minmax(240px,.75fr) minmax(0,1.5fr); gap: 14px; }
+.today-bodyops-chef, .today-bodyops-actions { padding: 15px; border: 1px solid rgba(158,122,63,.23); background: rgba(255,255,255,.02); }
+.today-bodyops-chef { display: grid; align-content: start; gap: 6px; }
+.today-bodyops-chef p { margin: 0; color: var(--muted, #aeb7b8); line-height: 1.45; }
+.today-bodyops-actions > p { margin: 7px 0 11px; }
+.today-staples { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.today-staple { min-height: 58px; display: grid; align-content: center; gap: 3px; padding: 9px 12px; text-align: left; }
+.today-staple strong, .today-staple span { display: block; }
+.today-staple span { color: var(--muted, #8f9a9c); font-size: .68rem; font-weight: 500; }
+.today-bodyops-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; color: var(--muted, #8f9a9c); font-size: .75rem; }
+.today-bodyops-footer button { min-height: 46px; }
 @media (min-width: 2200px) and (min-height: 1400px) {
   .bodyops-command-loop { gap: 24px; }
   .bodyops-dashboard { gap: 22px; }
@@ -64,10 +84,18 @@
   .bodyops-field input, .bodyops-field select, .bodyops-checkin-action button { min-height: 58px; font-size: 1rem; }
 }
 @media (max-width: 1050px) {
+  .today-grid { grid-template-areas: none; }
+  .today-bodyops-card { grid-column: 1 / -1 !important; }
+  .today-bodyops-facts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .today-bodyops-lower { grid-template-columns: 1fr; }
   .bodyops-card, .bodyops-readiness, .bodyops-protocol, .bodyops-timeline, .bodyops-checkin, .bodyops-trends, .bodyops-habits { grid-column: span 6; }
   .bodyops-readiness, .bodyops-protocol, .bodyops-timeline { grid-column: 1 / -1; }
 }
 @media (max-width: 680px) {
+  .today-bodyops-header, .today-bodyops-footer { align-items: flex-start; flex-direction: column; }
+  .today-readiness { text-align: left; }
+  .today-bodyops-facts, .today-staples { grid-template-columns: 1fr; }
+  .today-bodyops-footer button { width: 100%; }
   .bodyops-command-header { align-items: start; }
   .bodyops-status { min-width: auto; padding: 9px 11px; }
   .bodyops-dashboard { display: block; }
