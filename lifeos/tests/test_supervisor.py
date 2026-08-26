@@ -121,3 +121,13 @@ def test_maintenance_pause_observes_but_never_repairs(monkeypatch, tmp_path):
     assert homeassistant["decision"] == "maintenance_paused"
     assert result["repairs_enabled"] is False
     assert actions == []
+
+
+def test_heartbeat_republishes_complete_snapshot(monkeypatch, tmp_path):
+    supervisor = load_supervisor(monkeypatch, tmp_path)
+    checks = all_healthy(supervisor)
+    result = supervisor.supervise(checks, dry_run=True, now=1000)
+    entities = {event.get("entity_id") for event in result["events"]}
+    assert "binary_sensor.jarvis_supervisor" in entities
+    for component in supervisor.COMPONENTS:
+        assert f"binary_sensor.jarvis_{component}" in entities

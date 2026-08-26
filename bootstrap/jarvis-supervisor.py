@@ -233,6 +233,14 @@ def supervise(checks: dict[str, tuple[bool, str]] | None = None, *, dry_run: boo
     heartbeat_due = timestamp - float(state.get("last_heartbeat", 0)) >= HEARTBEAT_SECONDS
     if heartbeat_due:
         state["last_heartbeat"] = timestamp
+        # Re-announce the complete snapshot so LifeOS can reconstruct its view
+        # after a database restore or container replacement without waiting for
+        # every component to fail or change state.
+        announced = {event.get("entity_id") for event in events}
+        for result in results:
+            entity_id = f"binary_sensor.jarvis_{result['component']}"
+            if entity_id not in announced:
+                events.append(event_for(result, records[result["component"]], dry_run))
         events.append({
             "source": "x1_supervisor", "event_type": "supervisor.heartbeat",
             "entity_id": "binary_sensor.jarvis_supervisor", "state": "on",
