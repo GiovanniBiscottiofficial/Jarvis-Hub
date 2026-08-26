@@ -119,7 +119,7 @@ services:
   # timers, and announcements. bootstrap/setup-continuous-voice.sh performs the
   # guarded migration and restores Wyoming automatically if this fails health.
   voice-permissions:
-    image: ghcr.io/ohf-voice/linux-voice-assistant:v1.1.15
+    image: ghcr.io/ohf-voice/linux-voice-assistant:1.1.15
     profiles: [conversation]
     entrypoint: []
     command: >-
@@ -134,7 +134,7 @@ services:
 
   linux-voice-assistant:
     container_name: linux-voice-assistant
-    image: ghcr.io/ohf-voice/linux-voice-assistant:v1.1.15
+    image: ghcr.io/ohf-voice/linux-voice-assistant:1.1.15
     profiles: [conversation]
     restart: unless-stopped
     network_mode: host
