@@ -40,7 +40,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "openwakeword": {"probe": ("tcp", "127.0.0.1", 10400), "repair": ["docker", "restart", "openwakeword"], "label": "Hey Jarvis wake word"},
     "whisper": {"probe": ("tcp", "127.0.0.1", 10300), "repair": ["docker", "restart", "whisper"], "label": "Speech recognition"},
     "piper": {"probe": ("tcp", "127.0.0.1", 10200), "repair": ["docker", "restart", "piper"], "label": "Jarvis voice synthesis"},
-    "voice_satellite": {"probe": ("systemd", "wyoming-satellite.service"), "repair": ["systemctl", "restart", "wyoming-satellite.service"], "label": "X1 voice satellite"},
+    "voice_satellite": {"probe": ("voice_runtime",), "repair": ["voice_runtime"], "label": "X1 voice satellite"},
     "hardware_monitor": {"probe": ("systemd", "jarvis-hardware-monitor.service"), "repair": ["systemctl", "restart", "jarvis-hardware-monitor.service"], "label": "X1 hardware telemetry"},
     "camera_stream": {"probe": ("http", "http://127.0.0.1:1984/"), "repair": ["systemctl", "restart", "go2rtc.service"], "label": "Local camera stream"},
     "gestures": {"probe": ("container", "gestures"), "repair": ["docker", "restart", "gestures"], "label": "Gesture perception"},
@@ -77,6 +77,20 @@ def probe(spec: tuple[Any, ...]) -> tuple[bool, str]:
         if kind == "container":
             ok, output = run(["docker", "inspect", "-f", "{{.State.Running}}", str(spec[1])])
             return ok and output == "true", output or "not running"
+        if kind == "voice_runtime":
+            lva_ok, lva_state = run([
+                "docker", "inspect", "-f",
+                "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}",
+                "linux-voice-assistant",
+            ])
+            if lva_ok and lva_state in {"healthy", "running"}:
+                return True, f"Linux Voice Assistant {lva_state}"
+            wyoming_ok, wyoming_state = run([
+                "systemctl", "is-active", "wyoming-satellite.service"
+            ])
+            if wyoming_ok and wyoming_state == "active":
+                return True, "Wyoming fallback active"
+            return False, f"LVA {lva_state or 'missing'}; Wyoming {wyoming_state or 'inactive'}"
         if kind == "process":
             ok, output = run(["pgrep", "-u", str(spec[1]), "-f", str(spec[2])])
             return ok and bool(output), "process present" if ok else "process missing"
@@ -90,6 +104,16 @@ def probe(spec: tuple[Any, ...]) -> tuple[bool, str]:
     except (OSError, ValueError) as exc:
         return False, f"{type(exc).__name__}: {exc}"
     return False, "unknown probe"
+
+
+def repair_command(component: str, configured: list[str]) -> list[str]:
+    """Resolve the active, reversible repair without reviving retired runtimes."""
+    if component != "voice_satellite":
+        return list(configured)
+    exists, _ = run(["docker", "inspect", "linux-voice-assistant"])
+    if exists:
+        return ["docker", "restart", "linux-voice-assistant"]
+    return ["systemctl", "restart", "wyoming-satellite.service"]
 
 
 def empty_state() -> dict[str, Any]:
@@ -219,7 +243,9 @@ def supervise(checks: dict[str, tuple[bool, str]] | None = None, *, dry_run: boo
             elif not repairs_enabled:
                 result["decision"] = "maintenance_paused"
             else:
-                ok, output = action_runner(list(config["repair"]))
+                ok, output = action_runner(
+                    repair_command(component, list(config["repair"]))
+                )
                 record["last_repair"] = timestamp
                 record.setdefault("repair_history", []).append(timestamp)
                 record["status"] = "repairing" if ok else "failed"
