@@ -145,10 +145,11 @@ def test_paycheck_funding_and_close_are_confirmed_and_idempotent(fresh_db):
     assert preview["preview"]["distribution"]["Truliant"]["deposit"] == 309.00
     assert preview["preview"]["distribution"]["OnePay"]["deposit"] == 1755.24
     assert preview["preview"]["distribution"]["Relay"]["deposit"] == 0
-    assert preview["preview"]["payroll_contribution_total"] == 49.18
+    assert preview["preview"]["payroll_contribution_total"] == 65.16
     assert {asset["name"]: asset["contribution"] for asset in preview["preview"]["payroll_contributions"]} == {
         "401(k)": 24.59,
         "Roth IRA": 24.59,
+        "HSA": 15.98,
     }
     funded = fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
     assert funded["funded"]["amount"] == 2064.24
@@ -166,6 +167,13 @@ def test_paycheck_funding_and_close_are_confirmed_and_idempotent(fresh_db):
         assert assets_after[name]["lifetime_contributions"] == pytest.approx(assets_before[name]["lifetime_contributions"] + 24.59)
         assert assets_after[name]["as_of"] == payday["date"]
     assert assets_after["HSA"]["balance"] == assets_before["HSA"]["balance"]
+    assert assets_after["HSA"]["balance_verified"] == 0
+    assert assets_after["HSA"]["ytd_contributions"] == pytest.approx(
+        assets_before["HSA"]["ytd_contributions"] + 15.98
+    )
+    assert assets_after["HSA"]["lifetime_contributions"] == pytest.approx(
+        assets_before["HSA"]["lifetime_contributions"] + 15.98
+    )
     with pytest.raises(HTTPException) as duplicate:
         fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
     assert duplicate.value.status_code == 409

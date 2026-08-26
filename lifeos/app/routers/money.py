@@ -74,17 +74,20 @@ def _payroll_asset_preview(c, payday: str) -> list[dict]:
     pay_year = payday[:4]
     rows = []
     for asset in c.execute(
-        "SELECT * FROM assets WHERE kind='retirement' AND per_paycheck>0 ORDER BY name"
+        "SELECT * FROM assets WHERE kind IN ('retirement','health')"
+        " AND per_paycheck>0 ORDER BY CASE kind WHEN 'retirement' THEN 0 ELSE 1 END,name"
     ).fetchall():
         contribution = round(float(asset["per_paycheck"]), 2)
         same_year = str(asset["as_of"] or "")[:4] == pay_year
         ytd_before = float(asset["ytd_contributions"]) if same_year else 0.0
+        balance_verified = bool(asset["balance_verified"])
         rows.append({
             "id": asset["id"],
             "name": asset["name"],
             "contribution": contribution,
-            "balance_before": float(asset["balance"]),
-            "balance_after": round(float(asset["balance"]) + contribution, 2),
+            "balance_verified": balance_verified,
+            "balance_before": float(asset["balance"]) if balance_verified else None,
+            "balance_after": round(float(asset["balance"]) + contribution, 2) if balance_verified else None,
             "ytd_before": ytd_before,
             "ytd_after": round(ytd_before + contribution, 2),
             "lifetime_before": float(asset["lifetime_contributions"]),
@@ -436,10 +439,11 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
             )
         for asset in payroll_assets:
             c.execute(
-                "UPDATE assets SET balance=?,ytd_contributions=?,"
+                "UPDATE assets SET balance=CASE WHEN ? THEN ? ELSE balance END,"
+                " ytd_contributions=?,"
                 " lifetime_contributions=?,as_of=? WHERE id=?",
                 (
-                    asset["balance_after"], asset["ytd_after"],
+                    int(asset["balance_verified"]), asset["balance_after"], asset["ytd_after"],
                     asset["lifetime_after"], asset["as_of"], asset["id"],
                 ),
             )
@@ -461,7 +465,7 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
                 "distribution": preview["distribution"], "deposit": split["net"],
                 "retirement": payroll_assets,
             },
-            "Giovanni confirmed bank split and configured payroll retirement contributions; Relay unchanged",
+            "Giovanni confirmed bank split and configured retirement/HSA payroll contributions; Relay unchanged",
         )
         return {"ok": True, "funded": preview}
 
