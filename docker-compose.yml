@@ -73,7 +73,20 @@ services:
     image: rhasspy/wyoming-piper
     profiles: [voice]
     restart: unless-stopped
-    command: --voice en_US-lessac-medium
+    # Calm, local Jarvis voice. Every setting remains overridable in .env.
+    # A small sentence pause and restrained noise produce clearer briefings on
+    # the X1 speakers without making short confirmations feel sluggish.
+    command:
+      - --voice
+      - ${PIPER_VOICE:-en_GB-alan-medium}
+      - --length-scale
+      - ${PIPER_LENGTH_SCALE:-1.03}
+      - --noise-scale
+      - ${PIPER_NOISE_SCALE:-0.45}
+      - --noise-w-scale
+      - ${PIPER_NOISE_W_SCALE:-0.70}
+      - --sentence-silence
+      - ${PIPER_SENTENCE_SILENCE:-0.18}
     ports:
       - "10200:10200"
     volumes:

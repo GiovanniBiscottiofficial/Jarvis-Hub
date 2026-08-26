@@ -17,6 +17,15 @@ jarvis_say:
     urgent:
       description: "Speak even in quiet mode (emergencies)"
       example: "true"
+      default: false
+      selector:
+        boolean:
+    preannounce:
+      description: "Play the attention tone first; emergencies always do"
+      example: "false"
+      default: false
+      selector:
+        boolean:
   sequence:
     # Quiet mode (auto-on during movies) silences everything but emergencies
     - condition: or
@@ -27,9 +36,26 @@ jarvis_say:
         - condition: template
           value_template: "{{ urgent | default(false) }}"
     - variables:
+        # Keep spoken copy natural and enforce Giovanni's address policy even
+        # when upstream text came from an integration or generated response.
+        spoken_message: >-
+          {{ message | string
+             | regex_replace('(?i)\\bsir\\b', 'Giovanni')
+             | regex_replace('(?i)\\bLifeOS\\b', 'Life O S')
+             | regex_replace('\\bX1\\b', 'X one')
+             | regex_replace('\\bP1\\b', 'paycheck one')
+             | regex_replace('\\bP2\\b', 'paycheck two')
+             | regex_replace('\\s+', ' ')
+             | trim }}
+        x1_satellite: >-
+          {{ 'assist_satellite.x1'
+             if states('assist_satellite.x1') not in ['unknown', 'unavailable']
+             else '' }}
         satellite: >-
-          {{ states.assist_satellite | map(attribute='entity_id')
-             | list | first | default('') }}
+          {{ x1_satellite if x1_satellite != '' else
+             (states.assist_satellite
+                | rejectattr('state', 'in', ['unknown', 'unavailable'])
+                | map(attribute='entity_id') | list | first | default('')) }}
         piper_tts: >-
           {{ states.tts | map(attribute='entity_id')
              | select('search', 'piper') | list | first | default('') }}
@@ -44,7 +70,9 @@ jarvis_say:
               target:
                 entity_id: "{{ satellite }}"
               data:
-                message: "{{ message }}"
+                message: "{{ spoken_message }}"
+                preannounce: >-
+                  {{ true if urgent | default(false) else preannounce | default(false) }}
         - conditions: "{{ piper_tts != '' and speaker != '' }}"
           sequence:
             - service: tts.speak
@@ -52,10 +80,10 @@ jarvis_say:
                 entity_id: "{{ piper_tts }}"
               data:
                 media_player_entity_id: "{{ speaker }}"
-                message: "{{ message }}"
+                message: "{{ spoken_message }}"
         - conditions: "{{ speaker != '' }}"
           sequence:
             - service: tts.google_translate_say
               data:
                 entity_id: "{{ speaker }}"
-                message: "{{ message }}"
+                message: "{{ spoken_message }}"

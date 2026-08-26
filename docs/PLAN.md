@@ -70,7 +70,8 @@ Then open `http://<laptop-ip>:8123` from any device on your WiFi, create your ac
    docker run -d --restart=unless-stopped -p 10300:10300 \
      rhasspy/wyoming-whisper --model small-int8 --language en
    docker run -d --restart=unless-stopped -p 10200:10200 \
-     rhasspy/wyoming-piper --voice en_US-lessac-medium
+     rhasspy/wyoming-piper --voice en_GB-alan-medium --length-scale 1.03 \
+       --noise-scale 0.45 --noise-w-scale 0.70 --sentence-silence 0.18
    ```
 3. Add both in HA via the **Wyoming** integration (point at the laptop's IP, ports 10300/10200).
 4. Now: "turn on the living room lights", "start the vacuum" — all processed locally on the X1, nothing sent to Amazon/Google.

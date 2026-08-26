@@ -494,7 +494,10 @@ bash bootstrap/setup-satellite.sh
   headphones, or speakers from Home Assistant's Bluetooth integration.
 - **Speakers → Jarvis response and announcement endpoint**: the voice satellite uses
   the built-in speakers, and `script.jarvis_say` targets the first available Assist
-  satellite before falling back to another media player.
+  satellite before falling back to another media player. Piper defaults to the
+  local `en_GB-alan-medium` voice with a calm cadence and sentence pauses; override
+  `PIPER_VOICE`, `PIPER_LENGTH_SCALE`, `PIPER_NOISE_SCALE`,
+  `PIPER_NOISE_W_SCALE`, or `PIPER_SENTENCE_SILENCE` in `.env` to retune it.
 - **Hardware telemetry → context engine**: a host service reports camera, mic,
   speakers, Bluetooth, touch, battery, mains power, and temperature only when their
   state changes, plus a five-minute health heartbeat so stale links can be detected.

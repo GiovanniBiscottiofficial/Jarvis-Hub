@@ -115,6 +115,20 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "lifeos-panel.js?v=6" in configuration
 
 
+def test_jarvis_voice_profile_is_local_tuned_and_name_safe():
+    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(encoding="utf-8")
+    personality = (REPO_ROOT / "docs/jarvis-personality.txt").read_text(encoding="utf-8")
+
+    assert "${PIPER_VOICE:-en_GB-alan-medium}" in compose
+    assert "${PIPER_LENGTH_SCALE:-1.03}" in compose
+    assert "${PIPER_SENTENCE_SILENCE:-0.18}" in compose
+    assert "spoken_message" in speech
+    assert "regex_replace('(?i)\\\\bsir\\\\b', 'Giovanni')" in speech
+    assert "preannounce:" in speech
+    assert "Never call him \"sir.\"" in personality
+
+
 @pytest.mark.parametrize("mode", sorted(SANCTUARY_MODES))
 def test_every_sanctuary_mode_is_side_effect_free_in_simulation(fresh_db, mode):
     before = current_context()
