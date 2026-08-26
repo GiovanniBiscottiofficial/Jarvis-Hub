@@ -148,6 +148,46 @@ sanctuary_apply_deep_wind_down:
               kelvin: 2200
               transition: 45
 
+sanctuary_apply_thunderstorm_lighting:
+  alias: "Sanctuary: apply protected Thunderstorm lighting"
+  description: >-
+    Exact overnight layout: only Bathroom Light 5 is retained as the bathroom
+    night light, Dining remains at one percent, and task/navigation paths are off.
+  mode: restart
+  sequence:
+    - service: light.turn_off
+      continue_on_error: true
+      target:
+        entity_id:
+          - light.bathroom_bathroom_light_1
+          - light.bathroom_bathroom_light_2
+          - light.bathroom_bathroom_light_3
+          - light.bathroom_bathroom_light_4
+          - light.hallway_hall_light
+          - light.entry_entry_light
+          - light.office_light_1
+          - light.office_office_light_2
+      data:
+        transition: 30
+    - service: light.turn_on
+      continue_on_error: true
+      target:
+        entity_id:
+          - light.bathroom_bathroom_light_5
+          - light.dinning_room_dinning_room_light
+      data:
+        brightness_pct: 1
+        color_temp_kelvin: 2200
+        transition: 45
+    - service: script.sanctuary_apply_room_lighting
+      data:
+        area: bedroom
+        brightness: >-
+          {% set requested = states('input_number.sanctuary_bedroom_sleep_brightness') | int(1) %}
+          {{ [1, [requested, 2] | min] | max }}
+        kelvin: 2200
+        transition: 45
+
 sanctuary_start_thunderstorm_media:
   alias: "Sanctuary: start thunderstorm media"
   description: >-
@@ -307,13 +347,6 @@ sanctuary_activate_mode:
             - {area: dinning_room, brightness: 5, kelvin: 2400, transition: 60}
             - {area: entry, brightness: 4, kelvin: 2300, transition: 60}
             - {area: office, brightness: 4, kelvin: 2300, transition: 60}
-          Thunderstorm:
-            - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, kelvin: 2200, transition: 120}
-            - {area: bathroom, brightness_helper: input_number.sanctuary_bathroom_night_brightness, kelvin: 2200, transition: 90}
-            - {area: hallway, brightness_helper: input_number.sanctuary_hallway_night_brightness, kelvin: 2200, transition: 90}
-            - {area: dinning_room, brightness_helper: input_number.sanctuary_dining_area_night_brightness, kelvin: 2200, transition: 90}
-            - {area: entry, brightness_helper: input_number.sanctuary_entry_night_brightness, kelvin: 2200, transition: 90}
-            - {area: office, brightness: 1, kelvin: 2200, transition: 90}
           Date Night:
             - {area: dinning_room, brightness: 8, kelvin: 2200, transition: 30}
             - {area: living_room, brightness: 12, kelvin: 2300, transition: 30}
@@ -433,6 +466,9 @@ sanctuary_activate_mode:
                               brightness: 12
                               kelvin: 2400
                               transition: 30
+        - conditions: "{{ requested_mode == 'Thunderstorm' }}"
+          sequence:
+            - service: script.sanctuary_apply_thunderstorm_lighting
         - conditions: "{{ requested_mode in room_recipes }}"
           sequence:
             - repeat:

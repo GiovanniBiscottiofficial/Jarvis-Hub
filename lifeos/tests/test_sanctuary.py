@@ -339,13 +339,28 @@ def test_deep_wind_down_covers_every_lit_area_and_clears_task_lighting():
         assert f"area: {area}, brightness: {brightness}" in profile
 
 
-def test_thunderstorm_explicitly_dims_every_commissioned_night_path_area():
+def test_thunderstorm_uses_exact_protected_overnight_layout():
     script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
-    thunderstorm = script.split("Thunderstorm:", 1)[1].split("Date Night:", 1)[0]
-    for area in ("bedroom", "bathroom", "hallway", "dinning_room", "entry", "office"):
-        assert f"area: {area}" in thunderstorm
-    assert "hue:" not in thunderstorm
-    assert thunderstorm.count("kelvin: 2200") >= 6
+    thunderstorm = script.split("sanctuary_apply_thunderstorm_lighting:", 1)[1].split(
+        "sanctuary_start_thunderstorm_media:", 1
+    )[0]
+    for entity in (
+        "light.bathroom_bathroom_light_1",
+        "light.bathroom_bathroom_light_2",
+        "light.bathroom_bathroom_light_3",
+        "light.bathroom_bathroom_light_4",
+        "light.hallway_hall_light",
+        "light.entry_entry_light",
+        "light.office_light_1",
+        "light.office_office_light_2",
+    ):
+        assert entity in thunderstorm.split("service: light.turn_on", 1)[0]
+    night_lights = thunderstorm.split("service: light.turn_on", 1)[1]
+    assert "light.bathroom_bathroom_light_5" in night_lights
+    assert "light.dinning_room_dinning_room_light" in night_lights
+    assert "brightness_pct: 1" in night_lights
+    assert "area: bedroom" in thunderstorm
+    assert "[requested, 2] | min" in thunderstorm
 
 
 def test_evening_profiles_avoid_tuya_hs_mode_brightness_reset():
