@@ -1041,6 +1041,11 @@ async function loadBudgetData() {
 
   const netWorth = $("budget-networth");
   netWorth.replaceChildren();
+  const retirementTotal = el("div", "line");
+  const retirementIdentity = el("span", "", "Employer retirement account");
+  retirementIdentity.appendChild(el("small", "muted", `Contributions $${o.retirement_summary.contributions.toFixed(2)} · employer match / market movement unclassified $${o.retirement_summary.unclassified_difference.toFixed(2)}${o.retirement_summary.as_of ? ` · as of ${o.retirement_summary.as_of}` : ""}`));
+  retirementTotal.append(retirementIdentity, el("strong", "", `$${o.retirement_summary.balance.toFixed(2)}`));
+  netWorth.appendChild(retirementTotal);
   o.assets.forEach((asset) => {
     const line = el("div", "line");
     const identity = el("span", "", asset.name === "401(k)" ? "401(k) · Pre-tax" : asset.name);

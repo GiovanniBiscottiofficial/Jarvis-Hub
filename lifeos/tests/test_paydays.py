@@ -182,6 +182,16 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert assets["HSA"]["as_of"] == "2026-08-25"
     assert assets["HSA"]["balance"] == 319.60
     assert assets["HSA"]["balance_verified"] == 1
+    retirement = overview["retirement_summary"]
+    assert retirement["balance"] == 946.74
+    assert retirement["contributions"] == 884.96
+    assert retirement["unclassified_difference"] == 61.78
+    assert retirement["as_of"] == "2026-08-25"
+    breakdown = {row["name"]: row for row in retirement["breakdown"]}
+    assert breakdown["Pre-tax"]["balance"] == 527.45
+    assert breakdown["Roth"]["balance"] == 419.29
+    assert breakdown["Pre-tax"]["percent"] == 55.7
+    assert breakdown["Roth"]["percent"] == 44.3
 
 
 def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):

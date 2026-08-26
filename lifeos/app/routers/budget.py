@@ -239,6 +239,26 @@ def _overview(c) -> dict:
 
     total_debt = sum(d["remaining"] for d in debts)
     net_worth = round(ecosystem_cash + sum(a["balance"] for a in assets), 2)
+    retirement_assets = [a for a in assets if a["kind"] == "retirement"]
+    retirement_balance = round(sum(a["balance"] for a in retirement_assets), 2)
+    retirement_contributions = round(
+        sum(a["lifetime_contributions"] for a in retirement_assets), 2
+    )
+    retirement_summary = {
+        "balance": retirement_balance,
+        "contributions": retirement_contributions,
+        "unclassified_difference": round(retirement_balance - retirement_contributions, 2),
+        "as_of": max((a["as_of"] or "" for a in retirement_assets), default="") or None,
+        "breakdown": [
+            {
+                "name": "Pre-tax" if asset["name"] == "401(k)" else "Roth",
+                "balance": asset["balance"],
+                "percent": round(asset["balance"] / retirement_balance * 100, 1)
+                if retirement_balance else 0,
+            }
+            for asset in retirement_assets
+        ],
+    }
     debt_free = _debt_free_estimate(c)
 
     return {
@@ -268,6 +288,7 @@ def _overview(c) -> dict:
         "debts": debts,
         "total_debt": round(total_debt, 2),
         "assets": assets,
+        "retirement_summary": retirement_summary,
         "net_worth": net_worth,
         "paydays": payday_schedule(count=4),
     }
