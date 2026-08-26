@@ -86,14 +86,25 @@ def test_reconciliation_preview_then_confirm_preserves_difference(fresh_db):
 
 
 def test_paycheck_funding_and_close_are_confirmed_and_idempotent(fresh_db):
-    account = first_account()
     payday = payday_schedule(count=1)[0]
-    preview = fund_paycheck(payday["period"], FundPaycheckIn(account_id=account["id"]))
+    with conn() as c:
+        before = {row["name"]: row["balance"] for row in c.execute("SELECT name,balance FROM accounts")}
+    preview = fund_paycheck(payday["period"], FundPaycheckIn())
     assert preview["requires_confirmation"] is True
-    funded = fund_paycheck(payday["period"], FundPaycheckIn(account_id=account["id"], confirm=True))
-    assert funded["funded"]["after"] == pytest.approx(account["balance"] + 2064.24)
+    assert preview["preview"]["distribution"]["Truliant"]["deposit"] == 309.00
+    assert preview["preview"]["distribution"]["OnePay"]["deposit"] == 1755.24
+    assert preview["preview"]["distribution"]["Relay"]["deposit"] == 0
+    funded = fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
+    assert funded["funded"]["amount"] == 2064.24
+    with conn() as c:
+        after = {row["name"]: row["balance"] for row in c.execute("SELECT name,balance FROM accounts")}
+        deposits = [dict(row) for row in c.execute("SELECT amount,account_id FROM deposits WHERE source=?", (f"paycheck_funding:{payday['period']}",))]
+    assert after["Truliant"] == pytest.approx(before["Truliant"] + 309.00)
+    assert after["OnePay"] == pytest.approx(before["OnePay"] + 1755.24)
+    assert after["Relay"] == before["Relay"]
+    assert sorted(row["amount"] for row in deposits) == [309.00, 1755.24]
     with pytest.raises(HTTPException) as duplicate:
-        fund_paycheck(payday["period"], FundPaycheckIn(account_id=account["id"], confirm=True))
+        fund_paycheck(payday["period"], FundPaycheckIn(confirm=True))
     assert duplicate.value.status_code == 409
     close_preview = close_paycheck(payday["period"], ClosePaycheckIn())
     assert close_preview["requires_confirmation"] is True

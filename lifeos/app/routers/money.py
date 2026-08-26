@@ -40,7 +40,9 @@ class ReconcileIn(BaseModel):
 
 
 class FundPaycheckIn(BaseModel):
-    account_id: int
+    # Retained as an optional compatibility field for older headless clients.
+    # Funding always follows the authoritative fixed account split.
+    account_id: int | None = None
     confirm: bool = False
 
 
@@ -60,6 +62,12 @@ def _money_setting(key: str, default: float) -> float:
         return float(get_setting(key) or default)
     except (TypeError, ValueError):
         return default
+
+
+def _paycheck_split() -> dict[str, float]:
+    net = _money_setting("net_per_paycheck", NET_PAY)
+    truliant = min(309.00, net)
+    return {"net": net, "onepay": round(net - truliant, 2), "truliant": truliant, "relay": 0.0}
 
 
 def _fingerprint(account_id: int, posted: str, direction: str, amount: float, merchant: str, external_id: str = "") -> str:
@@ -162,17 +170,19 @@ def _mission_rows(c, count: int = 6) -> list[dict]:
             bill["paid"] = bill["paid_period"] == payday["period"]
         cycle = c.execute("SELECT * FROM paycheck_cycles WHERE period=?", (payday["period"],)).fetchone()
         bill_total = round(sum(float(bill["amount"]) for bill in bills), 2)
-        net = _money_setting("net_per_paycheck", NET_PAY)
+        split = _paycheck_split()
+        net = split["net"]
         missions.append({
             **payday,
             "amount": net,
+            "distribution": split,
             "status": cycle["status"] if cycle else "planned",
             "account_id": cycle["account_id"] if cycle else None,
             "opening_balance": cycle["opening_balance"] if cycle else None,
             "closing_balance": cycle["closing_balance"] if cycle else None,
             "bills": bills,
             "bill_total": bill_total,
-            "planned_remaining": round(net - bill_total, 2),
+            "planned_remaining": round(split["onepay"] - bill_total, 2),
         })
     return missions
 
@@ -334,20 +344,61 @@ def fund_paycheck(period: str, body: FundPaycheckIn):
     if payday is None:
         raise HTTPException(404, "paycheck period is not in the current planning horizon")
     with conn() as c:
-        account = c.execute("SELECT * FROM accounts WHERE id=?", (body.account_id,)).fetchone()
-        if account is None:
-            raise HTTPException(404, "account not found")
+        accounts = {
+            row["name"]: row
+            for row in c.execute(
+                "SELECT * FROM accounts WHERE name IN ('OnePay','Truliant')"
+            ).fetchall()
+        }
+        if set(accounts) != {"OnePay", "Truliant"}:
+            raise HTTPException(409, "OnePay and Truliant must both be commissioned")
         existing = c.execute("SELECT * FROM paycheck_cycles WHERE period=?", (period,)).fetchone()
         if existing and existing["status"] in {"funded", "closed"}:
             raise HTTPException(409, "paycheck is already funded")
-        amount = _money_setting("net_per_paycheck", NET_PAY)
-        preview = {"period": period, "account": account["name"], "amount": amount, "before": account["balance"], "after": round(account["balance"] + amount, 2)}
+        split = _paycheck_split()
+        onepay = accounts["OnePay"]
+        truliant = accounts["Truliant"]
+        preview = {
+            "period": period,
+            "amount": split["net"],
+            "distribution": {
+                "OnePay": {
+                    "deposit": split["onepay"],
+                    "before": onepay["balance"],
+                    "after": round(onepay["balance"] + split["onepay"], 2),
+                },
+                "Truliant": {
+                    "deposit": split["truliant"],
+                    "before": truliant["balance"],
+                    "after": round(truliant["balance"] + split["truliant"], 2),
+                },
+                "Relay": {"deposit": 0.0, "purpose": "savings buckets only"},
+            },
+        }
         if not body.confirm:
             return {"ok": False, "requires_confirmation": True, "preview": preview}
-        c.execute("UPDATE accounts SET balance=? WHERE id=?", (preview["after"], body.account_id))
-        c.execute("INSERT INTO deposits(amount,account_id,source) VALUES(?,?,'paycheck_funding')", (amount, body.account_id))
-        c.execute("INSERT INTO paycheck_cycles(period,paycheck,payday,status,account_id,amount,opening_balance,funded_at) VALUES(?,?,?,'funded',?,?,?,datetime('now','localtime')) ON CONFLICT(period) DO UPDATE SET status='funded',account_id=excluded.account_id,amount=excluded.amount,opening_balance=excluded.opening_balance,funded_at=datetime('now','localtime')", (period, payday["paycheck"], payday["date"], body.account_id, amount, account["balance"]))
-        _audit(c, "finance.fund_paycheck", "high", True, period, {"balance": account["balance"]}, {"balance": preview["after"], "deposit": amount}, "Giovanni confirmed paycheck funding")
+        for name in ("OnePay", "Truliant"):
+            allocation = preview["distribution"][name]
+            account = accounts[name]
+            c.execute("UPDATE accounts SET balance=? WHERE id=?", (allocation["after"], account["id"]))
+            c.execute(
+                "INSERT INTO deposits(amount,account_id,source) VALUES(?,?,?)",
+                (allocation["deposit"], account["id"], f"paycheck_funding:{period}"),
+            )
+        c.execute(
+            "INSERT INTO paycheck_cycles(period,paycheck,payday,status,account_id,amount,opening_balance,funded_at)"
+            " VALUES(?,?,?,'funded',?,?,?,datetime('now','localtime'))"
+            " ON CONFLICT(period) DO UPDATE SET status='funded',account_id=excluded.account_id,"
+            " amount=excluded.amount,opening_balance=excluded.opening_balance,"
+            " funded_at=datetime('now','localtime')",
+            (period, payday["paycheck"], payday["date"], onepay["id"], split["net"], onepay["balance"]),
+        )
+        _audit(
+            c, "finance.fund_paycheck", "high", True, period,
+            {name: {"balance": accounts[name]["balance"]} for name in ("OnePay", "Truliant")},
+            {"distribution": preview["distribution"], "deposit": split["net"]},
+            "Giovanni confirmed fixed $309 Truliant deposit; paycheck remainder to OnePay; Relay unchanged",
+        )
         return {"ok": True, "funded": preview}
 
 

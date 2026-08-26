@@ -234,17 +234,17 @@
     return card;
   }
 
-  function paycheckAction(mission, data, button, accountSelect, status) {
+  function paycheckAction(mission, button, status) {
     const closing = mission.status === "funded";
     const endpoint = closing ? "close" : "fund";
     if (button.dataset.confirm !== "armed") {
       button.dataset.confirm = "armed";
       button.textContent = closing ? "Confirm cycle close" : `Confirm ${currency(mission.amount)} deposit`;
-      status.textContent = closing ? "This records the current account balance as the cycle close." : `This credits ${currency(mission.amount)} to ${accountSelect.selectedOptions[0]?.textContent}.`;
+      status.textContent = closing ? "This records the current OnePay balance as the cycle close." : `${currency(mission.distribution.truliant)} goes to Truliant and ${currency(mission.distribution.onepay)} goes to OnePay. Relay stays unchanged.`;
       return;
     }
     button.disabled = true;
-    const body = closing ? { confirm: true } : { account_id: Number(accountSelect.value), confirm: true };
+    const body = { confirm: true };
     api(`/api/money/paychecks/${encodeURIComponent(mission.period)}/${endpoint}`, "POST", body)
       .then(() => load(true)).catch((error) => { button.disabled = false; status.textContent = error.message; });
   }
@@ -260,21 +260,18 @@
       append(identity, node("span", "money-label", `${mission.label.toUpperCase()} · ${mission.period}`), node("strong", "", `${localDate(mission.date)} · ${mission.days_away} days`));
       append(head, identity, node("span", "money-state", mission.status.toUpperCase()));
       const facts = node("div", "money-mission-facts");
-      [["Deposit", mission.amount], ["Bills", mission.bill_total], ["Planned remainder", mission.planned_remaining]].forEach(([label, value]) => {
+      [["Paycheck", mission.amount], ["OnePay remainder", mission.distribution.onepay], ["Truliant fixed split", mission.distribution.truliant], ["Relay direct deposit", mission.distribution.relay], ["Bills", mission.bill_total], ["OnePay after planned bills", mission.planned_remaining]].forEach(([label, value]) => {
         const fact = node("div", ""); append(fact, node("span", "", label), node("strong", "", currency(value))); facts.appendChild(fact);
       });
       const bills = node("div", "money-mission-bills");
       mission.bills.forEach((bill) => bills.appendChild(node("span", bill.paid ? "is-paid" : "", `${bill.name} · ${currency(bill.amount)} · due ${localDate(bill.due_date)}`)));
       if (!mission.bills.length) bills.appendChild(node("span", "money-empty", "No obligations assigned."));
       const controls = node("div", "money-mission-controls");
-      const account = node("select");
-      account.setAttribute("aria-label", `Funding account for ${mission.period}`);
-      data.accounts.forEach((entry) => account.appendChild(new Option(entry.name, String(entry.id), false, entry.role === "operating")));
       const action = node("button", "", mission.status === "planned" ? "Fund paycheck" : mission.status === "funded" ? "Close paycheck" : "Cycle closed");
       action.disabled = mission.status === "closed";
-      const status = node("span", "money-row-status", mission.status === "planned" ? "Deposit requires confirmation." : mission.status === "funded" ? "Close after balances are verified." : `Closed at ${currency(mission.closing_balance)}`);
-      action.addEventListener("click", () => paycheckAction(mission, data, action, account, status));
-      append(controls, account, action, status);
+      const status = node("span", "money-row-status", mission.status === "planned" ? `$309.00 → Truliant · ${currency(mission.distribution.onepay)} → OnePay · Relay unchanged. Confirmation required.` : mission.status === "funded" ? "Close after balances are verified." : `Closed at ${currency(mission.closing_balance)}`);
+      action.addEventListener("click", () => paycheckAction(mission, action, status));
+      append(controls, action, status);
       append(item, head, facts, bills, controls);
       list.appendChild(item);
     });
@@ -404,7 +401,7 @@
     if (!grid || byId("money-command-center")) return;
     const style = document.createElement("link");
     style.rel = "stylesheet";
-    style.href = "money-command.css?v=1";
+    style.href = "money-command.css?v=2";
     document.head.appendChild(style);
     const root = node("div", "money-command-center");
     root.id = "money-command-center";

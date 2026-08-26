@@ -186,8 +186,9 @@ def _overview(c) -> dict:
         dict(r) for r in c.execute("SELECT * FROM assets ORDER BY name").fetchall()
     ]
 
-    onepay_in = _cfg("split_onepay", 1754.60)
-    truliant_in = _cfg("split_truliant", 309.64)
+    net_pay = _cfg("net_per_paycheck", NET_PAY)
+    truliant_in = min(309.00, net_pay)
+    onepay_in = round(net_pay - truliant_in, 2)
     allocated = sum(b["amount"] for b in bills)
     fund_half = _fund_monthly_total(c) / 2  # buckets funded across both checks
     safe_to_spend = round(onepay_in - allocated - fund_half, 2)
@@ -246,7 +247,7 @@ def _overview(c) -> dict:
     return {
         "period": period,
         "paycheck_in": {
-            "net": _cfg("net_per_paycheck", NET_PAY),
+            "net": net_pay,
             "onepay": onepay_in,
             "truliant": truliant_in,
         },
@@ -286,8 +287,9 @@ def forecast(periods: int = 6):
     and bucket contributions = expected surplus (or squeeze)."""
     periods = max(1, min(periods, 12))
     with conn() as c:
-        onepay_in = _cfg("split_onepay", 1754.60)
-        truliant_in = _cfg("split_truliant", 309.64)
+        net_pay = _cfg("net_per_paycheck", NET_PAY)
+        truliant_in = min(309.00, net_pay)
+        onepay_in = round(net_pay - truliant_in, 2)
         fund_half = _fund_monthly_total(c) / 2
         running = 0.0
         out = []

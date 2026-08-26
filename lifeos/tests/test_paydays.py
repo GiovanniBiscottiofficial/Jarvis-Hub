@@ -121,9 +121,9 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
 
     overview = budget.overview()
     assert overview["paycheck_in"]["net"] == 2064.24
-    assert sum(
-        overview["paycheck_in"][key] for key in ("onepay", "truliant")
-    ) == 2064.24
+    assert overview["paycheck_in"]["onepay"] == 1755.24
+    assert overview["paycheck_in"]["truliant"] == 309.00
+    assert sum(overview["paycheck_in"][key] for key in ("onepay", "truliant")) == 2064.24
     assert len(overview["paydays"]) == 4
     assert {item["paycheck"] for item in overview["paydays"][:2]} == {1, 2}
     assert overview["protected_cash"] == 0

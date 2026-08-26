@@ -377,8 +377,8 @@ DEFAULT_SETTINGS = {
     # Semi-monthly paycheck profile (per paycheck, two checks a month)
     "gross_annual_salary": "58992.00",
     "net_per_paycheck": "2064.24",
-    "split_onepay": "1754.60",
-    "split_truliant": "309.64",
+    "split_onepay": "1755.24",
+    "split_truliant": "309.00",
     "deduct_roth": "24.59",
     "deduct_401k": "24.59",
     "deduct_hsa": "15.98",
@@ -596,6 +596,15 @@ def init_db() -> None:
             "UPDATE settings SET value='1754.60'"
             " WHERE key='split_onepay' AND value='1754.61'"
         )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='paycheck_split_fixed_309_v1'"
+        ).fetchone() is None:
+            c.execute("UPDATE settings SET value='1755.24' WHERE key='split_onepay'")
+            c.execute("UPDATE settings SET value='309.00' WHERE key='split_truliant'")
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('paycheck_split_fixed_309_v1',?)",
+                (date.today().isoformat(),),
+            )
         c.execute(
             "UPDATE bills SET name='Duke Energy Payment Plan',"
             " note='$65.50 installment · 4 scheduled payments'"
