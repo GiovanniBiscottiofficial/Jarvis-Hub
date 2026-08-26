@@ -121,6 +121,23 @@ def test_zero_reconciled_balance_survives_restart(fresh_db):
     assert balance == 0
 
 
+def test_asset_balance_verification_migrates_existing_totals(fresh_db):
+    from app.db import conn, init_db
+
+    with conn() as c:
+        c.execute("DELETE FROM settings WHERE key='asset_balance_verification_v1'")
+        c.execute("UPDATE assets SET balance_verified=0")
+    init_db()
+    with conn() as c:
+        verified = {
+            row["name"]: row["balance_verified"]
+            for row in c.execute("SELECT name,balance_verified FROM assets")
+        }
+    assert verified["401(k)"] == 1
+    assert verified["Roth IRA"] == 1
+    assert verified["HSA"] == 0
+
+
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     from app.routers import budget
 

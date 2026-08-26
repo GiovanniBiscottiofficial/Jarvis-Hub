@@ -822,6 +822,20 @@ def init_db() -> None:
                 "INSERT INTO settings(key,value)"
                 " VALUES('hsa_contributions_2026_08_25_v1','2026-08-25')"
             )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='asset_balance_verification_v1'"
+        ).fetchone() is None:
+            c.execute(
+                "UPDATE assets SET balance_verified=1"
+                " WHERE name IN ('401(k)','Roth IRA') AND as_of='2026-08-25'"
+            )
+            c.execute(
+                "UPDATE assets SET balance_verified=0 WHERE name='HSA'"
+            )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('asset_balance_verification_v1','2026-08-25')"
+            )
         # correct the old seed name on existing databases (before seeding,
         # so the rename never collides with a freshly inserted 'Giovanni')
         c.execute(
