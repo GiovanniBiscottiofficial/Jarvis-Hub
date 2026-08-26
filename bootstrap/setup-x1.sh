@@ -136,6 +136,9 @@ fi
 echo "==> Starting Home Assistant..."
 sudo docker compose up -d
 
+# Install the bounded self-healing supervisor after the core services exist.
+bash bootstrap/setup-supervisor.sh
+
 IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo "=========================================================="

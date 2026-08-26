@@ -94,6 +94,7 @@ async function api(path, method = "GET", body, retried = false) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    cache: method === "GET" ? "no-store" : "default",
   });
   if (res.status === 401 && !retried && await authenticateBrowser()) {
     return api(path, method, body, true);
@@ -404,6 +405,9 @@ $("briefing-btn").onclick = async () => {
     const b = await withTimeout(api("/api/briefing"), 12000, "Briefing request timed out");
     const speech = String(b.speech || "");
     $("briefing").textContent = speech || "No briefing text was returned.";
+    if (b.briefing_period) {
+      $("briefing-status").textContent = `${String(b.briefing_period).toUpperCase()} briefing ready · current LifeOS context.`;
+    }
     if (!speech) {
       $("briefing-status").textContent = "Briefing is empty. Try again after LifeOS finishes syncing.";
       return;
@@ -1618,6 +1622,47 @@ function renderVoiceTelemetry(voice = {}) {
   commandText("voice-mute", muted ? "MICROPHONE MUTED" : ready ? "MICROPHONE OPEN" : "MIC STATE UNKNOWN");
 }
 
+function renderSupervisor(supervisor = {}) {
+  const components = Array.isArray(supervisor.components) ? supervisor.components : [];
+  const attention = Number(supervisor.attention_count || 0);
+  const active = supervisor.state === "online";
+  const stale = supervisor.state === "stale" || supervisor.state === "degraded";
+  const paused = supervisor.repairs_enabled === false;
+  const state = $("supervisor-state");
+  state.className = !active ? (stale ? "voice-state-muted" : "voice-state-awaiting") : paused || attention ? "voice-state-muted" : "voice-state-ready";
+  state.textContent = stale ? "SUPERVISOR STALE" : !active ? "AWAITING HEARTBEAT" : paused ? "MAINTENANCE PAUSED" : attention ? `${attention} NEED ATTENTION` : "WATCH ACTIVE";
+  commandText("supervisor-healthy", String(supervisor.healthy_count ?? "—"));
+  commandText("supervisor-attention", String(supervisor.attention_count ?? "—"));
+  commandText("supervisor-policy", supervisor.policy || "Allow-listed reversible service restarts only.");
+  const list = $("supervisor-components");
+  list.replaceChildren();
+  if (!components.length) {
+    const empty = document.createElement("span");
+    empty.className = "muted";
+    empty.textContent = "Supervisor telemetry pending.";
+    list.appendChild(empty);
+  } else {
+    components.forEach((component) => {
+      const row = document.createElement("div");
+      row.className = `supervisor-row supervisor-${String(component.state || "unknown").toLowerCase()}`;
+      const name = document.createElement("strong");
+      name.textContent = component.label || friendlyEntity(component.id);
+      const detail = document.createElement("span");
+      detail.textContent = `${String(component.state || "unknown").toUpperCase()} · ${String(component.decision || "observing").replaceAll("_", " ").toUpperCase()}`;
+      row.title = component.detail || "No diagnostic detail";
+      row.append(name, detail);
+      list.appendChild(row);
+    });
+  }
+  const boundaries = $("supervisor-boundaries");
+  boundaries.replaceChildren();
+  (Array.isArray(supervisor.protected_boundaries) ? supervisor.protected_boundaries : []).forEach((boundary) => {
+    const item = document.createElement("span");
+    item.textContent = `NO AUTO ${String(boundary).replaceAll("_", " ").toUpperCase()}`;
+    boundaries.appendChild(item);
+  });
+}
+
 function formatPerceptionTime(value) {
   if (!value) return "NO OBSERVATION";
   const normalized = typeof value === "string" ? value.replace(" ", "T") : value;
@@ -1864,6 +1909,7 @@ async function loadCommandCenter() {
     renderLifeOSPulse(lifeos);
     renderHardwareTelemetry(hardware);
     renderVoiceTelemetry(context.voice || {});
+    renderSupervisor(context.supervisor || {});
     renderPerception(perception);
     renderCapabilities(capabilities);
     renderCommandEvents(context.recent_events || []);

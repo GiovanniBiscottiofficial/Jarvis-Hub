@@ -464,6 +464,41 @@ speakers, Bluetooth, touchscreen, battery, AC state, and thermal telemetry:
 bash bootstrap/setup-satellite.sh
 ```
 
+## Self-healing supervisor
+
+`bootstrap/setup-x1.sh` installs a conservative host supervisor. Existing X1s can
+install or refresh it directly:
+
+```bash
+bash bootstrap/setup-supervisor.sh
+```
+
+Every 30 seconds it checks Home Assistant, LifeOS, wake-word, STT, TTS, the X1
+voice satellite, hardware telemetry, camera stream, gesture worker, kiosk process,
+network route, and disk pressure. A transient failure is observed for three checks
+before action. Only named service/container restarts are automatic, with a five-minute
+cooldown and a three-repairs-per-hour quarantine. Network configuration, the protected
+internet-power switch, locks, alarms, configuration files, and user data are never
+automatically changed or deleted.
+
+```bash
+# Observe all decisions without changing or persisting anything
+sudo /opt/jarvis/jarvis-supervisor.py --dry-run --json
+
+# Prevent repairs during intentional maintenance; checks continue
+sudo /opt/jarvis/jarvis-supervisor.py --pause
+sudo /opt/jarvis/jarvis-supervisor.py --resume
+
+# Inspect the timer, recent decisions, and persisted bounded state
+systemctl status jarvis-supervisor.timer
+journalctl -u jarvis-supervisor.service -n 50
+sudo cat /var/lib/jarvis-supervisor/state.json
+```
+
+Every state transition, repair, recovery, quarantine, and heartbeat is sent to
+LifeOS. If LifeOS itself is unavailable, events queue locally and flush after it
+returns. The Command Center shows health, repair decisions, and protected boundaries.
+
 - **Mic → "hey Jarvis" satellite**: after the script, add the **Wyoming** integration
   once more (host `localhost`, port **10700**), assign your Jarvis pipeline to the new
   satellite, and the laptop listens for "hey Jarvis" room-wide — answers come out its

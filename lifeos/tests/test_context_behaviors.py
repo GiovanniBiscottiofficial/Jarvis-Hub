@@ -211,6 +211,33 @@ def test_verified_host_satellite_is_ready_before_ha_entity_sync(fresh_db):
     assert voice["ready"] is True
 
 
+def test_supervisor_decisions_are_projected_into_context(fresh_db):
+    ingest_event(
+        {
+            "source": "x1_supervisor",
+            "event_type": "supervisor.decision",
+            "entity_id": "binary_sensor.jarvis_lifeos",
+            "state": "repairing",
+            "previous_state": "failed",
+            "attributes": {
+                "component": "lifeos",
+                "label": "LifeOS intelligence",
+                "decision": "repair_started",
+                "detail": "HTTP timeout",
+                "failure_count": 3,
+                "automatic_repair": True,
+            },
+        },
+        evaluate=False,
+    )
+    snapshot = current_context()["supervisor"]
+    lifeos = next(item for item in snapshot["components"] if item["id"] == "lifeos")
+    assert lifeos["state"] == "repairing"
+    assert lifeos["decision"] == "repair_started"
+    assert lifeos["automatic_repair"] is True
+    assert "internet_power" in snapshot["protected_boundaries"]
+
+
 def test_every_action_has_complete_explainable_policy(fresh_db):
     required = {
         "name",

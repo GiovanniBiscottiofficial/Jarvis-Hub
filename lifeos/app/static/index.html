@@ -112,6 +112,21 @@
             <span id="voice-mute">MIC STATE UNKNOWN</span>
           </div>
         </section>
+        <section class="supervisor-console" aria-labelledby="supervisor-heading">
+          <div class="voice-io-head">
+            <div><span>AUTONOMOUS RECOVERY</span><h3 id="supervisor-heading">Self-healing supervisor</h3></div>
+            <strong id="supervisor-state" class="voice-state-awaiting" aria-live="polite">AWAITING HEARTBEAT</strong>
+          </div>
+          <div class="supervisor-summary">
+            <strong id="supervisor-healthy">—</strong><span>COMPONENTS HEALTHY</span>
+            <strong id="supervisor-attention">—</strong><span>REQUIRE ATTENTION</span>
+          </div>
+          <div id="supervisor-components" class="supervisor-components" aria-live="polite">
+            <span class="muted">Supervisor telemetry pending.</span>
+          </div>
+          <p id="supervisor-policy" class="voice-reason">Allow-listed reversible service restarts only.</p>
+          <div id="supervisor-boundaries" class="voice-privacy" aria-label="Protected recovery boundaries"></div>
+        </section>
       </article>
 
       <article id="command-perception" class="tactical-panel command-perception perception-awaiting" aria-labelledby="perception-heading">
@@ -178,7 +193,7 @@
     <div class="section-intro"><div><span class="section-index">DAILY / 01</span><h2>Today’s operating picture</h2><p>Body, priorities, and financial runway in one view.</p></div><span class="section-date" id="today-date">NOW</span></div>
     <div class="lifeos-page-grid today-grid">
     <div class="card briefing-card">
-      <h2>Morning briefing</h2>
+      <h2>Jarvis briefing</h2>
       <div id="briefing" class="muted">–</div>
       <div class="briefing-controls">
         <button id="briefing-btn" class="pill">Brief me</button>

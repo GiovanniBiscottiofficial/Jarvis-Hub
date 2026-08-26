@@ -552,6 +552,59 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
             "privacy", {"raw_audio_stored": False, "probe_retained": False}
         ),
     }
+    supervisor_facts = {
+        key.removeprefix("supervisor.component."): fact
+        for key, fact in all_facts.items()
+        if key.startswith("supervisor.component.")
+    }
+    supervisor_components = []
+    for component, fact in sorted(supervisor_facts.items()):
+        value = fact.get("value", {})
+        if not isinstance(value, dict):
+            value = {}
+        supervisor_components.append(
+            {
+                "id": component,
+                "label": value.get("label", component.replace("_", " ").title()),
+                "state": value.get("state", "unknown"),
+                "decision": value.get("decision", "unknown"),
+                "detail": value.get("detail"),
+                "automatic_repair": bool(value.get("automatic_repair")),
+                "failure_count": int(value.get("failure_count") or 0),
+                "updated_at": fact.get("updated_at"),
+            }
+        )
+    supervisor_heartbeat = all_facts.get("supervisor.heartbeat", {})
+    supervisor_heartbeat_value = supervisor_heartbeat.get("value", {})
+    if not isinstance(supervisor_heartbeat_value, dict):
+        supervisor_heartbeat_value = {}
+    supervisor_heartbeat_at = supervisor_heartbeat.get("updated_at")
+    supervisor_link = "awaiting"
+    if supervisor_heartbeat_at:
+        try:
+            heartbeat_age = datetime.now() - datetime.strptime(
+                supervisor_heartbeat_at, "%Y-%m-%d %H:%M:%S"
+            )
+            supervisor_link = "online" if heartbeat_age <= timedelta(minutes=12) else "stale"
+        except ValueError:
+            supervisor_link = "degraded"
+    supervisor = {
+        "state": supervisor_link,
+        "last_heartbeat_at": supervisor_heartbeat_at,
+        "repairs_enabled": supervisor_heartbeat_value.get("automatic_repairs_enabled"),
+        "healthy_count": sum(item["state"] == "healthy" for item in supervisor_components),
+        "attention_count": sum(item["state"] in {"failed", "quarantined"} for item in supervisor_components),
+        "components": supervisor_components,
+        "protected_boundaries": [
+            "network",
+            "internet_power",
+            "locks",
+            "alarms",
+            "configuration",
+            "user_data",
+        ],
+        "policy": "Allow-listed reversible service restarts only",
+    }
     visual_presence = devices.get("binary_sensor.x1_visual_presence", "unknown")
     visual_fact = all_facts.get("device.binary_sensor.x1_visual_presence", {})
     observation = all_facts.get("perception.last_observation", {}).get("value", {})
@@ -646,6 +699,7 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "devices": devices,
         "hardware": hardware,
         "voice": voice,
+        "supervisor": supervisor,
         "perception": perception,
         "telemetry": {
             "last_event_at": latest_event,
@@ -921,6 +975,16 @@ def ingest_event(event: dict[str, Any], evaluate: bool = True) -> dict[str, Any]
             set_fact("hardware.microphone_details", attributes, source)
         if source == "x1_hardware" and str(entity_id) == "binary_sensor.x1_speakers":
             set_fact("hardware.speaker_details", attributes, source)
+        if source == "x1_supervisor" and str(entity_id).startswith("binary_sensor.jarvis_"):
+            component = str(entity_id).removeprefix("binary_sensor.jarvis_")
+            if component == "supervisor":
+                set_fact("supervisor.heartbeat", attributes, source)
+            else:
+                set_fact(
+                    f"supervisor.component.{component}",
+                    {"state": str(state), **attributes},
+                    source,
+                )
         if str(entity_id).startswith("light."):
             set_fact(
                 f"sanctuary.room_entity.{entity_id}",
