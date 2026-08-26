@@ -919,7 +919,7 @@ async function loadBudgetData() {
     <div class="line"><span>OnePay in</span><span>$${o.paycheck_in.onepay.toFixed(2)}</span></div>
     <div class="line"><span>Truliant savings split</span><span>$${o.paycheck_in.truliant.toFixed(2)}</span></div>
     <div class="line"><span>Bills allocated</span><span>−$${o.allocated.toFixed(2)}</span></div>
-    <div class="line"><span>Bucket contributions</span><span>−$${o.bucket_contribution.toFixed(2)}</span></div>`;
+    <div class="line"><span>Relay bucket transfers</span><span>MANUAL · NOT DEDUCTED</span></div>`;
   const auditCls =
     ["balanced", "scheduled"].includes(o.audit) ? "good" : o.audit === "buffered" ? "" : "warn";
   let auditHtml =
@@ -995,7 +995,7 @@ async function loadBudgetData() {
     div.innerHTML = `<span>${g.name}</span>
       <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
       <span>$${g.saved.toFixed(0)}${g.target ? " / $" + g.target.toFixed(0) : ""}
-        <span class="muted">+$${g.monthly.toFixed(0)}/mo</span></span>`;
+        <span class="muted">$${g.monthly.toFixed(0)}/mo target · manual</span></span>`;
     if (g.monthly > 0) {
       const add = document.createElement("button");
       add.className = "secondary";

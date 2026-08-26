@@ -74,13 +74,6 @@ def _period_bills(c, period: dict) -> list[dict]:
     return bills
 
 
-def _fund_monthly_total(c) -> float:
-    row = c.execute(
-        "SELECT COALESCE(SUM(monthly),0) s FROM savings_goals"
-    ).fetchone()
-    return row["s"]
-
-
 def _adjust_balance(c, role: str, delta: float) -> None:
     """Ledger sync: move real cash on the matching account (by role)."""
     row = c.execute(
@@ -116,16 +109,11 @@ def _adjust_account_balance(c, account_id: int, delta: float) -> None:
 _SLIDEABLE = ("paydown", "queued", "catchup", "past due")
 
 
-def _auto_shift(unpaid: list[dict], fund_half: float, deficit: float) -> dict:
+def _auto_shift(unpaid: list[dict], deficit: float) -> dict:
     """Suggest non-urgent items that can slide to the next check without
-    penalties: bucket contributions first, then catchup/paydown
-    arrangements (never rent, car note, insurance, or utilities)."""
+    penalties: catchup/paydown arrangements only (never rent, car note,
+    insurance, utilities, or discretionary bucket contributions)."""
     suggestions = []
-    if fund_half > 0:
-        suggestions.append(
-            {"kind": "buckets", "name": "Sinking bucket contributions",
-             "amount": round(fund_half, 2)}
-        )
     for b in sorted(unpaid, key=lambda b: b["amount"]):
         text = f"{b['name']} {b['note']}".lower()
         if any(k in text for k in _SLIDEABLE):
@@ -190,8 +178,9 @@ def _overview(c) -> dict:
     truliant_in = min(309.00, net_pay)
     onepay_in = round(net_pay - truliant_in, 2)
     allocated = sum(b["amount"] for b in bills)
-    fund_half = _fund_monthly_total(c) / 2  # buckets funded across both checks
-    safe_to_spend = round(onepay_in - allocated - fund_half, 2)
+    # Relay contributions are manual and count only after Giovanni records an
+    # actual transfer. Targets never reduce paycheck availability or forecasts.
+    safe_to_spend = round(onepay_in - allocated, 2)
     unpaid = [b for b in bills if not b["paid"]]
 
     # Audit: real bank cash vs what the budget says is still committed.
@@ -229,7 +218,7 @@ def _overview(c) -> dict:
             f"OnePay is ${-onepay_gap:.2f} short of the ${unpaid_total:.2f}"
             " still committed this paycheck."
         )
-        auto_shift = _auto_shift(unpaid, fund_half, -onepay_gap)
+        auto_shift = _auto_shift(unpaid, -onepay_gap)
     elif abs(relay_gap) > 1:
         audit = "buffered"
         audit_note = (
@@ -253,7 +242,8 @@ def _overview(c) -> dict:
         },
         "bills": bills,
         "allocated": round(allocated, 2),
-        "bucket_contribution": round(fund_half, 2),
+        "bucket_contribution": 0.0,
+        "bucket_contribution_policy": "manual_only",
         "safe_to_spend": safe_to_spend,
         "unpaid_total": round(unpaid_total, 2),
         "accounts": accounts,
@@ -283,14 +273,12 @@ def overview():
 
 @router.get("/forecast")
 def forecast(periods: int = 6):
-    """Project the next N paychecks: income minus that check's allocations
-    and bucket contributions = expected surplus (or squeeze)."""
+    """Project paychecks after bills; Relay transfers are counted only when logged."""
     periods = max(1, min(periods, 12))
     with conn() as c:
         net_pay = _cfg("net_per_paycheck", NET_PAY)
         truliant_in = min(309.00, net_pay)
         onepay_in = round(net_pay - truliant_in, 2)
-        fund_half = _fund_monthly_total(c) / 2
         running = 0.0
         out = []
         for payday in payday_schedule(count=periods):
@@ -302,7 +290,7 @@ def forecast(periods: int = 6):
                 (n, payday["period"], payday["period"]),
             ).fetchone()
             bills = row["s"]
-            surplus = round(onepay_in - bills - fund_half, 2)
+            surplus = round(onepay_in - bills, 2)
             running = round(running + surplus + truliant_in, 2)
             out.append(
                 {
@@ -525,7 +513,7 @@ def budget_speech(c) -> dict:
     sts = o["safe_to_spend"]
     budget = (
         f"Paycheck {p['paycheck']} plan: ${o['allocated']:.0f} allocated to"
-        f" bills, ${o['bucket_contribution']:.0f} to buckets, leaving"
+        f" bills. Relay bucket transfers are manual and not deducted, leaving"
         f" ${sts:.0f} safe to spend. Audit says {o['audit']}:"
         f" {o['audit_note']}"
     )

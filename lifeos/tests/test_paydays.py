@@ -132,6 +132,21 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert len(overview["paydays"]) == 4
     assert {item["paycheck"] for item in overview["paydays"][:2]} == {1, 2}
     assert overview["protected_cash"] == 0
+    assert overview["bucket_contribution"] == 0
+    assert overview["bucket_contribution_policy"] == "manual_only"
+    assert overview["safe_to_spend"] == round(
+        overview["paycheck_in"]["onepay"] - overview["allocated"], 2
+    )
+
+
+def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):
+    from app.routers import budget
+
+    overview = budget.overview()
+    first = budget.forecast(1)["forecast"][0]
+    assert first["surplus"] == round(
+        overview["paycheck_in"]["onepay"] - first["bills"], 2
+    )
 
 
 def test_new_budget_cycle_is_scheduled_not_overdue(fresh_db):
