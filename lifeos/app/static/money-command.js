@@ -337,15 +337,53 @@
     const total = data.debts.reduce((sum, debt) => sum + Number(debt.remaining), 0);
     card.appendChild(node("p", "money-debt-total", `${currency(total)} total remaining`));
     const strategies = node("div", "money-strategies");
-    const snowball = [...data.debts].sort((a, b) => a.remaining - b.remaining);
-    const avalanche = [...data.debts].sort((a, b) => Number(b.apr || 0) - Number(a.apr || 0) || a.remaining - b.remaining);
-    [["Snowball", snowball, "Smallest balance first"], ["Avalanche", avalanche, "Highest known APR first"]].forEach(([name, rows, note]) => {
+    const payoff = data.payoff_strategies;
+    const addStrategy = (name, rows, note, recommended = false) => {
       const strategy = node("div", "money-strategy");
-      append(strategy, node("span", "money-label", name), node("strong", "", rows[0].name), node("small", "", `${note} · ${currency(rows[0].remaining)} remaining${Number(rows[0].apr) ? ` · ${rows[0].apr}% APR` : " · APR awaiting data"}`));
+      append(strategy, node("span", "money-label", `${name}${recommended ? " · RECOMMENDED" : ""}`), node("small", "", note));
+      const order = node("ol", "money-strategy-order");
+      rows.forEach((debt) => {
+        const item = node("li", "");
+        append(item, node("strong", "", debt.name), node("span", "", `${currency(debt.remaining)}${Number(debt.apr) ? ` · ${Number(debt.apr).toFixed(2)}% APR` : ""}`));
+        if (name === "Priority") item.appendChild(node("small", "", debt.priority_reason || "Priority classification needed"));
+        order.appendChild(item);
+      });
+      if (!rows.length) order.appendChild(node("li", "money-warn", `Unavailable until APR is entered for: ${payoff.missing_apr.join(", ")}.`));
+      strategy.appendChild(order);
       strategies.appendChild(strategy);
-    });
+    };
+    addStrategy("Priority", payoff.priority, "Essential services and income continuity first.", true);
+    addStrategy("Snowball", payoff.snowball, "Smallest remaining balance first.");
+    addStrategy("Avalanche", payoff.avalanche, payoff.avalanche_ready ? "Highest APR first." : "Real APR data required; no fallback to Snowball.");
     card.appendChild(strategies);
-    card.appendChild(node("p", "money-policy-note", "Debt payments remain in the existing confirmed Debt Paydown controls below. This comparison never initiates a payment."));
+
+    const editor = node("details", "money-debt-editor");
+    editor.appendChild(node("summary", "", "Update APR and priority data"));
+    data.debts.forEach((debt) => {
+      const row = node("div", "money-debt-edit-row");
+      const name = node("strong", "", debt.name);
+      const apr = node("input");
+      apr.type = "number"; apr.min = "0"; apr.max = "100"; apr.step = "0.01"; apr.value = Number(debt.apr || 0); apr.setAttribute("aria-label", `${debt.name} APR percent`);
+      const priority = node("input");
+      priority.type = "number"; priority.min = "1"; priority.max = "999"; priority.step = "1"; priority.value = Number(debt.priority || 50); priority.setAttribute("aria-label", `${debt.name} priority`);
+      const save = node("button", "", "Save strategy data");
+      const status = node("span", "money-row-status", "Lower priority number means more important.");
+      save.addEventListener("click", async () => {
+        save.disabled = true;
+        try {
+          await api(`/api/budget/debts/${debt.id}/strategy`, "POST", { apr: Number(apr.value), priority: Number(priority.value) });
+          status.textContent = `${debt.name} strategy data saved.`;
+          await load(true);
+        } catch (error) {
+          save.disabled = false;
+          status.textContent = error.message;
+        }
+      });
+      append(row, name, apr, priority, save, status);
+      editor.appendChild(row);
+    });
+    card.appendChild(editor);
+    card.appendChild(node("p", "money-policy-note", "Priority is the operating order used by Jarvis and windfall debt routing. Snowball and Avalanche remain comparisons only and never initiate a payment."));
     return card;
   }
 
@@ -401,7 +439,7 @@
     if (!grid || byId("money-command-center")) return;
     const style = document.createElement("link");
     style.rel = "stylesheet";
-    style.href = "money-command.css?v=2";
+    style.href = "money-command.css?v=3";
     document.head.appendChild(style);
     const root = node("div", "money-command-center");
     root.id = "money-command-center";

@@ -1010,14 +1010,19 @@ async function loadBudgetData() {
   });
 
   const dl = $("budget-debts");
-  dl.innerHTML = o.debts.length ? "" : '<div class="muted">Debt free 🎉</div>';
+  dl.replaceChildren();
+  if (!o.debts.length) dl.appendChild(el("div", "muted", "Debt free 🎉"));
   o.debts.forEach((d) => {
     const pct = d.total ? Math.min(100, ((d.total - d.remaining) / d.total) * 100) : 0;
     const div = document.createElement("div");
     div.className = "bar-row";
-    div.innerHTML = `<span>${d.name}</span>
-      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-      <span>$${d.remaining.toFixed(0)} left</span>`;
+    const identity = el("span", "", `#${Number(d.priority || 50)} · ${d.name}`);
+    identity.appendChild(el("small", "muted", d.priority_reason || "Priority classification needed"));
+    const bar = el("div", "bar");
+    const fill = el("div", "fill");
+    fill.style.width = `${pct}%`;
+    bar.appendChild(fill);
+    div.append(identity, bar, el("span", "", `$${d.remaining.toFixed(0)} left`));
     const pay = document.createElement("button");
     pay.className = "secondary";
     pay.textContent = `Pay $${d.installment.toFixed(0)}`;
@@ -1029,8 +1034,9 @@ async function loadBudgetData() {
     dl.appendChild(div);
   });
   if (o.debts.length) {
-    dl.innerHTML += `<div class="line"><strong>Total remaining</strong>
-      <strong>$${o.total_debt.toFixed(2)}</strong></div>`;
+    const total = el("div", "line");
+    total.append(el("strong", "", "Total remaining"), el("strong", "", `$${o.total_debt.toFixed(2)}`));
+    dl.appendChild(total);
   }
 
   $("budget-networth").innerHTML =

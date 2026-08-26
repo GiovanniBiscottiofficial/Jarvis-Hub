@@ -20,6 +20,7 @@ from app.routers.money import (
     review_transaction,
     simulate_cashflow,
 )
+from app.routers.budget import DebtStrategyIn, update_debt_strategy
 
 
 def first_account():
@@ -43,6 +44,43 @@ def test_phone_reconnection_appears_once_on_third_upcoming_pay(fresh_db):
     assert phone_by_mission[1] == []
     assert phone_by_mission[2] == ["Phone Reconnection"]
     assert all("Phone Balance Arrangement" not in names for names in phone_by_mission)
+
+
+def test_payoff_strategies_are_distinct_and_avalanche_requires_real_apr(fresh_db):
+    strategies = command_center()["payoff_strategies"]
+    priority_names = [debt["name"] for debt in strategies["priority"]]
+    snowball_names = [debt["name"] for debt in strategies["snowball"]]
+    assert strategies["recommended"] == "priority"
+    assert priority_names != snowball_names
+    assert priority_names[0] == "Phone Balance"
+    assert snowball_names[0] == "Old Spectrum"
+    assert strategies["avalanche_ready"] is False
+    assert strategies["avalanche"] == []
+    assert set(strategies["missing_apr"]) == set(priority_names)
+
+
+def test_avalanche_uses_highest_apr_after_strategy_data_is_entered(fresh_db):
+    debts = command_center()["debts"]
+    with conn() as c:
+        balances_before = [row["balance"] for row in c.execute("SELECT balance FROM accounts ORDER BY id")]
+    highest = debts[-1]
+    for index, debt in enumerate(debts, 1):
+        update_debt_strategy(
+            debt["id"],
+            DebtStrategyIn(apr=29.99 if debt["id"] == highest["id"] else index, priority=debt["priority"]),
+        )
+    strategies = command_center()["payoff_strategies"]
+    assert strategies["avalanche_ready"] is True
+    assert strategies["missing_apr"] == []
+    assert strategies["avalanche"][0]["id"] == highest["id"]
+    with conn() as c:
+        balances_after = [row["balance"] for row in c.execute("SELECT balance FROM accounts ORDER BY id")]
+        audit_count = c.execute(
+            "SELECT COUNT(*) AS n FROM financial_action_audit"
+            " WHERE action='finance.update_debt_strategy'"
+        ).fetchone()["n"]
+    assert balances_after == balances_before
+    assert audit_count == len(debts)
 
 
 def test_csv_import_is_pending_and_deduplicated(fresh_db):

@@ -156,6 +156,24 @@ def _average_daily_spending(c, days: int = 30) -> float:
     return round(float(row["total"]) / days, 2)
 
 
+def _payoff_strategies(debts: list[dict]) -> dict:
+    priority = sorted(debts, key=lambda debt: (int(debt.get("priority") or 999), -float(debt["remaining"]), debt["name"]))
+    snowball = sorted(debts, key=lambda debt: (float(debt["remaining"]), debt["name"]))
+    missing_apr = [debt["name"] for debt in debts if float(debt.get("apr") or 0) <= 0]
+    avalanche = [] if missing_apr else sorted(
+        debts,
+        key=lambda debt: (-float(debt["apr"]), float(debt["remaining"]), debt["name"]),
+    )
+    return {
+        "recommended": "priority",
+        "priority": priority,
+        "snowball": snowball,
+        "avalanche": avalanche,
+        "avalanche_ready": not missing_apr,
+        "missing_apr": missing_apr,
+    }
+
+
 def _mission_rows(c, count: int = 6) -> list[dict]:
     missions = []
     for payday in payday_schedule(count=count):
@@ -230,7 +248,7 @@ def command_center():
         audits = [dict(row) for row in c.execute("SELECT * FROM financial_action_audit ORDER BY id DESC LIMIT 20").fetchall()]
         missions = _mission_rows(c)
         forecast = _cashflow(c, SimulationIn())
-        debts = [dict(row) for row in c.execute("SELECT * FROM debts WHERE remaining>0 ORDER BY remaining DESC").fetchall()]
+        debts = [dict(row) for row in c.execute("SELECT * FROM debts WHERE remaining>0 ORDER BY priority,remaining DESC").fetchall()]
         recent_spending = [dict(row) for row in c.execute(
             "SELECT id,ts,amount,merchant FROM spending WHERE date(ts)>=date('now','-45 days') ORDER BY ts DESC,id DESC LIMIT 60"
         ).fetchall()]
@@ -243,6 +261,7 @@ def command_center():
             "paycheck_missions": missions,
             "forecast": forecast,
             "debts": debts,
+            "payoff_strategies": _payoff_strategies(debts),
             "recent_spending": recent_spending,
             "audit": audits,
             "readiness": {

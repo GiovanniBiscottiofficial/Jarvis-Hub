@@ -201,7 +201,10 @@ CREATE TABLE IF NOT EXISTS financial_transactions (
         CHECK (status IN ('pending','verified','matched','excluded')),
     matched_spending_id INTEGER REFERENCES spending(id),
     reviewed_at TEXT,
-    note TEXT NOT NULL DEFAULT ''
+    note TEXT NOT NULL DEFAULT '',
+    apr REAL NOT NULL DEFAULT 0,
+    priority INTEGER NOT NULL DEFAULT 50,
+    priority_reason TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_financial_transactions_status_date
@@ -489,7 +492,11 @@ def _migrate(c: sqlite3.Connection) -> None:
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
         "weighins": [("source", "TEXT NOT NULL DEFAULT 'manual'")],
-        "debts": [("apr", "REAL NOT NULL DEFAULT 0")],
+        "debts": [
+            ("apr", "REAL NOT NULL DEFAULT 0"),
+            ("priority", "INTEGER NOT NULL DEFAULT 50"),
+            ("priority_reason", "TEXT NOT NULL DEFAULT ''"),
+        ],
         "pantry": [
             ("category", "TEXT NOT NULL DEFAULT 'other'"),
             ("low_stock_threshold", "REAL NOT NULL DEFAULT 1"),
@@ -740,6 +747,25 @@ def init_db() -> None:
                     "cadence,note) VALUES(?,?,?,?,?,?)",
                     d,
                 )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='debt_priority_v1'"
+        ).fetchone() is None:
+            priorities = (
+                (10, "Essential electric service continuity", "Duke Energy Past Due"),
+                (20, "Transportation and income continuity", "Car Note Temp Fee"),
+                (30, "Communications account arrangement", "Phone Balance"),
+                (40, "Legacy utility balance and collections risk", "Old Spectrum"),
+                (50, "Consumer installment debt", "Klarna"),
+            )
+            for priority, reason, name in priorities:
+                c.execute(
+                    "UPDATE debts SET priority=?,priority_reason=? WHERE name=?",
+                    (priority, reason, name),
+                )
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('debt_priority_v1',?)",
+                (date.today().isoformat(),),
+            )
         for name, target, saved, monthly in SEED_GOALS:
             c.execute(
                 "INSERT OR IGNORE INTO savings_goals(name,target,saved,monthly)"

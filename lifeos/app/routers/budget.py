@@ -6,6 +6,7 @@ split), Relay (earmarked sinking buckets). Paycheck #1 covers days 1–14,
 Paycheck #2 covers the 15th onward.
 """
 from datetime import date
+import json
 import re
 
 from fastapi import APIRouter, HTTPException
@@ -29,6 +30,13 @@ class DebtIn(BaseModel):
     cadence: str = "per paycheck"
     note: str = ""
     apr: float = 0
+    priority: int = 50
+    priority_reason: str = ""
+
+
+class DebtStrategyIn(BaseModel):
+    apr: float
+    priority: int
 
 
 class AssetBalanceIn(BaseModel):
@@ -167,7 +175,7 @@ def _overview(c) -> dict:
     debts = [
         dict(r)
         for r in c.execute(
-            "SELECT * FROM debts WHERE remaining>0 ORDER BY remaining DESC"
+            "SELECT * FROM debts WHERE remaining>0 ORDER BY priority,remaining DESC"
         ).fetchall()
     ]
     assets = [
@@ -369,7 +377,7 @@ def list_debts():
     with conn() as c:
         return [
             dict(r)
-            for r in c.execute("SELECT * FROM debts ORDER BY remaining DESC").fetchall()
+            for r in c.execute("SELECT * FROM debts ORDER BY priority,remaining DESC").fetchall()
         ]
 
 
@@ -380,17 +388,48 @@ def add_debt(body: DebtIn):
         raise HTTPException(400, "debt name is required")
     if body.total < 0 or body.remaining < 0 or body.installment < 0 or body.apr < 0:
         raise HTTPException(400, "debt amounts cannot be negative")
+    if not 1 <= body.priority <= 999:
+        raise HTTPException(400, "priority must be between 1 and 999")
     if body.remaining > body.total and body.total > 0:
         raise HTTPException(400, "remaining debt cannot exceed total debt")
     with conn() as c:
         c.execute(
-            "INSERT INTO debts(name,total,remaining,installment,cadence,note,apr)"
-            " VALUES(?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
+            "INSERT INTO debts(name,total,remaining,installment,cadence,note,apr,priority,priority_reason)"
+            " VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
             " total=excluded.total, remaining=excluded.remaining,"
             " installment=excluded.installment, cadence=excluded.cadence,"
-            " note=excluded.note, apr=excluded.apr",
+            " note=excluded.note, apr=excluded.apr, priority=excluded.priority,"
+            " priority_reason=excluded.priority_reason",
             (name, body.total, body.remaining or body.total,
-             body.installment, body.cadence.strip(), body.note.strip(), body.apr),
+             body.installment, body.cadence.strip(), body.note.strip(), body.apr,
+             body.priority, body.priority_reason.strip()),
+        )
+        return {"ok": True}
+
+
+@router.post("/debts/{debt_id}/strategy")
+def update_debt_strategy(debt_id: int, body: DebtStrategyIn):
+    if body.apr < 0 or body.apr > 100:
+        raise HTTPException(400, "APR must be between 0 and 100")
+    if not 1 <= body.priority <= 999:
+        raise HTTPException(400, "priority must be between 1 and 999")
+    with conn() as c:
+        debt = c.execute("SELECT * FROM debts WHERE id=?", (debt_id,)).fetchone()
+        if debt is None:
+            raise HTTPException(404, "debt not found")
+        c.execute(
+            "UPDATE debts SET apr=?,priority=? WHERE id=?",
+            (body.apr, body.priority, debt_id),
+        )
+        c.execute(
+            "INSERT INTO financial_action_audit(action,risk,confirmed,subject,"
+            "before_json,after_json,reason) VALUES(?,?,?,?,?,?,?)",
+            (
+                "finance.update_debt_strategy", "low", 0, debt["name"],
+                json.dumps({"apr": debt["apr"], "priority": debt["priority"]}),
+                json.dumps({"apr": body.apr, "priority": body.priority}),
+                "Strategy metadata only; no payment or balance changed",
+            ),
         )
         return {"ok": True}
 
@@ -434,7 +473,7 @@ def contribute_fund(goal_id: int, body: FundContributionIn):
 
 @router.post("/windfall")
 def windfall(body: WindfallIn):
-    """Route side income / windfalls: 100% to highest debt, 50/50 debt +
+    """Route side income / windfalls: 100% to highest-priority debt, 50/50 debt +
     buckets, or straight into the safe-to-spend buffer."""
     if body.amount <= 0:
         raise HTTPException(400, "amount must be positive")
@@ -448,7 +487,7 @@ def windfall(body: WindfallIn):
         bucket_share = round(body.amount / 2, 2) if body.route == "split" else 0.0
         pool = debt_share
         for d in c.execute(
-            "SELECT * FROM debts WHERE remaining>0 ORDER BY remaining DESC"
+            "SELECT * FROM debts WHERE remaining>0 ORDER BY priority,remaining DESC"
         ).fetchall():
             if pool <= 0:
                 break

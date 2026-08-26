@@ -55,8 +55,18 @@
 .money-forecast-row small { grid-column: 1 / 2; }
 .money-forecast-row strong { grid-column: 2; grid-row: 1 / 3; align-self: center; color: #76e5ae; }
 .money-good { color: #76e5ae; }.money-warn { color: #ffb86c !important; }
-.money-strategies { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.money-strategies { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
 .money-strategy { display: grid; gap: 5px; padding: 13px; background: rgba(255,255,255,.025); border-top: 1px solid rgba(158,122,63,.3); }
+.money-strategy:first-child { border-color: rgba(118,229,174,.55); background: rgba(118,229,174,.035); }
+.money-strategy-order { display: grid; gap: 8px; margin: 8px 0 0; padding-left: 24px; }
+.money-strategy-order li { padding: 7px 0 7px 3px; border-top: 1px solid rgba(255,255,255,.07); }
+.money-strategy-order li::marker { color: #d9b871; font-weight: 800; }
+.money-strategy-order strong,.money-strategy-order span,.money-strategy-order small { display: block; }
+.money-strategy-order span { color: #d9b871; font-size: .76rem; }
+.money-debt-editor { margin-top: 14px; }
+.money-debt-editor summary { min-height: 46px; display: flex; align-items: center; cursor: pointer; color: #d9b871; }
+.money-debt-edit-row { display: grid; grid-template-columns: minmax(130px,1fr) 110px 110px auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.07); }
+.money-debt-edit-row input,.money-debt-edit-row button { min-height: 46px; }
 .money-debt-total { color: #d9b871; font-size: 1.35rem; }
 .money-policy-note,.money-empty { color: var(--muted,#8f9a9c); line-height: 1.45; }
 .money-audit-row { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.07); text-transform: capitalize; }
@@ -71,6 +81,7 @@
   .money-card { grid-column: 1 / -1; }.money-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .money-transaction { grid-template-columns: minmax(0,1fr) auto; }.money-transaction select,.money-row-actions { grid-column: span 1; }
   .money-mission-list { grid-template-columns: 1fr; }.money-simulation-controls { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .money-strategies { grid-template-columns: 1fr; }
 }
 @media (max-width:680px) {
   .money-summary-grid,.money-strategies,.money-simulation-controls { grid-template-columns: 1fr; }
@@ -80,5 +91,6 @@
   .money-import > *,.money-row-actions,.money-row-actions button,.money-mission-controls > * { width: 100%; }
   .money-transaction select,.money-row-actions { grid-column: auto; }.money-mission-facts { grid-template-columns: 1fr; }
   .money-forecast-row { grid-template-columns: 1fr; }.money-forecast-row small,.money-forecast-row strong { grid-column: 1; grid-row: auto; }
+  .money-debt-edit-row { grid-template-columns: 1fr; }.money-debt-edit-row > * { width: 100%; }
 }
 @media (prefers-reduced-motion:reduce) { .money-command-center * { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }

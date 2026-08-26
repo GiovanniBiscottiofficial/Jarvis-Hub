@@ -48,6 +48,13 @@ ACTION_REGISTRY: dict[str, dict[str, Any]] = {
         "confirmation_policy": "automatic_read_only", "requires_confirmation": False,
         "remote_execution": False, "service": "lifeos.internal", "target": None,
     },
+    "finance.update_debt_strategy": {
+        "name": "Update debt strategy metadata",
+        "description": "Record a debt APR and priority for read-only payoff ordering without initiating a payment.",
+        "risk": "low", "scope": "finance", "reversible": True,
+        "confirmation_policy": "none", "requires_confirmation": False,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
     "scene.arrival": {
         "name": "Prepare the house for arrival",
         "description": "Activate the approved Sanctuary Welcome mode.",
