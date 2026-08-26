@@ -10,9 +10,8 @@ from urllib.parse import urlparse
 
 STATIC_POSE_ACTIONS = {
     "pinch": "play_pause",
-    "thumb_up": "volume_up",
-    "thumb_down": "volume_down",
 }
+RELEASE_POSES = {"unknown", "open", "two_finger", "other", "fist"}
 
 
 def find_frame_by_port(frame_tree: dict, port: int) -> dict | None:
@@ -47,13 +46,13 @@ class PoseLatch:
     ) -> str | None:
         action = STATIC_POSE_ACTIONS.get(pose)
         if not action:
-            self.candidate = None
-            self.armed = True
+            if pose in RELEASE_POSES:
+                self.candidate = None
+                self.armed = True
             return None
         if self.candidate != pose:
             self.candidate = pose
             self.started_at = now
-            self.armed = True
             return None
         if self.armed and can_fire and now - self.started_at >= hold_seconds:
             self.armed = False
@@ -79,6 +78,27 @@ def open_hand(points: Sequence[tuple[float, float]], minimum_fingers: int = 3) -
     if len(points) < 21:
         return False
     return _extended_fingers(points) >= minimum_fingers
+
+
+def hand_in_action_zone(
+    points: Sequence[tuple[float, float]],
+    *,
+    minimum_palm_scale: float,
+    edge_margin: float,
+    top_margin: float,
+) -> bool:
+    """Reject tiny, edge-clipped, and above-head hands before they can act."""
+    if len(points) < 21:
+        return False
+    palm = [points[index] for index in (0, 5, 9, 13, 17)]
+    palm_x = sum(point[0] for point in palm) / len(palm)
+    palm_y = sum(point[1] for point in palm) / len(palm)
+    palm_scale = hypot(points[9][0] - points[0][0], points[9][1] - points[0][1])
+    return (
+        palm_scale >= minimum_palm_scale
+        and edge_margin <= palm_x <= 1.0 - edge_margin
+        and top_margin <= palm_y <= 0.92
+    )
 
 
 def hand_pose(points: Sequence[tuple[float, float]]) -> str:
@@ -124,7 +144,7 @@ def classify_swipe(
         return None
     end_time, end_x, end_y = samples[-1]
     best: tuple[float, str] | None = None
-    for start_time, start_x, start_y in samples[:-3]:
+    for start_index, (start_time, start_x, start_y) in enumerate(samples[:-3]):
         duration = end_time - start_time
         if duration < 0.12 or duration > 0.78:
             continue
@@ -132,6 +152,13 @@ def classify_swipe(
         dy = end_y - start_y
         speed = hypot(dx, dy) / duration
         if speed < minimum_speed:
+            continue
+        segment = samples[start_index:]
+        path_length = sum(
+            hypot(b[1] - a[1], b[2] - a[2]) for a, b in zip(segment, segment[1:])
+        )
+        displacement = hypot(dx, dy)
+        if path_length <= 0 or displacement / path_length < 0.72:
             continue
         gesture = None
         travel = 0.0

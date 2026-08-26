@@ -1,6 +1,14 @@
 from collections import deque
 
-from gesture_logic import PoseLatch, classify_swipe, find_frame_by_port, hand_pose, open_hand
+from gesture_logic import (
+    PoseLatch,
+    STATIC_POSE_ACTIONS,
+    classify_swipe,
+    find_frame_by_port,
+    hand_in_action_zone,
+    hand_pose,
+    open_hand,
+)
 
 
 def trail(dx: float, dy: float, duration: float = 0.5):
@@ -48,6 +56,20 @@ def test_swipe_accepts_the_workers_live_deque_trail():
     ) == "forward"
 
 
+def test_swipe_rejects_a_large_but_meandering_head_scratch_path():
+    samples = [
+        (0.00, 0.40, 0.35),
+        (0.10, 0.55, 0.30),
+        (0.20, 0.43, 0.38),
+        (0.30, 0.61, 0.31),
+        (0.40, 0.47, 0.39),
+        (0.50, 0.68, 0.36),
+    ]
+    assert classify_swipe(
+        samples, x_travel=0.20, y_travel=0.18, minimum_speed=0.18
+    ) is None
+
+
 def test_open_hand_requires_three_extended_fingers():
     points = [(0.5, 0.9)] * 21
     for pip, tip in ((6, 8), (10, 12), (14, 16), (18, 20)):
@@ -80,6 +102,25 @@ def test_static_pose_vocabulary_is_conservative():
     assert hand_pose(pinched) == "pinch"
 
 
+def test_only_pinch_is_a_static_action_so_normal_thumb_motion_cannot_change_audio():
+    assert STATIC_POSE_ACTIONS == {"pinch": "play_pause"}
+
+
+def test_action_zone_rejects_tiny_edge_and_above_head_hands():
+    points = pose_points(extended=(0, 1, 2, 3))
+    assert hand_in_action_zone(
+        points, minimum_palm_scale=0.055, edge_margin=0.08, top_margin=0.22
+    )
+    tiny = [(0.5 + (x - 0.5) * 0.1, 0.5 + (y - 0.5) * 0.1) for x, y in points]
+    assert not hand_in_action_zone(
+        tiny, minimum_palm_scale=0.055, edge_margin=0.08, top_margin=0.22
+    )
+    above_head = [(x, y - 0.65) for x, y in points]
+    assert not hand_in_action_zone(
+        above_head, minimum_palm_scale=0.055, edge_margin=0.08, top_margin=0.22
+    )
+
+
 def test_pose_latch_requires_hold_release_and_rearm():
     latch = PoseLatch()
     assert latch.update("pinch", 1.0, 0.65) is None
@@ -89,6 +130,18 @@ def test_pose_latch_requires_hold_release_and_rearm():
     assert latch.update("open", 2.8, 0.65) is None
     assert latch.update("pinch", 3.0, 0.65) is None
     assert latch.update("pinch", 3.7, 0.65) == "play_pause"
+
+
+def test_pose_latch_does_not_rearm_until_a_real_release():
+    latch = PoseLatch()
+    latch.update("pinch", 1.0, 0.5)
+    assert latch.update("pinch", 1.6, 0.5) == "play_pause"
+    assert latch.update("thumb_up", 2.0, 0.5) is None
+    latch.update("pinch", 2.1, 0.5)
+    assert latch.update("pinch", 2.7, 0.5) is None
+    latch.update("unknown", 2.8, 0.5)
+    latch.update("pinch", 3.0, 0.5)
+    assert latch.update("pinch", 3.6, 0.5) == "play_pause"
 
 
 def test_fist_is_observed_but_never_executes_an_audio_action():

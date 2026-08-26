@@ -33,6 +33,7 @@ from gesture_logic import (
     classify_swipe,
     find_frame_by_port,
     hand_pose,
+    hand_in_action_zone,
 )
 
 SOURCE = os.environ.get("GESTURE_SOURCE", "/dev/video4")
@@ -47,6 +48,10 @@ WINDOW_S = float(os.environ.get("GESTURE_WINDOW_S", "0.9"))
 COOLDOWN_S = float(os.environ.get("GESTURE_COOLDOWN_S", "1.2"))
 MIN_SPEED = float(os.environ.get("GESTURE_MIN_SPEED", "0.18"))
 POSE_HOLD_S = float(os.environ.get("GESTURE_POSE_HOLD_S", "0.65"))
+MIN_PALM_SCALE = float(os.environ.get("GESTURE_MIN_PALM_SCALE", "0.040"))
+EDGE_MARGIN = float(os.environ.get("GESTURE_EDGE_MARGIN", "0.08"))
+TOP_MARGIN = float(os.environ.get("GESTURE_TOP_MARGIN", "0.22"))
+STABLE_HAND_FRAMES = int(os.environ.get("GESTURE_STABLE_HAND_FRAMES", "3"))
 SEEK_SECONDS = int(os.environ.get("GESTURE_SEEK_SECONDS", "10"))
 VOLUME_STEP = float(os.environ.get("GESTURE_VOLUME_STEP", "0.10"))
 STATUS_INTERVAL_S = float(os.environ.get("GESTURE_STATUS_INTERVAL_S", "15"))
@@ -488,6 +493,7 @@ def main() -> None:
     status_presence_source: str | None = None
     status_face_count = 0
     last_status_person_seen = 0.0
+    stable_hand_frames = 0
     write_perception_status(
         camera_available=False,
         hand_present=False,
@@ -667,11 +673,25 @@ def main() -> None:
             last_presence_publish = now
 
         if not hand_visible:
+            stable_hand_frames = 0
+            pose_latch.update("unknown", now, POSE_HOLD_S)
             trail.clear()
+            trail_pose = None
             continue
         hand_frames += 1
         landmarks = result.multi_hand_landmarks[0].landmark
         points = [(point.x, point.y) for point in landmarks]
+        stable_hand_frames += 1
+        if stable_hand_frames < STABLE_HAND_FRAMES or not hand_in_action_zone(
+            points,
+            minimum_palm_scale=MIN_PALM_SCALE,
+            edge_margin=EDGE_MARGIN,
+            top_margin=TOP_MARGIN,
+        ):
+            pose_latch.update("unknown", now, POSE_HOLD_S)
+            trail.clear()
+            trail_pose = None
+            continue
         pose = hand_pose(points)
         latched_action = pose_latch.update(
             pose,

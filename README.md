@@ -515,7 +515,10 @@ bash bootstrap/setup-satellite.sh
   kiosk obeys swipes at the camera — **up** = next Short (screen slides up),
   **down** = previous, **forward** (hand to your right) = skip/next video,
   **back** (hand to your left) = last screen. Needs decent lighting and a
-  deliberate open-hand swipe 2–6 ft from the camera. Tune `GESTURE_X_TRAVEL`,
+  deliberate open-hand swipe 2–6 ft from the camera. Static thumb and fist
+  poses never control audio; volume requires a deliberate two-finger vertical
+  swipe. Hands must remain in the central action zone for three processed
+  frames, and leaving the frame fully rearms the detector. Tune `GESTURE_X_TRAVEL`,
   `GESTURE_Y_TRAVEL`, or `GESTURE_COOLDOWN_S` in `docker-compose.yml` and
   watch detections with `docker logs -f gestures`. The dispatcher recognizes
   YouTube/Shorts, Spotify, Plex, and generic HTML5 players; it uses each app's
@@ -537,6 +540,23 @@ bash bootstrap/setup-satellite.sh
   telemetry. Gesture feedback such as `NEXT · PLEX` appears briefly, then returns to
   the live camera state. The channel contains no images and does not require a LifeOS
   token.
+
+- **Conversation continuity**: Jarvis's Ollama agent uses a 10-turn rolling history
+  and a 3072-token context window on the 8 GB X1. The versioned prompt in
+  `docs/jarvis-conversation-prompt.txt` teaches pronoun resolution, fragmentary
+  follow-ups, concise clarification, correction handling, and spoken-response
+  discipline. Apply it only while Home Assistant is stopped:
+
+  ```bash
+  docker compose stop homeassistant
+  sudo python3 bootstrap/configure_jarvis_conversation.py \
+    --config ha-config/.storage/core.config_entries \
+    --prompt docs/jarvis-conversation-prompt.txt --apply
+  docker compose up -d homeassistant
+  ```
+
+  The configurator creates a timestamped backup and leaves Home Assistant device
+  tools disabled for Ollama; fast local intents retain execution authority.
 
 After pulling this upgrade, rebuild both services so the perception publisher and
 new Command Center are active:
