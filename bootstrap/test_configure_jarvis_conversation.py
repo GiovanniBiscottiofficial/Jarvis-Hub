@@ -42,12 +42,13 @@ def test_updates_only_jarvis_conversation_options_and_preserves_secrets():
     result = MODULE.update_jarvis_subentry(
         payload,
         prompt="new contextual prompt",
-        model="llama3.2:1b",
+        model="qwen2.5:1.5b",
         max_history=10,
         num_ctx=3072,
     )
     data = payload["data"]["entries"][1]["subentries"][0]["data"]
     assert result == "jarvis-subentry"
+    assert data["model"] == "qwen2.5:1.5b"
     assert data["prompt"] == "new contextual prompt"
     assert data["max_history"] == 10.0
     assert data["num_ctx"] == 3072.0
@@ -62,7 +63,7 @@ def test_refuses_ambiguous_ollama_subentries():
     payload["data"]["entries"][1]["subentries"].append(duplicate)
     try:
         MODULE.update_jarvis_subentry(
-            payload, prompt="x", model="llama3.2:1b", max_history=10, num_ctx=3072
+            payload, prompt="x", model="qwen2.5:1.5b", max_history=10, num_ctx=3072
         )
     except RuntimeError as error:
         assert "expected one" in str(error)

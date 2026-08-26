@@ -73,7 +73,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--prompt", type=Path, required=True)
-    parser.add_argument("--model", default="llama3.2:1b")
+    parser.add_argument("--model", default="qwen2.5:1.5b")
     parser.add_argument("--max-history", type=int, default=10)
     parser.add_argument("--num-ctx", type=int, default=3072)
     parser.add_argument("--apply", action="store_true")
