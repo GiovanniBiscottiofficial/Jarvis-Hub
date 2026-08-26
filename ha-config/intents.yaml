@@ -45,6 +45,30 @@ LifeOSDinner:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'dinner') or 'LifeOS is not reachable right now.' }}"
 
+LifeOSBodyReadiness:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'body_readiness') or 'Body Ops is not reachable right now.' }}"
+
+LifeOSBodyMorning:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'body_morning') or 'Body Ops is not reachable right now.' }}"
+
+LifeOSBodyEvening:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_answers
+  speech:
+    text: "{{ state_attr('sensor.lifeos_answers', 'body_evening') or 'Body Ops is not reachable right now.' }}"
+
 JarvisEveningReport:
   speech:
     text: "{{ state_attr('sensor.lifeos_answers', 'evening') or 'LifeOS is not reachable right now.' }}"

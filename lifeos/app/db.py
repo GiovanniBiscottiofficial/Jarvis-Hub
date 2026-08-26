@@ -222,6 +222,23 @@ CREATE TABLE IF NOT EXISTS water (
     PRIMARY KEY (date, profile_id)
 );
 
+CREATE TABLE IF NOT EXISTS body_checkins (
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    sleep_hours REAL,
+    sleep_quality INTEGER,
+    energy INTEGER,
+    mood INTEGER,
+    soreness INTEGER,
+    resting_heart_rate REAL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (date, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_body_checkins_profile_date
+    ON body_checkins(profile_id, date DESC);
+
 CREATE TABLE IF NOT EXISTS savings_goals (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,

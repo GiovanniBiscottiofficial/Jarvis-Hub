@@ -42,6 +42,25 @@ intents:
           - "what('s | is )for dinner [tonight]"
           - "what should I (make | eat) for dinner"
           - "dinner ideas"
+  LifeOSBodyReadiness:
+    data:
+      - sentences:
+          - "how ready am I [today]"
+          - "what is my readiness [today]"
+          - "body ops check"
+          - "how is my recovery [today]"
+  LifeOSBodyMorning:
+    data:
+      - sentences:
+          - "what is my body plan [today]"
+          - "give me my body ops plan"
+          - "start my body ops day"
+  LifeOSBodyEvening:
+    data:
+      - sentences:
+          - "give me my body ops review"
+          - "how did I do with my health [today]"
+          - "body ops evening review"
   LifeOSBriefing:
     data:
       - sentences:

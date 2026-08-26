@@ -427,7 +427,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, spending, grocery, pantry, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, pantry, water, water_count, water_target, goals, memory, dinner, evening, body_readiness, body_morning, body_evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
   # Month-to-date spending from the LifeOS ledger (voice-logged spends)
   - resource: http://localhost:8090/api/vault/spending
     headers:

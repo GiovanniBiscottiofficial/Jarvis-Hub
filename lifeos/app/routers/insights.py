@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from ..body_intelligence import daily_loop
 from ..chef import chef_summary
 from ..db import active_profile, conn, get_setting
 from ..paydays import payday_schedule, scheduled_bill_due_date
@@ -628,6 +629,35 @@ def ask():
         else "No savings goals yet — say 'add 50 to my vacation fund' to start one."
     )
 
+    body = daily_loop()
+    readiness = body["readiness"]
+    targets = body["targets"]
+    body_readiness_speech = (
+        f"Giovanni, Body Ops readiness is {readiness['score']} out of 100, "
+        f"in the {readiness['band']} range, with {readiness['confidence_percent']} percent "
+        f"signal confidence. {targets['workout_guidance']} "
+        "Missing data is treated as unknown, not as failure."
+    )
+    dinner = body["morning"].get("dinner")
+    body_morning_parts = [
+        f"Giovanni, {body['morning']['affirmation']}",
+        body["morning"]["vitamins"],
+        body["morning"]["hydration"],
+    ]
+    if dinner:
+        body_morning_parts.append(dinner["prep"])
+    body_morning_parts.append(
+        f"Today's adaptive movement target is {targets['steps']:,} steps, "
+        f"with {targets['protein_g']} grams of protein and {targets['water_glasses']} glasses of water."
+    )
+    body_morning_speech = " ".join(body_morning_parts)
+    body_evening_speech = " ".join(
+        ["Giovanni, here is your Body Ops review."]
+        + body["evening"]["wins"]
+        + body["evening"]["remaining"]
+        + [body["evening"]["tomorrow"]]
+    )
+
     return {
         "protein": protein_speech,
         "steps": steps_speech,
@@ -644,6 +674,9 @@ def ask():
         "memory": memory_speech,
         "dinner": dinner_speech,
         "evening": evening_speech,
+        "body_readiness": body_readiness_speech,
+        "body_morning": body_morning_speech,
+        "body_evening": body_evening_speech,
         "budget": budget["budget"],
         "paycheck": budget["paycheck"],
         "networth": budget["networth"],

@@ -60,13 +60,13 @@ async def health_auto_export(request: Request):
         raise HTTPException(400, "invalid JSON payload")
     prune_events(time.time())
     metrics = (payload.get("data") or {}).get("metrics") or []
-    imported = {"steps": 0, "weighins": 0}
+    imported = {"steps": 0, "weighins": 0, "sleep": 0, "resting_heart_rate": 0}
     with conn() as c:
         existing = c.execute(
             "SELECT 1 FROM webhook_events WHERE event_id=?", (event_id,)
         ).fetchone()
         if existing or event_id in PROCESSED_EVENTS:
-            return {"ok": True, "duplicate": True, "imported": {"steps": 0, "weighins": 0}}
+            return {"ok": True, "duplicate": True, "imported": {"steps": 0, "weighins": 0, "sleep": 0, "resting_heart_rate": 0}}
         c.execute(
             "INSERT INTO webhook_events(event_id,received_at) VALUES(?,?)",
             (event_id, time.time()),
@@ -97,4 +97,29 @@ async def health_auto_export(request: Request):
                         (day + " 08:00:00", weight, pid, "health_auto_export"),
                     )
                     imported["weighins"] += 1
+                elif name in ("sleep_analysis", "sleep", "sleep_duration"):
+                    units = (m.get("units") or "").lower()
+                    hours = float(qty) / 60 if units in {"min", "minute", "minutes"} else float(qty)
+                    if 0 <= hours <= 24:
+                        c.execute(
+                            "INSERT INTO body_checkins(date,profile_id,sleep_hours,source)"
+                            " VALUES(?,?,?,'health_auto_export')"
+                            " ON CONFLICT(date,profile_id) DO UPDATE SET"
+                            " sleep_hours=excluded.sleep_hours,source='health_auto_export',"
+                            " updated_at=datetime('now','localtime')",
+                            (day, pid, hours),
+                        )
+                        imported["sleep"] += 1
+                elif name in ("resting_heart_rate", "resting_heartrate"):
+                    rate = float(qty)
+                    if 20 <= rate <= 250:
+                        c.execute(
+                            "INSERT INTO body_checkins(date,profile_id,resting_heart_rate,source)"
+                            " VALUES(?,?,?,'health_auto_export')"
+                            " ON CONFLICT(date,profile_id) DO UPDATE SET"
+                            " resting_heart_rate=excluded.resting_heart_rate,"
+                            " source='health_auto_export',updated_at=datetime('now','localtime')",
+                            (day, pid, rate),
+                        )
+                        imported["resting_heart_rate"] += 1
     return {"ok": True, "imported": imported, "event_id": event_id}
