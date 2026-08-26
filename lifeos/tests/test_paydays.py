@@ -138,6 +138,19 @@ def test_asset_balance_verification_migrates_existing_totals(fresh_db):
     assert verified["HSA"] == 0
 
 
+def test_hsa_balance_is_commissioned_from_confirmed_total(fresh_db):
+    from app.db import conn, init_db
+
+    with conn() as c:
+        c.execute("DELETE FROM settings WHERE key='hsa_balance_2026_08_25_v1'")
+        c.execute("UPDATE assets SET balance=0,balance_verified=0 WHERE name='HSA'")
+    init_db()
+    with conn() as c:
+        hsa = c.execute("SELECT * FROM assets WHERE name='HSA'").fetchone()
+    assert hsa["balance"] == 319.60
+    assert hsa["balance_verified"] == 1
+
+
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     from app.routers import budget
 
@@ -167,7 +180,8 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert assets["HSA"]["ytd_contributions"] == 319.60
     assert assets["HSA"]["lifetime_contributions"] == 319.60
     assert assets["HSA"]["as_of"] == "2026-08-25"
-    assert assets["HSA"]["balance_verified"] == 0
+    assert assets["HSA"]["balance"] == 319.60
+    assert assets["HSA"]["balance_verified"] == 1
 
 
 def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):

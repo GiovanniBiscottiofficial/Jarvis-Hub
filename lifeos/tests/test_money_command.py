@@ -166,8 +166,8 @@ def test_paycheck_funding_and_close_are_confirmed_and_idempotent(fresh_db):
         assert assets_after[name]["ytd_contributions"] == pytest.approx(assets_before[name]["ytd_contributions"] + 24.59)
         assert assets_after[name]["lifetime_contributions"] == pytest.approx(assets_before[name]["lifetime_contributions"] + 24.59)
         assert assets_after[name]["as_of"] == payday["date"]
-    assert assets_after["HSA"]["balance"] == assets_before["HSA"]["balance"]
-    assert assets_after["HSA"]["balance_verified"] == 0
+    assert assets_after["HSA"]["balance"] == pytest.approx(assets_before["HSA"]["balance"] + 15.98)
+    assert assets_after["HSA"]["balance_verified"] == 1
     assert assets_after["HSA"]["ytd_contributions"] == pytest.approx(
         assets_before["HSA"]["ytd_contributions"] + 15.98
     )
