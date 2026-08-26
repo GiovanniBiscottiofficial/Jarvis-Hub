@@ -43,6 +43,7 @@ class JarvisLifeOSPanel extends HTMLElement {
         const speechJob = this._hass.callService("script", "jarvis_say", {
           message,
           urgent: true,
+          listen_after: true,
         });
         reply({ ok: true, output: "home_assistant" });
         Promise.resolve(speechJob).catch((error) => {

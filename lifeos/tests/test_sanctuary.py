@@ -101,6 +101,7 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     for host in (wrapper, panel):
         assert "jarvis_say" in host
         assert "urgent: true" in host
+        assert "listen_after: true" in host
     assert "lifeos-speak-result" in app_script
     assert "requestId" in app_script
     assert "speakThroughHomeAssistant(speech)" in app_script
@@ -109,10 +110,17 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "parent_origin=" in wrapper
     assert "parent_origin=" in panel
     assert 'get("parent_origin")' in app_script
-    assert "app.js?v=3" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert "app.js?v=4" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
     assert "Promise.resolve(speechJob).catch" in wrapper
     assert "Promise.resolve(speechJob).catch" in panel
-    assert "lifeos-panel.js?v=6" in configuration
+    assert "lifeos-panel.js?v=7" in configuration
+
+    speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "assist_satellite.start_conversation" in speech
+    assert "supports_conversation" in speech
+    assert "ask before any risky or irreversible action" in speech
 
 
 def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
@@ -131,6 +139,11 @@ def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
     assert '"what do I need to know [right now]"' in sentences
     assert "briefing_period" in configuration
     assert "sections" in configuration
+    app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert 'cache: method === "GET" ? "no-store" : "default"' in app_script
+    assert "<h2>Jarvis briefing</h2>" in index
+    assert "<h2>Morning briefing</h2>" not in index
 
 
 def test_jarvis_voice_profile_is_local_tuned_and_name_safe():

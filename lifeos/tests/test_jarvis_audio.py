@@ -26,6 +26,23 @@ def test_wake_word_rejects_room_audio_false_positives():
     assert "${WAKE_WORD_REFRACTORY_SECONDS:-5}" in compose
 
 
+def test_continuous_voice_runtime_is_pinned_and_rollback_guarded():
+    root = Path(__file__).resolve().parents[2]
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    setup = (root / "bootstrap/setup-continuous-voice.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "ghcr.io/ohf-voice/linux-voice-assistant:v1.1.15" in compose
+    assert "profiles: [conversation]" in compose
+    assert "WAKE_MODEL=${LVA_WAKE_MODEL:-hey_jarvis}" in compose
+    assert "STOP_MODEL=${LVA_STOP_MODEL:-stop}" in compose
+    assert "CONTINUE_CONVERSATION_DELAY=${LVA_CONTINUE_DELAY:-0.55}" in compose
+    assert "if ! wait_for_health" in setup
+    assert "rollback" in setup
+    assert "Refusing to retire Wyoming" in setup
+
+
 def test_status_distinguishes_privacy_mute(monkeypatch):
     audio = load_audio()
     monkeypatch.setattr(audio, "default_endpoint", lambda kind: f"jabra-{kind}")
@@ -36,6 +53,22 @@ def test_status_distinguishes_privacy_mute(monkeypatch):
     assert result["microphone_muted"] is True
     assert result["reason"] == "Microphone privacy mute is on"
     assert result["privacy"] == {"raw_audio_stored": False, "probe_retained": False}
+
+
+def test_status_recognizes_continuous_conversation_runtime(monkeypatch):
+    audio = load_audio()
+    monkeypatch.setattr(audio, "default_endpoint", lambda kind: f"jabra-{kind}")
+    monkeypatch.setattr(audio, "volume", lambda _kind: (85.0, False))
+    monkeypatch.setattr(audio, "service_active", lambda _name: False)
+    monkeypatch.setattr(audio, "container_healthy", lambda name: name == "linux-voice-assistant")
+
+    result = audio.status(False)
+
+    assert result["ready"] is True
+    assert result["voice_runtime"] == "linux_voice_assistant"
+    assert result["continuous_conversation"] is True
+    assert result["interrupt_word"] == "stop"
+    assert "follow-up conversation" in result["reason"]
 
 
 def test_signal_probe_uses_memory_and_reports_level(monkeypatch):

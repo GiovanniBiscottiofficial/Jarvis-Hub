@@ -1616,6 +1616,14 @@ function renderVoiceTelemetry(voice = {}) {
     .map((value) => String(value).toUpperCase())
     .join(" / ");
   commandText("voice-pipeline", pipeline || "AWAITING");
+  commandText(
+    "voice-conversation",
+    voice.continuous_conversation === true ? "FOLLOW-UPS ACTIVE" : "SINGLE TURN",
+  );
+  commandText(
+    "voice-interrupt",
+    voice.interrupt_word ? `SAY ${String(voice.interrupt_word).toUpperCase()}` : "UNAVAILABLE",
+  );
   commandText("voice-reason", voice.reason || "Voice telemetry awaiting detail.");
   const privacy = voice.privacy && typeof voice.privacy === "object" ? voice.privacy : {};
   commandText("voice-storage", privacy.raw_audio_stored === false ? "NO RAW AUDIO STORED" : "STORAGE POLICY UNKNOWN");

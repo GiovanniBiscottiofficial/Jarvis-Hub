@@ -26,6 +26,12 @@ jarvis_say:
       default: false
       selector:
         boolean:
+    listen_after:
+      description: "Keep the local microphone open for a contextual follow-up"
+      example: "true"
+      default: false
+      selector:
+        boolean:
   sequence:
     # Quiet mode (auto-on during movies) silences everything but emergencies
     - condition: or
@@ -56,6 +62,9 @@ jarvis_say:
              (states.assist_satellite
                 | rejectattr('state', 'in', ['unknown', 'unavailable'])
                 | map(attribute='entity_id') | list | first | default('')) }}
+        supports_conversation: >-
+          {{ satellite != '' and
+             (((state_attr(satellite, 'supported_features') | int(0)) // 2) % 2 == 1) }}
         piper_tts: >-
           {{ states.tts | map(attribute='entity_id')
              | select('search', 'piper') | list | first | default('') }}
@@ -64,6 +73,21 @@ jarvis_say:
              | rejectattr('state', 'in', ['unknown', 'unavailable'])
              | map(attribute='entity_id') | list | first | default('') }}
     - choose:
+        - conditions: >-
+            {{ satellite != '' and listen_after | default(false)
+               and supports_conversation }}
+          sequence:
+            - service: assist_satellite.start_conversation
+              target:
+                entity_id: "{{ satellite }}"
+              data:
+                start_message: "{{ spoken_message }}"
+                extra_system_prompt: >-
+                  Giovanni has just heard a grounded LifeOS briefing. Treat his
+                  next short reply as a follow-up to that briefing. Use the most
+                  recent topic and ask before any risky or irreversible action.
+                preannounce: >-
+                  {{ true if urgent | default(false) else preannounce | default(false) }}
         - conditions: "{{ satellite != '' }}"
           sequence:
             - service: assist_satellite.announce

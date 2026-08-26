@@ -521,6 +521,16 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
     if not isinstance(speaker_details, dict):
         speaker_details = {}
     satellite_state = devices.get("assist_satellite.x1", "unknown")
+    if satellite_state in {"unknown", "unavailable"}:
+        satellite_state = next(
+            (
+                state
+                for entity, state in devices.items()
+                if entity.startswith("assist_satellite.")
+                and state not in {"unknown", "unavailable"}
+            ),
+            satellite_state,
+        )
     ha_mute_state = devices.get("switch.x1_mute", "unknown")
     microphone_muted = bool(microphone_details.get("muted")) or ha_mute_state == "on"
     voice_ready = (
@@ -529,7 +539,10 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         and not microphone_muted
         and microphone_details.get("ready", True) is True
         and microphone_details.get("satellite", "online") == "online"
-        and satellite_state != "unavailable"
+        and (
+            microphone_details.get("continuous_conversation") is True
+            or satellite_state != "unavailable"
+        )
     )
     voice = {
         "ready": voice_ready,
@@ -545,6 +558,11 @@ def current_context(event_limit: int = 20) -> dict[str, Any]:
         "pipewire": microphone_details.get("pipewire", "unknown"),
         "satellite": microphone_details.get("satellite", satellite_state),
         "assistant_state": satellite_state,
+        "runtime": microphone_details.get("voice_runtime", "unavailable"),
+        "continuous_conversation": bool(
+            microphone_details.get("continuous_conversation")
+        ),
+        "interrupt_word": microphone_details.get("interrupt_word"),
         "wake_word": microphone_details.get("wake_word", "hey_jarvis"),
         "signal": microphone_details.get("signal", {}),
         "last_checked_at": microphone_fact.get("updated_at"),

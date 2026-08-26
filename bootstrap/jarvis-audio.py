@@ -77,6 +77,15 @@ def service_active(name: str) -> bool:
     return ok and output.strip() == "active"
 
 
+def container_healthy(name: str) -> bool:
+    ok, output = run(
+        "docker", "inspect", "--format",
+        "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}",
+        name,
+    )
+    return ok and output.strip() in {"healthy", "running"}
+
+
 def probe_signal(seconds: float = 0.75) -> dict[str, Any]:
     frames = max(4000, int(16000 * min(max(seconds, 0.25), 2.0)))
     ok, payload = run(
@@ -128,7 +137,9 @@ def status(probe: bool) -> dict[str, Any]:
     source_volume, source_muted = volume("source")
     sink_volume, sink_muted = volume("sink")
     pipewire = bool(source or sink)
-    satellite = service_active("wyoming-satellite.service")
+    wyoming = service_active("wyoming-satellite.service")
+    continuous_voice = container_healthy("linux-voice-assistant") if not wyoming else False
+    satellite = wyoming or continuous_voice
     source_present = bool(source and "null" not in source.lower())
     sink_present = bool(sink and "null" not in sink.lower())
     data: dict[str, Any] = {
@@ -144,6 +155,12 @@ def status(probe: bool) -> dict[str, Any]:
         "speaker_muted": sink_muted,
         "speaker_volume_percent": sink_volume,
         "satellite": "online" if satellite else "unavailable",
+        "voice_runtime": (
+            "linux_voice_assistant" if continuous_voice else
+            "wyoming_satellite" if wyoming else "unavailable"
+        ),
+        "continuous_conversation": continuous_voice,
+        "interrupt_word": "stop" if continuous_voice else None,
         "wake_word": "hey_jarvis",
         "sample_rate_hz": 16000,
         "channels": 1,
@@ -167,6 +184,8 @@ def status(probe: bool) -> dict[str, Any]:
         data["reason"] = "Wyoming voice satellite is offline"
     elif not sink_present:
         data["reason"] = "No usable response speaker"
+    elif continuous_voice:
+        data["reason"] = "Listening locally for Hey Jarvis with follow-up conversation"
     else:
         data["reason"] = "Listening locally for Hey Jarvis"
     return data
