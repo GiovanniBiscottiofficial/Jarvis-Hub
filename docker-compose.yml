@@ -97,7 +97,17 @@ services:
     image: rhasspy/wyoming-openwakeword
     profiles: [voice]
     restart: unless-stopped
-    command: --preload-model 'hey_jarvis'
+    # Two consecutive high-confidence frames prevent television dialogue from
+    # waking the room microphone while preserving a deliberate "Hey Jarvis".
+    command:
+      - --preload-model
+      - hey_jarvis
+      - --threshold
+      - ${WAKE_WORD_THRESHOLD:-0.70}
+      - --trigger-level
+      - ${WAKE_WORD_TRIGGER_LEVEL:-2}
+      - --refractory-seconds
+      - ${WAKE_WORD_REFRACTORY_SECONDS:-5}
     ports:
       - "10400:10400"
     volumes:

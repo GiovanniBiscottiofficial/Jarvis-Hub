@@ -472,7 +472,10 @@ bash bootstrap/setup-satellite.sh
   Jabra Speak 510 (PHS002W), falls back to another USB endpoint, and re-evaluates the
   route every 30 seconds after unplug/replug, suspend, or PipeWire recovery. Inspect it
   with `jarvis-audio status`; run `jarvis-audio status --probe` for a short in-memory
-  signal-level test. The probe writes no recording and retains no waveform.
+  signal-level test. The probe writes no recording and retains no waveform. The X1
+  commissioning baseline is **1.5× mic volume, auto-gain 8, High noise suppression,
+  and Aggressive finished-speaking detection**. The wake engine requires two
+  high-confidence `Hey Jarvis` frames so television dialogue does not start a command.
 - **Microphone privacy is separate from quiet mode**: **Quiet mode** suppresses routine
   announcements; `switch.x1_mute` stops the X1 satellite from listening. Toggle the
   Microphone privacy tile in Home Assistant, or say “Hey Jarvis, mute your microphone.”
@@ -498,6 +501,9 @@ bash bootstrap/setup-satellite.sh
   local `en_GB-alan-medium` voice with a calm cadence and sentence pauses; override
   `PIPER_VOICE`, `PIPER_LENGTH_SCALE`, `PIPER_NOISE_SCALE`,
   `PIPER_NOISE_W_SCALE`, or `PIPER_SENTENCE_SILENCE` in `.env` to retune it.
+  Wake sensitivity is independently adjustable with `WAKE_WORD_THRESHOLD` (default
+  `0.70`), `WAKE_WORD_TRIGGER_LEVEL` (default `2`), and
+  `WAKE_WORD_REFRACTORY_SECONDS` (default `5`).
 - **Hardware telemetry → context engine**: a host service reports camera, mic,
   speakers, Bluetooth, touch, battery, mains power, and temperature only when their
   state changes, plus a five-minute health heartbeat so stale links can be detected.

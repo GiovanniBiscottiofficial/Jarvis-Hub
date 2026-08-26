@@ -17,6 +17,17 @@ def test_jabra_is_preferred_over_other_usb_audio():
     assert audio.preferred(names) == "alsa_input.usb-Jabra_SPEAK_510_USB"
 
 
+def test_satellite_and_wake_word_reject_room_audio_false_positives():
+    root = Path(__file__).resolve().parents[2]
+    setup = (root / "bootstrap/setup-satellite.sh").read_text(encoding="utf-8")
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "--mic-noise-suppression 2" in setup
+    assert "${WAKE_WORD_THRESHOLD:-0.70}" in compose
+    assert "${WAKE_WORD_TRIGGER_LEVEL:-2}" in compose
+    assert "${WAKE_WORD_REFRACTORY_SECONDS:-5}" in compose
+
+
 def test_status_distinguishes_privacy_mute(monkeypatch):
     audio = load_audio()
     monkeypatch.setattr(audio, "default_endpoint", lambda kind: f"jabra-{kind}")

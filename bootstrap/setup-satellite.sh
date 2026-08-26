@@ -100,6 +100,7 @@ ExecStart=/opt/wyoming-satellite/venv/bin/python -m wyoming_satellite \\
   --name "${SAT_NAME}" \\
   --uri tcp://0.0.0.0:10700 \\
   --mic-command 'arecord -r 16000 -c 1 -f S16_LE -t raw' \\
+  --mic-noise-suppression 2 \\
   --snd-command 'aplay -r 22050 -c 1 -f S16_LE -t raw' \\
   --wake-uri tcp://127.0.0.1:10400 \\
   --wake-word-name hey_jarvis
