@@ -981,9 +981,7 @@ async function loadBudgetData() {
     opt.value = a.id; opt.textContent = a.name;
     bsel.appendChild(opt);
   });
-  acc.innerHTML += `<div class="line"><span>Protected savings <span class="muted">(never counted as spendable)</span></span>
-    <span>$${o.protected_cash.toFixed(2)}</span></div>
-    <div class="line"><span>Free pocket cash <span class="muted">(OnePay after commitments)</span></span>
+  acc.innerHTML += `<div class="line"><span>Free pocket cash <span class="muted">(OnePay after commitments)</span></span>
     <span class="${o.pocket_cash >= 0 ? "good-text" : "warn-text"}">$${o.pocket_cash.toFixed(2)}</span></div>
     <div class="line"><strong>Ecosystem cash</strong>
     <strong>$${o.ecosystem_cash.toFixed(2)}</strong></div>`;

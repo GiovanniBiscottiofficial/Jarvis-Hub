@@ -78,7 +78,7 @@ def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
         }
     assert accounts["Truliant"] == -25.73
     assert accounts["Relay"] == 0
-    assert accounts["OnePay Savings"] == 0
+    assert "OnePay Savings" not in accounts
     assert bills["Spectrum Internet"]["amount"] == 93.95
     assert bills["Spectrum Internet"]["due_day"] == 28
     assert bills["Spectrum Internet"]["paycheck"] == 1

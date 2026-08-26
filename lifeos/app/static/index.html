@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="jarvis-release" content="2026.08.26-money-v1">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -328,7 +329,7 @@
 
   <!-- ============ BUDGET & VAULT ============ -->
   <section id="budget" class="panel">
-    <div class="section-intro"><div><span class="section-index">CAPITAL / 03</span><h2>Budget &amp; Vault</h2><p>Two-check runway, daily spending, obligations, and protected capital.</p></div><span class="section-date">LEDGER PROTECTED</span></div>
+    <div class="section-intro"><div><span class="section-index">CAPITAL / 03</span><h2>Budget &amp; Vault</h2><p>Two-check runway, verified balances, daily spending, and obligations.</p></div><span class="section-date">AUDIT REQUIRED</span></div>
     <div id="finance-status" class="inline-status muted" role="status" aria-live="polite"></div>
     <div class="lifeos-page-grid finance-grid">
     <div class="card paycheck-card">
@@ -453,8 +454,10 @@
   </section>
 </main>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
   <script src="bodyops-enhanced.js?v=2"></script>
+  <script src="money-command.js?v=1"></script>
+  <script src="release-watch.js?v=1"></script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>

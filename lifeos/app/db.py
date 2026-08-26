@@ -185,6 +185,65 @@ CREATE TABLE IF NOT EXISTS grocery_list (
     recipe_id TEXT
 );
 
+CREATE TABLE IF NOT EXISTS financial_transactions (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    posted_date TEXT NOT NULL,
+    account_id INTEGER REFERENCES accounts(id),
+    direction TEXT NOT NULL CHECK (direction IN ('debit','credit')),
+    amount REAL NOT NULL CHECK (amount > 0),
+    merchant TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'Uncategorized',
+    source TEXT NOT NULL DEFAULT 'manual',
+    external_id TEXT,
+    fingerprint TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','verified','matched','excluded')),
+    matched_spending_id INTEGER REFERENCES spending(id),
+    reviewed_at TEXT,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_status_date
+    ON financial_transactions(status, posted_date DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS account_reconciliations (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    previous_balance REAL NOT NULL,
+    actual_balance REAL NOT NULL,
+    difference REAL NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    confirmed_by TEXT NOT NULL DEFAULT 'Giovanni'
+);
+
+CREATE TABLE IF NOT EXISTS paycheck_cycles (
+    period TEXT PRIMARY KEY,
+    paycheck INTEGER NOT NULL CHECK (paycheck IN (1,2)),
+    payday TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned'
+        CHECK (status IN ('planned','funded','closed')),
+    account_id INTEGER REFERENCES accounts(id),
+    amount REAL NOT NULL DEFAULT 0,
+    opening_balance REAL,
+    closing_balance REAL,
+    funded_at TEXT,
+    closed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS financial_action_audit (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    action TEXT NOT NULL,
+    risk TEXT NOT NULL,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    subject TEXT NOT NULL DEFAULT '',
+    before_json TEXT NOT NULL DEFAULT '{}',
+    after_json TEXT NOT NULL DEFAULT '{}',
+    reason TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS chef_feedback (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
@@ -346,7 +405,6 @@ SEED_MEALS = [
 # name, role, baseline balance (applied only while the balance is still 0)
 SEED_ACCOUNTS = [
     ("OnePay", "operating", 113.00),
-    ("OnePay Savings", "savings", 0.00),
     ("Truliant", "savings", 147.96),
     ("Relay", "buckets", 311.68),
 ]
@@ -432,6 +490,7 @@ def _migrate(c: sqlite3.Connection) -> None:
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
         "weighins": [("source", "TEXT NOT NULL DEFAULT 'manual'")],
+        "debts": [("apr", "REAL NOT NULL DEFAULT 0")],
         "pantry": [
             ("category", "TEXT NOT NULL DEFAULT 'other'"),
             ("low_stock_threshold", "REAL NOT NULL DEFAULT 1"),
@@ -466,6 +525,17 @@ def _migrate(c: sqlite3.Connection) -> None:
             "DELETE FROM accounts WHERE name='FreePlay' AND balance=0"
             " AND NOT EXISTS (SELECT 1 FROM deposits WHERE account_id=accounts.id)"
             " AND NOT EXISTS (SELECT 1 FROM bills WHERE account_id=accounts.id)"
+        )
+        # OnePay Savings was a planning placeholder, not a real account. Remove
+        # only an untouched zero-balance row so genuine history is never lost.
+        c.execute(
+            "DELETE FROM accounts WHERE name='OnePay Savings' AND balance=0"
+            " AND NOT EXISTS (SELECT 1 FROM deposits WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM bills WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM financial_transactions"
+            " WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM account_reconciliations"
+            " WHERE account_id=accounts.id)"
         )
     for table in ("meal_log", "weighins", "workouts"):
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
@@ -611,7 +681,6 @@ def init_db() -> None:
             )
             c.execute("UPDATE accounts SET balance=-25.73 WHERE name='Truliant'")
             c.execute("UPDATE accounts SET balance=0 WHERE name='Relay'")
-            c.execute("UPDATE accounts SET balance=0 WHERE name='OnePay Savings'")
             c.execute(
                 "INSERT INTO settings(key,value)"
                 " VALUES('finance_commissioning_v2',?)",

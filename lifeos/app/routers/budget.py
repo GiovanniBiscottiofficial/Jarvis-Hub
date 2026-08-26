@@ -28,6 +28,7 @@ class DebtIn(BaseModel):
     installment: float = 0
     cadence: str = "per paycheck"
     note: str = ""
+    apr: float = 0
 
 
 class AssetBalanceIn(BaseModel):
@@ -387,19 +388,19 @@ def add_debt(body: DebtIn):
     name = body.name.strip()
     if not name:
         raise HTTPException(400, "debt name is required")
-    if body.total < 0 or body.remaining < 0 or body.installment < 0:
+    if body.total < 0 or body.remaining < 0 or body.installment < 0 or body.apr < 0:
         raise HTTPException(400, "debt amounts cannot be negative")
     if body.remaining > body.total and body.total > 0:
         raise HTTPException(400, "remaining debt cannot exceed total debt")
     with conn() as c:
         c.execute(
-            "INSERT INTO debts(name,total,remaining,installment,cadence,note)"
-            " VALUES(?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
+            "INSERT INTO debts(name,total,remaining,installment,cadence,note,apr)"
+            " VALUES(?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
             " total=excluded.total, remaining=excluded.remaining,"
             " installment=excluded.installment, cadence=excluded.cadence,"
-            " note=excluded.note",
+            " note=excluded.note, apr=excluded.apr",
             (name, body.total, body.remaining or body.total,
-             body.installment, body.cadence.strip(), body.note.strip()),
+             body.installment, body.cadence.strip(), body.note.strip(), body.apr),
         )
         return {"ok": True}
 

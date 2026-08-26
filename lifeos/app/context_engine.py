@@ -13,6 +13,41 @@ from .paydays import scheduled_bill_due_date
 
 
 ACTION_REGISTRY: dict[str, dict[str, Any]] = {
+    "finance.verify_transaction": {
+        "name": "Verify an imported transaction",
+        "description": "Post a reviewed debit or credit to the LifeOS account ledger.",
+        "risk": "high", "scope": "finance", "reversible": False,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.reconcile_balance": {
+        "name": "Reconcile an account balance",
+        "description": "Replace a calculated balance with a confirmed actual balance and preserve the difference.",
+        "risk": "high", "scope": "finance", "reversible": True,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.fund_paycheck": {
+        "name": "Fund a paycheck mission",
+        "description": "Credit one confirmed paycheck to its selected operating account exactly once.",
+        "risk": "high", "scope": "finance", "reversible": False,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.close_paycheck": {
+        "name": "Close a paycheck mission",
+        "description": "Record the verified closing balance for a funded paycheck cycle.",
+        "risk": "medium", "scope": "finance", "reversible": True,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.simulate_cashflow": {
+        "name": "Simulate cash flow",
+        "description": "Run a read-only what-if forecast without changing any ledger.",
+        "risk": "none", "scope": "finance_analysis", "reversible": True,
+        "confirmation_policy": "automatic_read_only", "requires_confirmation": False,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
     "scene.arrival": {
         "name": "Prepare the house for arrival",
         "description": "Activate the approved Sanctuary Welcome mode.",

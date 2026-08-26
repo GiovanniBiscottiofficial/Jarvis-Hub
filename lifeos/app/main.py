@@ -19,6 +19,7 @@ from .routers import (
     budget,
     context,
     insights,
+    money,
     pantry,
     profiles,
     vaultflow,
@@ -184,6 +185,7 @@ app.include_router(webhooks.router)
 app.include_router(profiles.router)
 app.include_router(pantry.router)
 app.include_router(insights.router)
+app.include_router(money.router)
 app.include_router(context.router)
 
 
