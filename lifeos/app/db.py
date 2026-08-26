@@ -566,8 +566,11 @@ def _migrate(c: sqlite3.Connection) -> None:
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with conn() as c:
-        _migrate(c)
+        # Create every current table before migrations inspect or cross-reference
+        # them. CREATE IF NOT EXISTS preserves the live database while allowing
+        # an older installation to gain newly introduced tables safely.
         c.executescript(SCHEMA)
+        _migrate(c)
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
         if c.execute(
