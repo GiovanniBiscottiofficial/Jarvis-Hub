@@ -88,6 +88,11 @@ def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
     for name in ("Klarna Statement", "Duke Energy Payment Plan", "Old Spectrum Paydown"):
         assert bills[name]["start_period"] == schedule[2]["period"]
         assert bills[name]["paycheck"] == 1
+    assert "Phone Balance Arrangement" not in bills
+    assert bills["Phone Reconnection"]["start_period"] == schedule[2]["period"]
+    assert bills["Phone Reconnection"]["paycheck"] == schedule[2]["paycheck"]
+    assert bills["Phone Reconnection"]["one_time"] == 1
+    assert bills["Phone Reconnection"]["paid_period"] is None
 
 
 def test_reconcile_accepts_real_negative_account_balance(fresh_db):

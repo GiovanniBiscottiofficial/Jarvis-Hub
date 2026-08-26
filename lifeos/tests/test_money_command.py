@@ -33,6 +33,18 @@ def test_command_center_only_exposes_commissioned_accounts(fresh_db):
     assert names == {"OnePay", "Truliant", "Relay"}
 
 
+def test_phone_reconnection_appears_once_on_third_upcoming_pay(fresh_db):
+    missions = command_center()["paycheck_missions"]
+    phone_by_mission = [
+        [bill["name"] for bill in mission["bills"] if "Phone" in bill["name"]]
+        for mission in missions
+    ]
+    assert phone_by_mission[0] == []
+    assert phone_by_mission[1] == []
+    assert phone_by_mission[2] == ["Phone Reconnection"]
+    assert all("Phone Balance Arrangement" not in names for names in phone_by_mission)
+
+
 def test_csv_import_is_pending_and_deduplicated(fresh_db):
     account = first_account()
     statement = "Date,Description,Amount\n2026-08-20,Food Lion,-42.18\n2026-08-21,Payroll,2064.24\n"

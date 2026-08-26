@@ -422,8 +422,7 @@ SEED_BILLS = [
     ("Car Insurance (monthly)", 105.00, 15, 2, "regular monthly bill", 0),
     ("Spectrum Internet", 93.95, 28, 1,
      "recurring apartment internet · due on the 28th", 0),
-    ("Phone Reconnection", 216.75, 1, 1, "restores service ($480.84 balance)", 1),
-    ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
+    ("Phone Reconnection", 216.75, 1, 1, "one-time reconnection on third upcoming pay", 0),
     ("Klarna Statement", 61.77, 28, 1, "starts with third upcoming pay", 0),
     ("Old Spectrum Paydown", 39.00, 28, 1, "$39 per check · starts with third upcoming pay", 0),
     ("Duke Energy Payment Plan", 65.50, 28, 1,
@@ -708,6 +707,30 @@ def init_db() -> None:
             c.execute(
                 "INSERT INTO settings(key,value)"
                 " VALUES('finance_commissioning_v4',?)",
+                (date.today().isoformat(),),
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='finance_phone_schedule_v1'"
+        ).fetchone() is None:
+            from .paydays import payday_schedule
+
+            third_pay = payday_schedule(date.today(), 3)[2]
+            # Keep one live Reconnection row and preserve its current amount.
+            # It belongs only to the third upcoming paycheck, never every P1.
+            c.execute(
+                "DELETE FROM bills WHERE name='Phone Reconnection'"
+                " AND id<>(SELECT MIN(id) FROM bills WHERE name='Phone Reconnection')"
+            )
+            c.execute(
+                "UPDATE bills SET paycheck=?,start_period=?,one_time=1,"
+                " paid_month=NULL,paid_period=NULL,"
+                " note='one-time reconnection on third upcoming pay'"
+                " WHERE name='Phone Reconnection'",
+                (third_pay["paycheck"], third_pay["period"]),
+            )
+            c.execute("DELETE FROM bills WHERE name='Phone Balance Arrangement'")
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('finance_phone_schedule_v1',?)",
                 (date.today().isoformat(),),
             )
         if c.execute("SELECT COUNT(*) AS n FROM debts").fetchone()["n"] == 0:
