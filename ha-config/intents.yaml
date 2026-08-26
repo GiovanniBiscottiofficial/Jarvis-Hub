@@ -56,6 +56,10 @@ LifeOSWorkout:
     text: "Workout logged — nice work, Giovanni."
 
 LifeOSBriefing:
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.lifeos_morning_briefing
   speech:
     text: "{{ state_attr('sensor.lifeos_morning_briefing', 'speech') or 'LifeOS is not reachable right now.' }}"
 

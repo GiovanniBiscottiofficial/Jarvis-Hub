@@ -46,6 +46,11 @@ intents:
     data:
       - sentences:
           - "brief me"
+          - "give me (a | my | the) briefing"
+          - "catch me up"
+          - "what do I need to know [right now]"
+          - "where do things stand [right now]"
+          - "give me today's overview"
           - "[give me] [the] morning briefing"
           - "what's my day look [ing] like"
   LifeOSWeeklyReview:

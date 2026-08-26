@@ -115,6 +115,24 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "lifeos-panel.js?v=6" in configuration
 
 
+def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
+    intents = (REPO_ROOT / "ha-config/intents.yaml").read_text(encoding="utf-8")
+    sentences = (
+        REPO_ROOT / "ha-config/custom_sentences/en/lifeos.yaml"
+    ).read_text(encoding="utf-8")
+    configuration = (
+        REPO_ROOT / "ha-config/configuration.yaml"
+    ).read_text(encoding="utf-8")
+
+    briefing_intent = intents.split("LifeOSBriefing:", 1)[1].split("\nLifeOS", 1)[0]
+    assert "homeassistant.update_entity" in briefing_intent
+    assert "sensor.lifeos_morning_briefing" in briefing_intent
+    assert '"catch me up"' in sentences
+    assert '"what do I need to know [right now]"' in sentences
+    assert "briefing_period" in configuration
+    assert "sections" in configuration
+
+
 def test_jarvis_voice_profile_is_local_tuned_and_name_safe():
     compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(encoding="utf-8")
