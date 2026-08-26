@@ -129,10 +129,14 @@ Make your assistant actually converse and reason — not canned responses.
 1. Install Ollama on the X1:
    ```bash
    curl -fsSL https://ollama.com/install.sh | sh
-   ollama pull llama3.2:3b
+   ollama pull llama3.2:1b
    ```
 2. In HA: add the **Ollama integration** (Settings → Devices & Services → Add → Ollama, URL `http://<laptop-ip>:11434`).
-3. In your Assist pipeline, set the conversation agent to Ollama and enable **"Control Home Assistant"** so it can act on your devices.
+3. In the X1 Assist pipeline, use Ollama as the conversation agent and keep
+   **Prefer local intents** enabled. Leave Ollama's **Control Home Assistant**
+   tool exposure off on this CPU: local intents execute device commands first,
+   while the smaller model answers unmatched conversation without receiving an
+   enormous entity/tool prompt. Enable model-driven tools only on faster hardware.
 4. Reality check: the X1 Gen 3's CPU runs a 3B model at a few words/second — fine for commands and short answers, not for essays.
 
 **Option B — Cloud LLM (smarter, ~pennies/day):** add the **Anthropic (Claude)** or **OpenAI** integration instead and use it as the conversation agent. Voice audio is still processed locally by Whisper; only the text goes to the API.

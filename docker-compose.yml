@@ -190,7 +190,9 @@ services:
       - ${MEDIA_DIR:-${HOME}/jarvis-media}:/media
 
   # ---------- Local LLM (profile: llm) ----------
-  # After first start: docker exec -it ollama ollama pull llama3.2:3b
+  # X1 voice fallback: docker exec -it ollama ollama pull llama3.2:1b
+  # Keep HA's fast local intents preferred; do not inject the full Assist tool
+  # catalog into this small model unless running on substantially faster hardware.
   ollama:
     container_name: ollama
     image: ollama/ollama:latest

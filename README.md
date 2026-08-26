@@ -61,7 +61,7 @@ and calibrating each room on the X1. Missing hardware stays visibly
 1. `cd ~/Jarvis-Hub && git pull && bash bootstrap/setup-x1.sh && docker compose up -d --build lifeos && docker restart homeassistant`
 2. Finish the voice pipeline if not done: Phase 3 below (Whisper/Piper/openWakeWord + "hey Jarvis")
 3. One-time remote access: `bash bootstrap/setup-remote-access.sh` (sign in via the printed link, then install the Tailscale app on your phone)
-4. The LLM brain (Phase 8) — this is the "spark": `docker compose --profile llm up -d`, pull llama3.2:3b, set it as the Assist conversation agent, paste in [docs/jarvis-personality.txt](docs/jarvis-personality.txt)
+4. The LLM brain (Phase 8) — this is the "spark": `docker compose --profile llm up -d`, pull `llama3.2:1b`, use it as the conversational fallback after fast local intents, and paste in [docs/jarvis-personality.txt](docs/jarvis-personality.txt)
 5. Pair real devices as you get them (lights, vacuum, Fire TV — Phase 2/16) and swap the placeholder entity IDs
 6. Plex first start (the claim token expires in 4 minutes, so do this in one sitting):
 
@@ -110,7 +110,7 @@ and calibrating each room on the X1. Missing hardware stays visibly
 
 ```bash
 docker compose --profile voice up -d      # Whisper + Piper + openWakeWord ("hey Jarvis") — Phase 3
-docker compose --profile llm up -d        # Ollama — the LLM brain (then: docker exec -it ollama ollama pull llama3.2:3b)
+docker compose --profile llm up -d        # Ollama — then: docker exec -it ollama ollama pull llama3.2:1b
 docker compose --profile grocy up -d      # Grocy pantry/barcode tracking — Phase 15
 docker compose --profile cameras up -d    # Frigate + go2rtc (after adding camera URLs to frigate/config.yml)
 docker compose --profile media up -d      # Plex (needs PLEX_CLAIM in .env + files in ~/jarvis-media)
@@ -235,7 +235,7 @@ Tick them off as you go.
 
 - [ ] **Phase 0–1 — Hub**: run `bootstrap/setup-x1.sh`, open HA at `:8123`, create account; then `bash bootstrap/setup-kiosk.sh` + reboot for the wall-display mode
 - [ ] **Phase 3 — Voice**: `docker compose --profile voice up -d`, then HA → Add Integration → **Wyoming** three times (ports 10300 Whisper, 10200 Piper, 10400 openWakeWord); build the Assist pipeline with wake word "hey Jarvis"; `bash bootstrap/setup-satellite.sh` to make the X1's own mic listen room-wide
-- [ ] **Phase 8 — The LLM brain**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:3b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the Assist conversation agent, enable "Control Home Assistant", and paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) (already loaded with Giovanni's schedule, people, tastes) into its Instructions. (Or the Anthropic/OpenAI integration for a smarter cloud agent.)
+- [ ] **Phase 8 — The LLM brain**: `docker compose --profile llm up -d && docker exec -it ollama ollama pull llama3.2:1b`, add the **Ollama** integration (`http://<laptop-ip>:11434`), set it as the fallback conversation agent, keep **Prefer local intents** enabled, and paste [docs/jarvis-personality.txt](docs/jarvis-personality.txt) into its Instructions. On the X1, leave Ollama's Assist-tool exposure off: Home Assistant handles device commands first, while Ollama handles unmatched conversation in about three seconds warm instead of processing the entire entity catalog. (Enable LLM tool control only on faster hardware.)
 - [ ] **Remote access**: `bash bootstrap/setup-remote-access.sh` once at home — Tailscale tunnel for controlling everything from work/cellular
 - [ ] **Phase 18 — LifeOS**: already up with the core stack at `http://<laptop-ip>:8090` (Today / Body Ops / Budget & Vault / Review; installable as a phone app). Your part: set the weather coordinates (step 7 above), confirm bills and pantry inventory, and optionally point the iPhone "Health Auto Export" app at `http://<laptop-ip>:8090/api/webhooks/health` for automatic Apple Watch/scale sync; configure its authentication headers to match the signed webhook contract described above. A scale works through this bridge only when its companion app writes Weight into Apple Health.
 - [ ] **Backups**: `bash bootstrap/setup-backups.sh` — nightly 3 AM backup of the LifeOS DB + HA config
