@@ -1045,7 +1045,7 @@ async function loadBudgetData() {
     const line = el("div", "line");
     const identity = el("span", "", asset.name === "401(k)" ? "401(k) · Pre-tax" : asset.name);
     identity.appendChild(el("small", "muted", `+$${asset.per_paycheck.toFixed(2)}/pay · YTD $${Number(asset.ytd_contributions || 0).toFixed(2)} · lifetime $${Number(asset.lifetime_contributions || 0).toFixed(2)}${asset.as_of ? ` · as of ${asset.as_of}` : ""}`));
-    line.append(identity, el("span", "", `$${asset.balance.toFixed(2)}`));
+    line.append(identity, el("span", "", asset.balance_verified ? `$${asset.balance.toFixed(2)}` : "Balance awaiting data"));
     netWorth.appendChild(line);
   });
   const netTotal = el("div", "line");

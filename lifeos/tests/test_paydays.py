@@ -145,6 +145,12 @@ def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     assert assets["Roth IRA"]["ytd_contributions"] == 393.32
     assert assets["Roth IRA"]["lifetime_contributions"] == 393.32
     assert assets["401(k)"]["as_of"] == "2026-08-25"
+    assert assets["401(k)"]["balance_verified"] == 1
+    assert assets["Roth IRA"]["balance_verified"] == 1
+    assert assets["HSA"]["ytd_contributions"] == 319.60
+    assert assets["HSA"]["lifetime_contributions"] == 319.60
+    assert assets["HSA"]["as_of"] == "2026-08-25"
+    assert assets["HSA"]["balance_verified"] == 0
 
 
 def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):
