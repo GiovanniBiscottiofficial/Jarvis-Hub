@@ -13,7 +13,7 @@ sanctuary_apply_room_lighting:
     brightness:
       selector:
         number:
-          min: 1
+          min: 0
           max: 100
           unit_of_measurement: "%"
     kelvin:
@@ -79,6 +79,14 @@ sanctuary_apply_room_lighting:
         saturation_value: "{{ saturation | default(55) | float(55) }}"
         transition_value: "{{ transition | default(2) | int(2) }}"
     - choose:
+        - conditions: "{{ available_lights | count > 0 and brightness_value | int <= 0 }}"
+          sequence:
+            - service: light.turn_off
+              continue_on_error: true
+              target:
+                entity_id: "{{ available_lights }}"
+              data:
+                transition: "{{ transition_value }}"
         - conditions: "{{ available_lights | count > 0 and brightness_value | int > 0 }}"
           sequence:
             - service: light.turn_on
@@ -89,7 +97,9 @@ sanctuary_apply_room_lighting:
                 brightness_pct: "{{ [1, [brightness_value | int, 100] | min] | max }}"
                 transition: "{{ transition_value }}"
     - choose:
-        - conditions: "{{ temperature_lights | count > 0 and kelvin_value | int > 0 }}"
+        - conditions: >-
+            {{ temperature_lights | count > 0 and brightness_value | int > 0
+               and kelvin_value | int > 0 }}
           sequence:
             - service: light.turn_on
               continue_on_error: true
@@ -100,7 +110,9 @@ sanctuary_apply_room_lighting:
                 color_temp_kelvin: "{{ kelvin_value }}"
                 transition: "{{ transition_value }}"
     - choose:
-        - conditions: "{{ color_lights | count > 0 and hue_value | float >= 0 }}"
+        - conditions: >-
+            {{ color_lights | count > 0 and brightness_value | int > 0
+               and hue_value | float >= 0 }}
           sequence:
             - service: light.turn_on
               continue_on_error: true
@@ -112,6 +124,29 @@ sanctuary_apply_room_lighting:
                   - "{{ hue_value }}"
                   - "{{ saturation_value }}"
                 transition: "{{ transition_value }}"
+
+sanctuary_apply_deep_wind_down:
+  alias: "Sanctuary: apply deep Wind Down"
+  description: >-
+    Whole-home 9:30 PM profile. Navigation paths remain barely lit while
+    earlier Entry and Office task lighting is explicitly cleared.
+  mode: restart
+  sequence:
+    - repeat:
+        for_each:
+          - {area: bedroom, brightness: 4}
+          - {area: bathroom, brightness: 3}
+          - {area: hallway, brightness: 1}
+          - {area: dinning_room, brightness: 3}
+          - {area: entry, brightness: 0}
+          - {area: office, brightness: 0}
+        sequence:
+          - service: script.sanctuary_apply_room_lighting
+            data:
+              area: "{{ repeat.item.area }}"
+              brightness: "{{ repeat.item.brightness }}"
+              kelvin: 2200
+              transition: 45
 
 sanctuary_start_thunderstorm_media:
   alias: "Sanctuary: start thunderstorm media"
@@ -266,10 +301,12 @@ sanctuary_activate_mode:
             - {area: office, brightness: 65, kelvin: 4200}
             - {area: hallway, brightness: 18, kelvin: 3600}
           Wind Down:
-            - {area: bedroom, brightness: 10, kelvin: 2200, transition: 90}
-            - {area: bathroom, brightness: 8, kelvin: 2400, transition: 60}
-            - {area: hallway, brightness: 5, kelvin: 2300, transition: 60}
-            - {area: dinning_room, brightness: 8, kelvin: 2400, transition: 60}
+            - {area: bedroom, brightness: 8, kelvin: 2200, transition: 90}
+            - {area: bathroom, brightness: 6, kelvin: 2400, transition: 60}
+            - {area: hallway, brightness: 3, kelvin: 2300, transition: 60}
+            - {area: dinning_room, brightness: 5, kelvin: 2400, transition: 60}
+            - {area: entry, brightness: 4, kelvin: 2300, transition: 60}
+            - {area: office, brightness: 4, kelvin: 2300, transition: 60}
           Thunderstorm:
             - {area: bedroom, brightness_helper: input_number.sanctuary_bedroom_sleep_brightness, kelvin: 2200, transition: 120}
             - {area: bathroom, brightness_helper: input_number.sanctuary_bathroom_night_brightness, kelvin: 2200, transition: 90}

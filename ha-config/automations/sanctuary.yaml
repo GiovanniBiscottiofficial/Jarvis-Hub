@@ -117,6 +117,11 @@
                 mode: Wind Down
                 source: schedule
                 reason: Recovered the active Wind Down phase
+            - if:
+                - condition: template
+                  value_template: "{{ clock >= '21:30' }}"
+              then:
+                - service: script.sanctuary_apply_deep_wind_down
         - conditions: "{{ clock >= '22:00' or clock < '06:30' }}"
           sequence:
             - service: script.sanctuary_activate_mode
@@ -367,19 +372,7 @@
                 reason: Shower Time completed; stimulation reduction started
         - conditions: "{{ trigger.id == 'stronger_wind_down' }}"
           sequence:
-            - service: script.sanctuary_apply_room_lighting
-              data:
-                area: bedroom
-                brightness: 6
-                kelvin: 2200
-                transition: 120
-            - service: script.sanctuary_apply_room_lighting
-              data:
-                area: hallway
-                brightness: >-
-                  {{ states('input_number.sanctuary_hallway_night_brightness') | int(1) }}
-                kelvin: 2200
-                transition: 120
+            - service: script.sanctuary_apply_deep_wind_down
         - conditions: "{{ trigger.id == 'thunderstorm' }}"
           sequence:
             - service: script.sanctuary_activate_mode

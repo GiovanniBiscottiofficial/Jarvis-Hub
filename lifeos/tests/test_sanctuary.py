@@ -312,6 +312,33 @@ def test_tuya_color_calls_keep_the_requested_dim_level():
     assert "hs_color:" in apply_room
 
 
+def test_room_lighting_zero_means_off_and_cannot_be_relit_by_color_calls():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    apply_room = script.split("sanctuary_apply_room_lighting:", 1)[1].split(
+        "sanctuary_apply_deep_wind_down:", 1
+    )[0]
+    assert "brightness_value | int <= 0" in apply_room
+    assert "service: light.turn_off" in apply_room
+    assert apply_room.count("brightness_value | int > 0") >= 3
+
+
+def test_deep_wind_down_covers_every_lit_area_and_clears_task_lighting():
+    script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
+    profile = script.split("sanctuary_apply_deep_wind_down:", 1)[1].split(
+        "sanctuary_start_thunderstorm_media:", 1
+    )[0]
+    expected = {
+        "bedroom": 4,
+        "bathroom": 3,
+        "hallway": 1,
+        "dinning_room": 3,
+        "entry": 0,
+        "office": 0,
+    }
+    for area, brightness in expected.items():
+        assert f"area: {area}, brightness: {brightness}" in profile
+
+
 def test_thunderstorm_explicitly_dims_every_commissioned_night_path_area():
     script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
     thunderstorm = script.split("Thunderstorm:", 1)[1].split("Date Night:", 1)[0]
@@ -337,6 +364,7 @@ def test_evening_profiles_avoid_tuya_hs_mode_brightness_reset():
         "trigger.id == 'thunderstorm'", 1
     )[0]
     assert "hue:" not in stronger_wind_down
+    assert "script.sanctuary_apply_deep_wind_down" in stronger_wind_down
 
 
 def test_timeline_and_calibration_gate_are_declared():
