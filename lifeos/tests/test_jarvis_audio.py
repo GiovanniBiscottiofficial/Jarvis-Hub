@@ -33,7 +33,7 @@ def test_continuous_voice_runtime_is_pinned_and_rollback_guarded():
         encoding="utf-8"
     )
 
-    assert "ghcr.io/ohf-voice/linux-voice-assistant:v1.1.15" in compose
+    assert "ghcr.io/ohf-voice/linux-voice-assistant:1.1.15" in compose
     assert "profiles: [conversation]" in compose
     assert "WAKE_MODEL=${LVA_WAKE_MODEL:-hey_jarvis}" in compose
     assert "STOP_MODEL=${LVA_STOP_MODEL:-stop}" in compose
