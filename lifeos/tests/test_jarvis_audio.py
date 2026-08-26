@@ -38,6 +38,8 @@ def test_continuous_voice_runtime_is_pinned_and_rollback_guarded():
     assert "WAKE_MODEL=${LVA_WAKE_MODEL:-hey_jarvis}" in compose
     assert "STOP_MODEL=${LVA_STOP_MODEL:-stop}" in compose
     assert "CONTINUE_CONVERSATION_DELAY=${LVA_CONTINUE_DELAY:-0.55}" in compose
+    assert "AUDIO_INPUT_DEVICE=${LVA_AUDIO_INPUT_DEVICE:-Jabra SPEAK 510 USB Mono}" in compose
+    assert "AUDIO_OUTPUT_DEVICE=${LVA_AUDIO_OUTPUT_DEVICE:-pipewire}" in compose
     assert "if ! wait_for_health" in setup
     assert "rollback" in setup
     assert "Refusing to retire Wyoming" in setup
