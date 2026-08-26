@@ -1039,13 +1039,18 @@ async function loadBudgetData() {
     dl.appendChild(total);
   }
 
-  $("budget-networth").innerHTML =
-    o.assets
-      .map((a) => `<div class="line"><span>${a.name}
-        <span class="muted">(+$${a.per_paycheck.toFixed(2)}/check)</span></span>
-        <span>$${a.balance.toFixed(2)}</span></div>`)
-      .join("") +
-    `<div class="line"><strong>Net worth</strong><strong>$${o.net_worth.toFixed(2)}</strong></div>`;
+  const netWorth = $("budget-networth");
+  netWorth.replaceChildren();
+  o.assets.forEach((asset) => {
+    const line = el("div", "line");
+    const identity = el("span", "", asset.name === "401(k)" ? "401(k) · Pre-tax" : asset.name);
+    identity.appendChild(el("small", "muted", `+$${asset.per_paycheck.toFixed(2)}/pay · YTD $${Number(asset.ytd_contributions || 0).toFixed(2)} · lifetime $${Number(asset.lifetime_contributions || 0).toFixed(2)}${asset.as_of ? ` · as of ${asset.as_of}` : ""}`));
+    line.append(identity, el("span", "", `$${asset.balance.toFixed(2)}`));
+    netWorth.appendChild(line);
+  });
+  const netTotal = el("div", "line");
+  netTotal.append(el("strong", "", "Net worth"), el("strong", "", `$${o.net_worth.toFixed(2)}`));
+  netWorth.appendChild(netTotal);
 
   const f = await api("/api/budget/forecast");
   $("budget-forecast").innerHTML = f.forecast

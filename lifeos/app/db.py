@@ -153,7 +153,10 @@ CREATE TABLE IF NOT EXISTS assets (
     name TEXT NOT NULL UNIQUE,
     kind TEXT NOT NULL DEFAULT 'retirement',
     balance REAL NOT NULL DEFAULT 0,
-    per_paycheck REAL NOT NULL DEFAULT 0
+    per_paycheck REAL NOT NULL DEFAULT 0,
+    ytd_contributions REAL NOT NULL DEFAULT 0,
+    lifetime_contributions REAL NOT NULL DEFAULT 0,
+    as_of TEXT
 );
 
 CREATE TABLE IF NOT EXISTS deposits (
@@ -497,6 +500,11 @@ def _migrate(c: sqlite3.Connection) -> None:
             ("priority", "INTEGER NOT NULL DEFAULT 50"),
             ("priority_reason", "TEXT NOT NULL DEFAULT ''"),
         ],
+        "assets": [
+            ("ytd_contributions", "REAL NOT NULL DEFAULT 0"),
+            ("lifetime_contributions", "REAL NOT NULL DEFAULT 0"),
+            ("as_of", "TEXT"),
+        ],
         "pantry": [
             ("category", "TEXT NOT NULL DEFAULT 'other'"),
             ("low_stock_threshold", "REAL NOT NULL DEFAULT 1"),
@@ -781,6 +789,23 @@ def init_db() -> None:
                 "INSERT OR IGNORE INTO assets(name,kind,per_paycheck)"
                 " VALUES(?,?,?)",
                 a,
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='retirement_totals_2026_08_25_v1'"
+        ).fetchone() is None:
+            retirement_totals = (
+                (527.45, 491.64, 491.64, "401(k)"),
+                (419.29, 393.32, 393.32, "Roth IRA"),
+            )
+            for balance, ytd, lifetime, name in retirement_totals:
+                c.execute(
+                    "UPDATE assets SET balance=?,ytd_contributions=?,"
+                    " lifetime_contributions=?,as_of='2026-08-25' WHERE name=?",
+                    (balance, ytd, lifetime, name),
+                )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('retirement_totals_2026_08_25_v1','2026-08-25')"
             )
         # correct the old seed name on existing databases (before seeding,
         # so the rename never collides with a freshly inserted 'Giovanni')
