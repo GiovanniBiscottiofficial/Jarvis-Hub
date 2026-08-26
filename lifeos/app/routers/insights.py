@@ -1,7 +1,7 @@
 """Insights: morning briefing + weekly review (both return a `speech`
 string Jarvis/HA can read aloud via TTS)."""
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter
@@ -73,9 +73,181 @@ def _bills_due_soon(c, days: int = 7) -> list[dict]:
     ).days <= days]
 
 
+def _pick(options: tuple[str, ...], seed: int) -> str:
+    """Choose stable daily wording without making briefings feel random."""
+    return options[seed % len(options)]
+
+
+def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
+    """Turn grounded LifeOS facts into a concise, context-aware briefing.
+
+    This deliberately stays deterministic and local. Jarvis varies delivery and
+    prioritizes relevant facts, but never asks a language model to invent or
+    reinterpret health, finance, schedule, or household data.
+    """
+    name = facts["name"]
+    if hour < 12:
+        period = "morning"
+        opening = _pick(
+            (
+                f"Good morning, {name}.",
+                f"Morning, {name}.",
+                f"{name}, good morning.",
+            ),
+            day_ordinal,
+        )
+    elif hour < 17:
+        period = "afternoon"
+        opening = _pick(
+            (
+                f"Good afternoon, {name}.",
+                f"{name}, here's where the day stands.",
+                f"Afternoon, {name}. Here's what matters right now.",
+            ),
+            day_ordinal,
+        )
+    else:
+        period = "evening"
+        opening = _pick(
+            (
+                f"Good evening, {name}.",
+                f"{name}, here's the evening picture.",
+                f"Evening, {name}. Here's what still matters today.",
+            ),
+            day_ordinal,
+        )
+
+    sections: list[dict[str, str]] = []
+
+    def add(key: str, text: str) -> None:
+        if text:
+            sections.append({"key": key, "text": text})
+
+    add("opening", opening)
+    if period == "morning":
+        add("affirmation", facts["affirmation"])
+
+    weather = facts.get("weather")
+    if weather:
+        add(
+            "weather",
+            _pick(
+                (
+                    "Outside, it's {conditions}, with a high of {high} and a low of {low}.",
+                    "Expect {conditions} today, reaching {high} with a low near {low}.",
+                ),
+                day_ordinal,
+            ).format(
+                conditions=weather["conditions"],
+                high=round(weather["high_f"]),
+                low=round(weather["low_f"]),
+            ),
+        )
+
+    vitamins_pending = not facts["vitamins_taken"]
+    meal_name = facts.get("meal_name")
+    if period == "morning" and vitamins_pending and meal_name:
+        add(
+            "before_leaving",
+            f"Before you head out, take your vitamins and pull out what you'll need "
+            f"for {meal_name} tonight.",
+        )
+    elif period == "morning" and vitamins_pending:
+        add("before_leaving", "Your one loose end before leaving is your vitamins.")
+    elif period == "morning" and meal_name:
+        add(
+            "before_leaving",
+            f"For dinner, pull out what you'll need for {meal_name} before you leave.",
+        )
+    elif vitamins_pending:
+        add("vitamins", "Vitamins are still open for today.")
+
+    protein = round(facts["protein"])
+    protein_target = round(facts["protein_target"])
+    if protein >= protein_target:
+        add("protein", f"You've cleared your {protein_target}-gram protein target.")
+    elif protein > 0:
+        add(
+            "protein",
+            f"You're at {protein} of {protein_target} grams of protein, with "
+            f"{protein_target - protein} to go.",
+        )
+    elif period == "morning":
+        add("protein", f"Your protein target today is {protein_target} grams.")
+
+    workouts = facts.get("workouts") or []
+    if workouts:
+        add("workout", f"Your movement plan is {workouts[0]['kind']}.")
+
+    bills = facts.get("bills") or []
+    bills_total = facts["bills_total"]
+    audit = facts.get("audit_health", "")
+    safe_to_spend = facts.get("safe_to_spend", 0)
+    if bills:
+        bill_word = "bill" if len(bills) == 1 else "bills"
+        add(
+            "bills",
+            f"You have {len(bills)} upcoming {bill_word} in the next seven days, "
+            f"totaling ${bills_total:,.2f}.",
+        )
+
+    next_pay = facts["next_pay"]
+    pay_date = date.fromisoformat(next_pay["date"])
+    if next_pay["days_away"] == 0:
+        add(
+            "payday",
+            f"{next_pay['label']} lands today at ${next_pay['amount']:,.2f}; "
+            "the budget is ready for it.",
+        )
+    else:
+        unit = "day" if next_pay["days_away"] == 1 else "days"
+        prefix = "Your first budget cycle is staged" if audit == "scheduled" else next_pay["label"]
+        add(
+            "payday",
+            f"{prefix} for {pay_date.strftime('%A, %B')} {pay_date.day}, "
+            f"in {next_pay['days_away']} {unit}.",
+        )
+
+    if audit == "action needed":
+        add(
+            "budget",
+            "The budget needs a quick review before I call any amount safe to spend.",
+        )
+    elif audit in {"balanced", "buffered"}:
+        add(
+            "budget",
+            f"After the current plan, ${safe_to_spend:,.2f} is safe to spend from this paycheck.",
+        )
+
+    spent_week = facts.get("spent_week", 0)
+    if spent_week > 0:
+        add("spending", f"You've logged ${spent_week:,.2f} in spending this week.")
+
+    if period != "morning" and meal_name:
+        add("meal", f"Your best pantry match is {meal_name}.")
+
+    add(
+        "closing",
+        _pick(
+            (
+                "That's the board. I'll keep watching the details.",
+                "You're caught up. I'll flag anything that changes.",
+                "That's what matters right now. I'll handle the watch.",
+            ),
+            day_ordinal + 1,
+        ),
+    )
+    return {
+        "style": "contextual-v1",
+        "period": period,
+        "sections": sections,
+        "speech": " ".join(section["text"] for section in sections),
+    }
+
+
 @router.get("/briefing")
 def morning_briefing():
-    """Everything Jarvis needs to say good morning."""
+    """Grounded, natural briefing for scheduled and on-demand speech."""
     today_iso = date.today().isoformat()
     with conn() as c:
         prof = active_profile(c)
@@ -119,51 +291,28 @@ def morning_briefing():
     )
     affirmation = affirmations[date.today().toordinal() % len(affirmations)]
 
-    parts = [f"Good morning, {prof['name']}.", affirmation]
-    if weather:
-        parts.append(
-            f"Today is {weather['conditions']}, high of "
-            f"{round(weather['high_f'])}, low of {round(weather['low_f'])}."
-        )
-    parts.append(
-        f"Protein target is {round(prof['protein_target_g'])} grams; "
-        f"you're at {round(protein)}."
+    spoken = compose_briefing(
+        {
+            "name": prof["name"],
+            "affirmation": affirmation,
+            "weather": weather,
+            "protein": protein,
+            "protein_target": prof["protein_target_g"],
+            "vitamins_taken": bool(vit_row and vit_row["taken"]),
+            "vitamin_streak": vitamin_streak,
+            "meal_name": meals[0]["name"] if meals else None,
+            "bills": bills,
+            "bills_total": bills_total,
+            "leftover": leftover,
+            "spent_week": spent_week,
+            "safe_to_spend": budget["safe_to_spend"],
+            "audit_health": budget["audit_health"],
+            "workouts": workouts,
+            "next_pay": next_pay,
+        },
+        hour=datetime.now().hour,
+        day_ordinal=date.today().toordinal(),
     )
-    if not (vit_row and vit_row["taken"]):
-        parts.append(f"Vitamins are pending — streak is {vitamin_streak} days.")
-    if meals:
-        parts.append(
-            f"Before you leave, take out what you need for dinner. "
-            f"A good pantry match is {meals[0]['name']}."
-        )
-    if bills:
-        parts.append(
-            f"{len(bills)} bill{'s' if len(bills) != 1 else ''} due this week "
-            f"totaling ${bills_total:.0f}; ${leftover:.0f} left after bills."
-        )
-    else:
-        parts.append(f"No bills due this week; ${total:.0f} available.")
-    if spent_week:
-        parts.append(f"Discretionary spending is ${spent_week:.0f} this week.")
-    parts.append(
-        f"Safe to spend this paycheck: ${budget['safe_to_spend']:.0f}."
-    )
-    if workouts:
-        parts.append(f"On the plan: {workouts[0]['kind']}.")
-    if meals:
-        parts.append(f"Breakfast pick: {meals[0]['name']}.")
-    if next_pay["days_away"] == 0:
-        parts.append(
-            f"Today is {next_pay['label']}, ${next_pay['amount']:.2f}. "
-            "Your budget is ready for the deposit."
-        )
-    else:
-        unit = "day" if next_pay["days_away"] == 1 else "days"
-        parts.append(
-            f"{next_pay['label']} is in {next_pay['days_away']} {unit}, "
-            f"on {date.fromisoformat(next_pay['date']).strftime('%A, %B')} "
-            f"{date.fromisoformat(next_pay['date']).day}."
-        )
 
     return {
         "date": today_iso,
@@ -184,7 +333,10 @@ def morning_briefing():
             else "Choose and thaw something for dinner before leaving."
         ),
         "paydays": paydays,
-        "speech": " ".join(parts),
+        "briefing_style": spoken["style"],
+        "briefing_period": spoken["period"],
+        "sections": spoken["sections"],
+        "speech": spoken["speech"],
     }
 
 
