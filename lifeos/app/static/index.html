@@ -514,6 +514,7 @@
       <div><strong id="learning-candidate-count">—</strong><span>Needs review</span></div>
       <div><strong id="learning-rejected-count">—</strong><span>Rejected</span></div>
       <div><strong id="learning-observation-count">—</strong><span>Recent evidence</span></div>
+      <div><strong id="learning-pattern-count">—</strong><span>Automatic patterns</span></div>
     </div>
     <div class="lifeos-page-grid learning-grid">
       <article class="card learning-composer-card">
@@ -543,8 +544,14 @@
         <div class="finance-card-heading"><div><span class="finance-index">EVIDENCE / PROVENANCE</span><h2>Recent observations</h2></div><span class="finance-state">LOCAL ONLY</span></div>
         <div id="learning-evidence" class="learning-list muted">No observations loaded.</div>
       </article>
+      <article class="card learning-patterns-card">
+        <div class="finance-card-heading"><div><span class="finance-index">EVIDENCE / AUTOMATIC</span><h2>Observed patterns</h2></div><span class="finance-state">ADVISORY ONLY</span></div>
+        <p class="card-note">Jarvis combines repeated evidence across your routine without treating a single unusual day as a rule.</p>
+        <div id="learning-patterns" class="learning-list muted">No automatic patterns loaded.</div>
+        <div id="learning-pattern-coverage" class="learning-coverage muted">Checking pattern coverage…</div>
+      </article>
     </div>
-    <footer class="learning-policy"><strong>Learning boundary</strong><span>Inferences cannot authorize Home Assistant actions. Confirmed preferences guide explanations and future proposals; manual control and safety policy always win.</span></footer>
+    <footer class="learning-policy"><strong>Learning boundary</strong><span>Inferences cannot authorize Home Assistant actions. Confirmed preferences guide explanations and future proposals; manual control and safety policy always win. Raw microphone audio, camera frames, identity recognition, and exact location history are not retained as learning evidence.</span></footer>
   </section>
 
   <!-- ============ REVIEW ============ -->

@@ -872,7 +872,7 @@ body:has(#budget.active) main { max-width: 1540px; }
 
 /* Learning Ledger: evidence and decisions stay visually distinct. */
 body:has(#learning.active) main { max-width: 1540px; }
-.learning-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; margin: 0 0 12px; background: rgba(70,210,236,.12); }
+.learning-summary { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 1px; margin: 0 0 12px; background: rgba(70,210,236,.12); }
 .learning-summary > div { min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 14px 18px; background: linear-gradient(145deg,#091a29,#06111c); }
 .learning-summary strong { color: #dcf8ff; font: 500 1.65rem ui-monospace,SFMono-Regular,Consolas,monospace; }
 .learning-summary span { margin-top: 7px; color: #6f8d9e; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; text-transform: uppercase; }
@@ -895,6 +895,12 @@ body:has(#learning.active) main { max-width: 1540px; }
 .learning-evidence-row span { min-width: 0; color: #d8e7ee; overflow-wrap: anywhere; }
 .learning-evidence-row small { display: block; margin-top: 4px; color: #6e8596; font-size: .62rem; }
 .learning-evidence-row b { color: #6fcde0; font: 600 .54rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; }
+.learning-patterns-card { grid-column: 1/-1; }
+.learning-patterns-card .learning-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.learning-pattern { border-left-color: #f2ba59; }
+.learning-pattern.is-established { border-left-color: #4de297; }
+.learning-authority { align-self: start; color: #efc778; font: 600 .52rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
+.learning-coverage { margin-top: 11px; padding: 11px 13px; border: 1px solid rgba(70,210,236,.1); background: rgba(4,16,26,.45); font-size: .65rem; line-height: 1.45; }
 .learning-policy { display: grid; grid-template-columns: auto 1fr; gap: 14px; margin-top: 12px; padding: 14px 16px; border: 1px solid rgba(247,185,85,.18); background: rgba(247,185,85,.05); }
 .learning-policy strong { color: #efc778; font: 650 .59rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; text-transform: uppercase; }
 .learning-policy span { color: #9aabb3; font-size: .69rem; line-height: 1.45; }
@@ -939,6 +945,7 @@ body:has(#learning.active) main { max-width: 1540px; }
   .market-actions { justify-content: stretch; }
   .learning-summary { grid-template-columns: 1fr 1fr; }
   .learning-grid,.learning-composer { grid-template-columns: 1fr; }
+  .learning-patterns-card .learning-list { grid-template-columns: 1fr; }
   .learning-composer button { grid-column: auto; width: 100%; }
   .learning-row { grid-template-columns: 1fr; }
   .learning-actions { justify-content: stretch; }

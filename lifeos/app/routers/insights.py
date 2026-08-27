@@ -18,6 +18,7 @@ from ..commute import commute_snapshot
 from ..context_engine import current_context, list_proposals
 from ..db import active_profile, conn, get_setting
 from ..intelligence import build_intelligence
+from ..pattern_learning import record_commute_observation
 from ..paydays import payday_schedule, scheduled_bill_due_date
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
@@ -319,6 +320,8 @@ def morning_briefing():
     weather = _weather()
     workday = date.today().weekday() < 5
     commute = commute_snapshot() if workday else None
+    if commute:
+        record_commute_observation(pid, commute)
 
     paydays = payday_schedule(count=2)
     next_pay = paydays[0]

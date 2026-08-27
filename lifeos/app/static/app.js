@@ -1559,6 +1559,35 @@ function renderLearningList(targetId, items, emptyMessage, actions) {
   items.forEach((item) => target.appendChild(learningPreferenceRow(item, actions)));
 }
 
+function renderAutomaticPatterns(snapshot) {
+  const target = $("learning-patterns");
+  const coverage = $("learning-pattern-coverage");
+  target.replaceChildren();
+  const patterns = Array.isArray(snapshot?.patterns) ? snapshot.patterns : [];
+  if (!patterns.length) {
+    target.appendChild(el("div", "empty-state", "Jarvis needs repeated activity before a pattern appears here."));
+  } else {
+    patterns.forEach((pattern) => {
+      const row = el("div", `learning-row learning-pattern ${pattern.status === "established" ? "is-established" : "is-emerging"}`);
+      const copy = el("div", "learning-copy");
+      copy.append(
+        el("span", "learning-row-label", `${String(pattern.domain || "general").replaceAll("_", " ").toUpperCase()} · ${String(pattern.status || "emerging").toUpperCase()}`),
+        el("strong", "", `${pattern.subject}: ${pattern.conclusion}`),
+        el("small", "", `${Math.round(Number(pattern.confidence || 0) * 100)}% confidence · ${Number(pattern.sample_count || 0)} samples`),
+        el("p", "", pattern.evidence || "Evidence details are not available."),
+      );
+      row.append(copy, el("b", "learning-authority", "ADVISORY"));
+      target.appendChild(row);
+    });
+  }
+  const awaiting = Array.isArray(snapshot?.coverage?.awaiting_evidence)
+    ? snapshot.coverage.awaiting_evidence.map((item) => String(item).replaceAll("_", " "))
+    : [];
+  coverage.textContent = awaiting.length
+    ? `Still learning: ${awaiting.join(", ")}. Three observations establish a pattern.`
+    : "All supported domains have evidence. Patterns remain advisory and correctable.";
+}
+
 async function loadLearning() {
   const status = $("learning-status");
   status.textContent = "Synchronizing local evidence and decisions…";
@@ -1570,6 +1599,7 @@ async function loadLearning() {
     $("learning-candidate-count").textContent = summary.candidate ?? 0;
     $("learning-rejected-count").textContent = summary.rejected ?? 0;
     $("learning-observation-count").textContent = summary.observations ?? 0;
+    $("learning-pattern-count").textContent = summary.patterns ?? 0;
     const preferences = Array.isArray(data.preferences) ? data.preferences : [];
     renderLearningList(
       "learning-candidates",
@@ -1606,17 +1636,19 @@ async function loadLearning() {
         evidence.appendChild(row);
       });
     }
+    renderAutomaticPatterns(data.automatic_patterns || {});
     status.textContent = `${data.profile || "Giovanni"} · learning ledger synchronized · inferences remain action-locked.`;
   } catch (error) {
     status.textContent = `Learning ledger unavailable: ${error.message}`;
     status.className = "inline-status error-state";
-    ["learning-candidates", "learning-confirmed", "learning-rejected", "learning-evidence"].forEach((id) => {
+    ["learning-candidates", "learning-confirmed", "learning-rejected", "learning-evidence", "learning-patterns"].forEach((id) => {
       const target = $(id);
       target.replaceChildren();
       const retry = el("button", "secondary", "Retry learning ledger");
       retry.onclick = loadLearning;
       target.append(el("div", "empty-state", "This section could not be loaded."), retry);
     });
+    $("learning-pattern-coverage").textContent = "Pattern coverage is unavailable until the Learning Ledger reconnects.";
   }
 }
 

@@ -342,6 +342,21 @@ CREATE TABLE IF NOT EXISTS learning_audit (
     FOREIGN KEY(preference_id) REFERENCES learned_preferences(id)
 );
 
+CREATE TABLE IF NOT EXISTS commute_history (
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    observed_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    minutes REAL NOT NULL,
+    miles REAL,
+    source TEXT NOT NULL,
+    traffic_live INTEGER NOT NULL DEFAULT 0,
+    planned_departure TEXT,
+    PRIMARY KEY (date, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_commute_history_profile_date
+    ON commute_history(profile_id, date DESC);
+
 CREATE TABLE IF NOT EXISTS body_checkins (
     date TEXT NOT NULL,
     profile_id INTEGER NOT NULL DEFAULT 1,

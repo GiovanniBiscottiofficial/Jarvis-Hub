@@ -205,6 +205,7 @@ def test_learning_guides_ranking_without_authorizing_actions():
     )
     assert "1 confirmed preference" in signal["detail"]
     assert result["policy"]["confirmed_preferences_are_guidance_only"] is True
+    assert result["policy"]["automatic_patterns_are_guidance_only"] is True
 
 
 def test_intelligence_api_is_read_only_and_command_center_includes_it(fresh_db):

@@ -185,7 +185,7 @@ Context APIs:
 - `POST /api/simulations/{arrival|departure|nightly}` — side-effect-free behavior lab;
 - `GET /api/actions`, `GET /api/actions/audit`, and `POST /api/actions/{action_id}` —
   policies, audit history, and guarded execution.
-- `GET /api/learning` — local observations, candidates, confirmed preferences, and audit;
+- `GET /api/learning` — local observations, automatic patterns, candidates, confirmed preferences, and audit;
 - `POST /api/learning/feedback` — record explicit evidence without authorizing an action;
 - `POST /api/learning/preferences/{id}/decision` — confirm, reject, or forget guidance.
 
@@ -201,6 +201,14 @@ separate from candidates, candidates remain action-locked until Giovanni confirm
 them, and confirmed guidance can be forgotten at any time. Confidence is based on
 visible evidence count and agreement; it is not presented as certainty. The ledger,
 its decisions, and its audit history stay in the local LifeOS database.
+
+Jarvis also derives cautious, profile-owned patterns from commute duration,
+arrival/departure timing, repeated meals, Body Ops consistency, recurring spending,
+Sanctuary modes, and media sources. Three observations are required before a pattern
+is called established. These patterns improve timing, ranking, and briefing language;
+they remain advisory and never authorize an action. Raw microphone audio, camera
+frames, identity recognition, exact location history, passwords, and tokens are not
+retained as learning evidence.
 
 Learning never bypasses the action registry. A confirmed preference may influence
 an explanation or future proposal, but it cannot directly operate Home Assistant.

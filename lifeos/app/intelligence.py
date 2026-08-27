@@ -444,6 +444,20 @@ def build_intelligence(
             )],
         ))
 
+    automatic_patterns = list((learning or {}).get("automatic_patterns", {}).get("patterns", []))
+    established_patterns = [item for item in automatic_patterns if item.get("status") == "established"]
+    if established_patterns:
+        domains = sorted({str(item.get("domain") or "general").replace("_", " ") for item in established_patterns})
+        signals.append(_signal(
+            "established_patterns_loaded", "learning", "info",
+            "Evidence-backed personal patterns are available",
+            f"{len(established_patterns)} established pattern(s) across {', '.join(domains)} may shape timing and suggestions but cannot authorize actions.",
+            [_evidence(
+                "learning", "established automatic patterns", len(established_patterns),
+                source="pattern_ledger",
+            )],
+        ))
+
     if proposals:
         signals.append(_signal(
             "pending_policy_proposals", "policy", "info",
@@ -519,6 +533,7 @@ def build_intelligence(
             "inferences_authorize_actions": False,
             "stale_data_can_authorize_actions": False,
             "confirmed_preferences_are_guidance_only": True,
+            "automatic_patterns_are_guidance_only": True,
             "gesture_can_confirm_actions": False,
         },
     }

@@ -44,6 +44,8 @@ def test_explicit_evidence_creates_action_locked_candidate(fresh_db):
     assert ledger["summary"]["candidate"] == 1
     assert ledger["policy"]["inferences_authorize_actions"] is False
     assert ledger["policy"]["explicit_evidence_only"] is True
+    assert "automatic_patterns" in ledger
+    assert ledger["automatic_patterns"]["policy"]["patterns_authorize_actions"] is False
 
 
 def test_repeated_consistent_feedback_increases_confidence(fresh_db):
@@ -168,6 +170,9 @@ def test_learning_ui_is_touch_safe_and_uses_safe_dom():
         "learning-confirmed",
         "learning-rejected",
         "learning-evidence",
+        "learning-patterns",
+        "learning-pattern-coverage",
+        "learning-pattern-count",
         "learning-submit",
     ):
         assert f'id="{element_id}"' in index
