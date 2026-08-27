@@ -52,8 +52,11 @@ views:
             tap_action:
               action: toggle
           - type: iframe
-            url: /local/jarvis-avatar.html
+            url: /local/jarvis-avatar.html?v=20260826-1
             aspect_ratio: 75%
+            grid_options:
+              columns: full
+              rows: 4
           - type: markdown
             title: Try saying…
             content: |
@@ -86,8 +89,11 @@ views:
             heading: Lights
             icon: mdi:lightbulb-group
           - type: iframe
-            url: /local/jarvis-lights.html
+            url: /local/jarvis-lights.html?v=20260826-1
             aspect_ratio: 120%
+            grid_options:
+              columns: full
+              rows: 8
           - type: heading
             heading: Scenes
             icon: mdi:palette
@@ -276,8 +282,11 @@ views:
                   target:
                     entity_id: input_boolean.sleep_mode
           - type: iframe
-            url: /local/jarvis-avatar.html
+            url: /local/jarvis-avatar.html?v=20260826-1
             aspect_ratio: 70%
+            grid_options:
+              columns: full
+              rows: 4
             card_mod:
               style: |
                 ha-card {
@@ -305,6 +314,7 @@ views:
                 }
 
       - type: grid
+        column_span: 2
         cards:
           - type: iframe
             url: /local/jarvis-rooms.html?v=20260826-1
@@ -806,7 +816,7 @@ views:
     type: panel
     cards:
       - type: iframe
-        url: /local/jarvis-media.html
+        url: /local/jarvis-media.html?v=20260826-1
         aspect_ratio: 72%
         card_mod:
           style: |
