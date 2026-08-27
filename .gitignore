@@ -22,6 +22,7 @@ ha-config/www/*
 !ha-config/www/jarvis-idle.html
 !ha-config/www/jarvis-rooms.html
 !ha-config/www/jarvis-lights.html
+!ha-config/www/jarvis-media.html
 !ha-config/www/sanctuary-floorplan.png
 !ha-config/www/lifeos.html
 !ha-config/www/lifeos-panel.js
