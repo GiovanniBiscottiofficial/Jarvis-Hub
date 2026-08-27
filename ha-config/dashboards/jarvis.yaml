@@ -869,16 +869,32 @@ views:
           #     - binary_sensor.front_door_person_occupancy
 
   # ------------------------------------------------------------------
-  # Digital twin: live "what is the house doing" view. The floorplan card
-  # lights up once you drop a floorplan image at ha-config/www/floorplan.png
-  # and uncomment the picture-elements block below.
-  - title: Twin
+  # Interactive apartment command surface backed by the commissioned
+  # sanctuary-floorplan.png and live Home Assistant area/entity registries.
+  - title: Floor Plan
     path: twin
-    icon: mdi:home-analytics
+    icon: mdi:floor-plan
     theme: Jarvis
     type: sections
     max_columns: 3
     sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Sanctuary Floor Plan
+            icon: mdi:floor-plan
+          - type: iframe
+            url: /local/jarvis-rooms.html
+            aspect_ratio: 125%
+            card_mod:
+              style: |
+                ha-card {
+                  background: #030910;
+                  border: 1px solid rgba(67, 217, 238, 0.22);
+                  box-shadow: none;
+                  overflow: hidden;
+                }
       - type: grid
         cards:
           - type: heading
@@ -929,32 +945,6 @@ views:
             hours_to_show: 24
             entities:
               - sensor.x1_battery
-      - type: grid
-        cards:
-          - type: heading
-            heading: Floorplan
-            icon: mdi:floor-plan
-          - type: markdown
-            content: >
-              Drop a floorplan image at `ha-config/www/floorplan.png`
-              (draw one free at floorplanner.com or sweethome3d.com),
-              then replace this card with the picture-elements block
-              commented in the YAML — tap rooms to control lights.
-          # - type: picture-elements
-          #   image: /local/floorplan.png
-          #   elements:
-          #     - type: state-icon
-          #       entity: light.living_room
-          #       tap_action: {action: toggle}
-          #       style: {top: 40%, left: 30%}
-          #     - type: state-icon
-          #       entity: light.bedroom
-          #       tap_action: {action: toggle}
-          #       style: {top: 30%, left: 70%}
-          #     - type: state-icon
-          #       entity: vacuum.juno
-          #       style: {top: 65%, left: 50%}
-
   - title: System
     path: system
     icon: mdi:laptop
