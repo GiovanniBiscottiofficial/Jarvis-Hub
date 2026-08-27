@@ -452,6 +452,15 @@
     document.querySelectorAll("#budget details.subordinate-tools").forEach((details) => {
       if (details.querySelector("summary")?.textContent.trim() === "Reconcile actual balance") details.hidden = true;
     });
+    window.addEventListener("jarvis:data-changed", (event) => {
+      const path = String(event.detail?.path || "");
+      if (!path.startsWith("/api/money") && !path.startsWith("/api/budget") && !path.startsWith("/api/vault")) return;
+      state.loaded = false;
+      if (byId("budget")?.classList.contains("active")) load(true);
+    });
+    window.addEventListener("jarvis:refresh-active", (event) => {
+      if (event.detail?.active === "budget") load(true);
+    });
     if (byId("budget").classList.contains("active")) load();
   }
 

@@ -88,13 +88,14 @@ async function authenticateBrowser() {
 }
 
 async function api(path, method = "GET", body, retried = false) {
+  const normalizedMethod = String(method || "GET").toUpperCase();
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
   const res = await fetch(path, {
-    method,
+    method: normalizedMethod,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    cache: method === "GET" ? "no-store" : "default",
+    cache: normalizedMethod === "GET" ? "no-store" : "default",
   });
   if (res.status === 401 && !retried && await authenticateBrowser()) {
     return api(path, method, body, true);
@@ -104,6 +105,11 @@ async function api(path, method = "GET", body, retried = false) {
     throw new Error("Home Assistant session required. Open LifeOS from the Home Assistant sidebar.");
   }
   if (!res.ok) throw new Error(data.detail || data.message || `LifeOS request failed (${res.status})`);
+  if (normalizedMethod !== "GET") {
+    window.dispatchEvent(new CustomEvent("jarvis:data-changed", {
+      detail: { path: String(path).split("?")[0], method: normalizedMethod },
+    }));
+  }
   return data;
 }
 
@@ -116,6 +122,7 @@ document.querySelectorAll(".tab").forEach((btn) =>
     $(btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "budget") loadFinance();
     if (btn.dataset.tab === "body") loadBody();
+    if (btn.dataset.tab === "today") loadToday();
     if (btn.dataset.tab === "learning") loadLearning();
     if (btn.dataset.tab === "review") loadReview();
     if (btn.dataset.tab === "command") loadCommandCenter();
@@ -146,11 +153,11 @@ function renderTodayPriorities(fusedPriorities, fallback) {
   });
 }
 
+let todayLoadSequence = 0;
 async function loadToday() {
-  const [t, commandPayload] = await Promise.all([
-    api("/api/today"),
-    api("/api/command-center?event_limit=1").catch(() => ({ context: {} })),
-  ]);
+  const sequence = ++todayLoadSequence;
+  const t = await api("/api/today");
+  if (sequence !== todayLoadSequence) return;
   commandText("today-date", new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase());
   const p = t.protein;
   $("protein-bar").style.width = Math.min(100, (p.today_g / p.target_g) * 100) + "%";
@@ -172,7 +179,7 @@ async function loadToday() {
   if (p.today_g < p.target_g) fallbackPriorities.push(`${Math.round(p.target_g - p.today_g)}g protein remaining`);
   if (t.steps_today < stepsTarget) fallbackPriorities.push(`${(stepsTarget - t.steps_today).toLocaleString()} steps remaining`);
   if (w.today < w.target) fallbackPriorities.push(`${w.target - w.today} glasses of water remaining`);
-  renderTodayPriorities(commandPayload.context?.lifeos?.priorities, fallbackPriorities);
+  renderTodayPriorities(t.priorities, fallbackPriorities);
 
   const sug = $("suggestions");
   sug.replaceChildren();
@@ -2393,3 +2400,41 @@ document.addEventListener("fullscreenchange", () => {
     ? " Exit full screen"
     : " Full screen";
 });
+
+// ---------- cross-surface synchronization ----------
+let operatingSyncTimer = null;
+
+function activeSurface() {
+  return document.querySelector(".tab.active")?.dataset.tab || "today";
+}
+
+function runSafely(loader) {
+  Promise.resolve().then(loader).catch(() => {
+    // Each surface owns its visible degraded/error state. A background refresh
+    // must never replace another panel's status or create an unhandled promise.
+  });
+}
+
+function refreshOperatingPicture({ mutation = false } = {}) {
+  const active = activeSurface();
+  if (mutation || active === "today") runSafely(loadToday);
+  if (active === "budget") runSafely(loadFinance);
+  if (active === "body") runSafely(loadBody);
+  if (active === "learning") runSafely(loadLearning);
+  if (active === "review") runSafely(loadReview);
+  if (active === "command") runSafely(loadCommandCenter);
+  window.dispatchEvent(new CustomEvent("jarvis:refresh-active", { detail: { active, mutation } }));
+}
+
+window.addEventListener("jarvis:data-changed", () => {
+  window.clearTimeout(operatingSyncTimer);
+  operatingSyncTimer = window.setTimeout(() => refreshOperatingPicture({ mutation: true }), 120);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshOperatingPicture();
+});
+
+window.setInterval(() => {
+  if (document.visibilityState === "visible") refreshOperatingPicture();
+}, 60000);

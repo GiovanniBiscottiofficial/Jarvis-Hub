@@ -110,7 +110,7 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "parent_origin=" in wrapper
     assert "parent_origin=" in panel
     assert 'get("parent_origin")' in app_script
-    assert "app.js?v=13" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert "app.js?v=14" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
     assert "await hass.callService" in wrapper
     assert "await this._hass.callService" in panel
     assert "using local speech" in wrapper
@@ -143,7 +143,7 @@ def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
     assert "sections" in configuration
     app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
     index = (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
-    assert 'cache: method === "GET" ? "no-store" : "default"' in app_script
+    assert 'cache: normalizedMethod === "GET" ? "no-store" : "default"' in app_script
     assert "<h2>Jarvis briefing</h2>" in index
     assert "<h2>Morning briefing</h2>" not in index
 

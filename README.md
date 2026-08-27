@@ -146,6 +146,12 @@ near-term financial runway, priorities, X1 hardware readiness, proposals, and th
 Home Assistant event stream. Open LifeOS and select **Command** for the complete
 operating picture.
 
+Today, Body Ops, Budget & Vault, weekly intelligence, spoken answers, and Command
+Center consume that same profile-scoped operating picture. Successful UI mutations
+invalidate affected panels immediately; tab activation, visibility recovery, and a
+60-second visible-page refresh also reconcile changes made by voice, Home Assistant,
+or another device.
+
 Home Assistant forwards meaningful `state_changed` events through
 `ha-config/automations/context_engine.yaml`. LifeOS evaluates three behaviors:
 

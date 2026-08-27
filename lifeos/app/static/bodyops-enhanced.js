@@ -412,6 +412,15 @@
     if (tab) tab.addEventListener("click", () => load(true));
     const todayTab = document.querySelector('[data-tab="today"]');
     if (todayTab) todayTab.addEventListener("click", () => load(true));
+    window.addEventListener("jarvis:data-changed", (event) => {
+      const path = String(event.detail?.path || "");
+      if (!path.startsWith("/api/body") && !path.startsWith("/api/profiles") && !path.startsWith("/api/pantry")) return;
+      state.loaded = false;
+      if (byId("body")?.classList.contains("active") || byId("today")?.classList.contains("active")) load(true);
+    });
+    window.addEventListener("jarvis:refresh-active", (event) => {
+      if (event.detail?.active === "body" || event.detail?.active === "today") load(true);
+    });
     load();
   }
 
