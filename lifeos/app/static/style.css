@@ -614,10 +614,11 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
   .app-header { padding: 8px 10px 6px; }
   .app-header::after { content: none; }
   .nav-rail { display: grid; grid-template-columns: minmax(0, 1fr) 38px; }
-  .app-header nav { position: relative; overflow-x: auto; margin: 0; padding: 0 8px 0 0; }
+  .app-header nav { position: relative; overflow-x: auto; margin: 0; padding: 0 8px; scroll-padding-inline: 8px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .app-header nav::-webkit-scrollbar { display: none; }
   .app-header nav::after { content: none; }
   .nav-more { display: grid; place-items: center; color: #70e1fa; border-left: 1px solid rgba(83, 190, 216, .18); background: #06131e; font-size: 1.1rem; pointer-events: none; }
-  .app-header .tab { min-width: 84px; min-height: 44px; }
+  .app-header .tab { min-width: 88px; min-height: 44px; scroll-snap-align: center; }
   button.command-tool { min-height: 44px; }
   .brand-lockup > span { display: none; }
   .section-intro { min-height: 84px; padding: 15px 2px 13px; }
@@ -764,7 +765,9 @@ body:has(#budget.active) main { max-width: 1540px; }
 .market-heading { align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(65,196,226,.1); }
 .market-heading h2 { border: 0 !important; padding: 0 !important; }
 .shopping-composer { display: grid; grid-template-columns: minmax(180px,1.15fr) minmax(250px,1fr) auto; gap: 8px; align-items: end; padding: 13px; border: 1px solid rgba(78,211,238,.14); background: rgba(5,19,30,.5); }
+.shopping-composer input,.shopping-composer select { min-height: 44px; }
 .shopping-composer button { min-height: 46px; white-space: nowrap; }
+.shopping-card .market-heading button { min-height: 44px; }
 .shopping-boundary { margin: 2px 0 8px; padding: 9px 11px; border-left: 2px solid rgba(247,185,85,.6); color: #8fa3ae; background: rgba(247,185,85,.045); font: 600 .56rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .07em; }
 .market-group { margin-top: 12px; }
 .market-group h3 { color: #70e9ff; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; text-transform: uppercase; }
@@ -777,6 +780,15 @@ body:has(#budget.active) main { max-width: 1540px; }
 .retailer-link:hover,.retailer-link:focus-visible { border-color: #64dff5; color: #e6fbff; }
 .market-actions button { min-height: 44px; }
 .route-toggle { border-color: rgba(247,185,85,.23) !important; color: #d9bc82 !important; }
+.todo-console { max-width: 1500px !important; }
+.todo-boundaries { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1px; margin-bottom: 14px; border: 1px solid rgba(75,205,234,.14); background: rgba(75,205,234,.14); }
+.todo-boundaries article { min-width: 0; padding: 15px 17px; background: #07131e; border-top: 2px solid transparent; }
+.todo-boundaries article.is-active { border-top-color: #58dff7; background: linear-gradient(180deg,rgba(36,118,145,.12),#07131e); }
+.todo-boundaries span { display: block; color: #69889a; font: 600 .54rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .13em; }
+.todo-boundaries strong { display: block; margin-top: 7px; color: #d9f6fb; font-size: .88rem; }
+.todo-boundaries p { margin: 6px 0 0; color: #849ba8; font-size: .68rem; line-height: 1.45; }
+.shopping-card { border-left: 2px solid rgba(88,223,247,.58); }
+.shopping-card .market-heading { margin-top: 0; padding-top: 0; border-top: 0; }
 .scale-readiness { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; margin-top: 12px; padding: 13px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); overflow-wrap: anywhere; }
 .scale-readiness .scale-state { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
 .scale-readiness .scale-route { color: #c4d8e0; font-size: .76rem; }
@@ -836,6 +848,7 @@ body:has(#learning.active) main { max-width: 1540px; }
   .chef-actions { grid-template-columns: 1fr 1fr; }
   .learning-composer { grid-template-columns: 1fr 1fr; }
   .learning-composer button { grid-column: 1/-1; }
+  .todo-boundaries { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
   .finance-grid { display: flex; flex-direction: column; }
@@ -880,6 +893,18 @@ body:has(#learning.active) main { max-width: 1540px; }
   .bill-row { min-height: 72px; }
   .spending-composer button,.pantry-composer button,.shopping-composer button { min-height: 56px; }
   .transaction-row,.inventory-row { min-height: 62px; }
+  body:has(#todo.active) main { width: 100%; max-width: 2720px; padding: 20px 30px 34px; }
+  main #todo.panel { max-width: 2520px !important; }
+  #todo .section-intro { min-height: 150px; }
+  #todo .section-intro p { max-width: 62ch; font-size: .9rem; }
+  #todo .todo-boundaries article { min-height: 132px; padding: 24px 28px; }
+  #todo .todo-boundaries strong { font-size: 1.05rem; }
+  #todo .todo-boundaries p { max-width: 48ch; font-size: .78rem; }
+  #todo .shopping-card { padding: 26px 30px; }
+  #todo .shopping-composer { gap: 14px; padding: 20px; }
+  #todo .shopping-composer input,#todo .shopping-composer select { min-height: 54px; }
+  #todo .shopping-composer button,#todo .shopping-card .market-heading button { min-height: 56px; }
+  #todo .market-row { min-height: 80px; }
   body:has(#learning.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }
   .learning-summary > div { min-height: 120px; }
   body:has(#review.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }

@@ -75,3 +75,35 @@ def test_shopping_ui_uses_allowlisted_review_only_retailer_links():
     assert "encodeURIComponent(item.item)" in javascript
     assert 'link.rel = "noopener noreferrer"' in javascript
     assert re.search(r"\.retailer-link\s*\{[^}]*min-height:\s*44px", css)
+
+
+def test_shopping_ui_lives_only_in_todo_and_supports_allowlisted_query_activation():
+    static = Path(__file__).resolve().parents[1] / "app" / "static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    javascript = (static / "app.js").read_text(encoding="utf-8")
+    body = html.split('id="body"', 1)[1].split('id="todo"', 1)[0]
+    todo = html.split('id="todo"', 1)[1].split('id="budget"', 1)[0]
+
+    for element_id in ("market-build-btn", "shopping-item", "shopping-type", "shopping-add-btn", "shopping-status", "grocery"):
+        assert html.count(f'id="{element_id}"') == 1
+        assert f'id="{element_id}"' not in body
+        assert f'id="{element_id}"' in todo
+    assert 'new Set(["command", "today", "body", "todo", "budget", "learning", "review"])' in javascript
+    assert 'ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today"' in javascript
+    assert 'if (panelName === "todo") loadShopping();' in javascript
+    assert 'rail.clientWidth - chevronWidth' in javascript
+    assert 'nav.scrollTo({ left:' in javascript
+
+
+def test_home_assistant_wrapper_and_dashboard_expose_separate_todo_systems():
+    repo = Path(__file__).resolve().parents[2]
+    wrapper = (repo / "ha-config" / "www" / "lifeos.html").read_text(encoding="utf-8")
+    dashboard = (repo / "ha-config" / "dashboards" / "jarvis.yaml").read_text(encoding="utf-8")
+
+    assert "requestedTab === 'todo' ? '&tab=todo' : ''" in wrapper
+    assert "token" not in wrapper.split("app.src =", 1)[1]
+    assert "localStorage" not in wrapper and "sessionStorage" not in wrapper
+    assert "title: To-do" in dashboard
+    assert "entity: todo.shopping_list" in dashboard
+    assert "url: /local/lifeos.html?tab=todo&v=" in dashboard
+    assert "navigation_path: /local/open.html?port=9283&path=/" in dashboard

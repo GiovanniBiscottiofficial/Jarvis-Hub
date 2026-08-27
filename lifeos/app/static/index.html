@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="jarvis-release" content="2026.08.26-operating-sync-v1">
+<meta name="jarvis-release" content="2026.08.26-todo-shopping-v3">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <header class="app-header">
@@ -22,6 +22,7 @@
       <button class="tab" data-tab="command">Command</button>
       <button class="tab active" data-tab="today">Today</button>
       <button class="tab" data-tab="body">Body Ops</button>
+      <button class="tab" data-tab="todo">To-do</button>
       <button class="tab" data-tab="budget">Budget &amp; Vault</button>
       <button class="tab" data-tab="learning">Learning</button>
       <button class="tab" data-tab="review">Review</button>
@@ -319,7 +320,7 @@
       <div id="chef-status" class="inline-status muted" role="status" aria-live="polite"></div>
     </div>
     <div class="card pantry-card">
-      <div class="chef-heading"><div><span class="chef-kicker">STOCK / LOCAL</span><h2>Pantry &amp; market list</h2></div><span id="pantry-readiness" class="chef-state">LOADING</span></div>
+      <div class="chef-heading"><div><span class="chef-kicker">STOCK / LOCAL</span><h2>Pantry inventory</h2></div><span id="pantry-readiness" class="chef-state">LOADING</span></div>
       <p class="card-note">Tell Jarvis what arrived or tap “Ran out” when it is gone. Grocy remains an optional inventory bridge.</p>
       <div class="pantry-composer" aria-label="Add pantry item">
         <label>Item<input id="pantry-item" autocomplete="off" placeholder="Chicken breast"></label>
@@ -334,18 +335,30 @@
       <div class="row pantry-tools">
         <button id="pantry-sync-btn" class="secondary">Sync from Grocy</button>
       </div>
-      <div class="market-heading"><div><span class="chef-kicker">SHOPPING / ROUTED</span><h2>Shopping list</h2></div><button id="market-build-btn" class="secondary">Add low stock</button></div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ TO-DO & SHOPPING ============ -->
+  <section id="todo" class="panel todo-console">
+    <div class="section-intro"><div><span class="section-index">HOUSEHOLD / 03</span><h2>To-do &amp; shopping</h2><p>Lists, routed purchasing, and inventory tools in one household console.</p></div><span class="section-date">REVIEW BEFORE PURCHASE</span></div>
+    <div class="todo-boundaries" aria-label="List system boundaries">
+      <article><span>VOICE + MANUAL</span><strong>Home Assistant list</strong><p><code>todo.shopping_list</code> remains a separate list on the Home Assistant To-do view.</p></article>
+      <article class="is-active"><span>ROUTED PURCHASES</span><strong>Jarvis shopping</strong><p>Food and household items are routed to the appropriate retailers below.</p></article>
+      <article><span>INVENTORY + EXPIRY</span><strong>Grocy</strong><p>Launch Grocy from the Home Assistant To-do view for stock and expiry management.</p></article>
+    </div>
+    <article class="card shopping-card" aria-labelledby="routed-shopping-title">
+      <div class="market-heading"><div><span class="chef-kicker">SHOPPING / ROUTED</span><h2 id="routed-shopping-title">Jarvis shopping list</h2></div><button id="market-build-btn" class="secondary">Add low stock</button></div>
       <p class="card-note">Food goes to Food Lion or Instacart. Household supplies, personal care, and other items go to Walmart or Amazon.</p>
       <div class="shopping-composer" aria-label="Add shopping-list item">
         <label>Item<input id="shopping-item" autocomplete="off" placeholder="Paper towels or chicken breast"></label>
         <label>Shopping route<select id="shopping-type"><option value="food">Food · Food Lion + Instacart</option><option value="home">Home, personal &amp; other · Walmart + Amazon</option></select></label>
         <button id="shopping-add-btn">Add to shopping list</button>
       </div>
-      <div id="shopping-status" class="inline-status muted" role="status" aria-live="polite"></div>
+      <div id="shopping-status" class="inline-status muted" role="status" aria-live="polite">Jarvis list is separate from Home Assistant and Grocy.</div>
       <p class="shopping-boundary">REVIEW-ONLY CHECKOUT · Store buttons open the item at the appropriate retailer. Jarvis never submits an order or assumes live price, stock, substitutions, or delivery availability.</p>
-      <div id="grocery" class="market-list muted">Loading market list…</div>
-    </div>
-    </div>
+      <div id="grocery" class="market-list muted" aria-live="polite">Loading routed shopping list…</div>
+    </article>
   </section>
 
   <!-- ============ BUDGET & VAULT ============ -->
@@ -563,7 +576,7 @@
   </section>
 </main>
 
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=17"></script>
   <script src="bodyops-enhanced.js?v=3"></script>
   <script src="money-command.js?v=6"></script>
   <script src="release-watch.js?v=1"></script>
