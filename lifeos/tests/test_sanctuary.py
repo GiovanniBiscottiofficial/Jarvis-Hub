@@ -111,8 +111,10 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "parent_origin=" in panel
     assert 'get("parent_origin")' in app_script
     assert "app.js?v=12" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
-    assert "Promise.resolve(speechJob).catch" in wrapper
-    assert "Promise.resolve(speechJob).catch" in panel
+    assert "await hass.callService" in wrapper
+    assert "await this._hass.callService" in panel
+    assert "using local speech" in wrapper
+    assert "using local speech" in panel
     assert "lifeos-panel.js?v=7" in configuration
 
     speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(

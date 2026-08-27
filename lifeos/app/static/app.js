@@ -1572,8 +1572,45 @@ function renderReviewTrends(trends) {
 
 let weeklyReviewSpeech = "";
 let weeklyReviewUtterance = null;
+let weeklyReviewAudio = null;
+let weeklyReviewAudioUrl = null;
+
+function clearWeeklyReviewAudio() {
+  if (weeklyReviewAudio) {
+    const audio = weeklyReviewAudio;
+    weeklyReviewAudio = null;
+    audio.onplay = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  if (weeklyReviewAudioUrl) URL.revokeObjectURL(weeklyReviewAudioUrl);
+  weeklyReviewAudioUrl = null;
+}
+
+async function fetchWeeklyReviewAudio(retried = false) {
+  const response = await fetch("/api/speech/local", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: weeklyReviewSpeech }),
+    cache: "no-store",
+  });
+  if (response.status === 401 && !retried && await authenticateBrowser()) {
+    return fetchWeeklyReviewAudio(true);
+  }
+  if (!response.ok) {
+    let message = `Local voice request failed (${response.status})`;
+    try { message = (await response.json()).detail || message; } catch (_) { /* WAV endpoint may not return JSON. */ }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
 function stopWeeklyReview() {
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  clearWeeklyReviewAudio();
   weeklyReviewUtterance = null;
   $("review-stop-btn").disabled = true;
   $("review-speak-btn").disabled = false;
@@ -1582,38 +1619,38 @@ function stopWeeklyReview() {
 
 async function speakWeeklyReview() {
   if (!weeklyReviewSpeech) return;
-  primeBrowserSpeech();
   const button = $("review-speak-btn");
   button.disabled = true;
-  $("review-speak-status").textContent = "Preparing Jarvis on the X1 audio output…";
-  if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
-    $("review-speak-status").textContent = "Speech is unavailable here. The complete brief remains visible.";
-    button.disabled = false;
-    return;
-  }
-  window.speechSynthesis.cancel();
-  weeklyReviewUtterance = new SpeechSynthesisUtterance(weeklyReviewSpeech);
-  const voices = window.speechSynthesis.getVoices();
-  weeklyReviewUtterance.voice = voices.find((voice) => /^en-US/i.test(voice.lang)) || voices.find((voice) => /^en/i.test(voice.lang)) || null;
-  weeklyReviewUtterance.rate = 0.92;
-  weeklyReviewUtterance.pitch = 0.96;
-  weeklyReviewUtterance.onstart = () => {
+  clearWeeklyReviewAudio();
+  $("review-speak-status").textContent = "Jarvis is generating the weekly brief with local Piper…";
+  try {
+    const blob = await fetchWeeklyReviewAudio();
+    weeklyReviewAudioUrl = URL.createObjectURL(blob);
+    weeklyReviewAudio = new Audio(weeklyReviewAudioUrl);
+    weeklyReviewAudio.onplay = () => {
+      $("review-stop-btn").disabled = false;
+      $("review-speak-status").textContent = "Jarvis is delivering the weekly brief through the X1 audio output.";
+    };
+    weeklyReviewAudio.onended = () => {
+      clearWeeklyReviewAudio();
+      $("review-stop-btn").disabled = true;
+      button.disabled = false;
+      $("review-speak-status").textContent = "Weekly brief complete.";
+    };
+    weeklyReviewAudio.onerror = () => {
+      clearWeeklyReviewAudio();
+      $("review-stop-btn").disabled = true;
+      button.disabled = false;
+      $("review-speak-status").textContent = "Piper audio could not be played. The complete brief remains visible.";
+    };
     $("review-stop-btn").disabled = false;
-    $("review-speak-status").textContent = "Jarvis is delivering the weekly brief through the X1 audio output.";
-  };
-  weeklyReviewUtterance.onend = () => {
-    weeklyReviewUtterance = null;
+    await weeklyReviewAudio.play();
+  } catch (error) {
+    clearWeeklyReviewAudio();
     $("review-stop-btn").disabled = true;
     button.disabled = false;
-    $("review-speak-status").textContent = "Weekly brief complete.";
-  };
-  weeklyReviewUtterance.onerror = () => {
-    weeklyReviewUtterance = null;
-    $("review-stop-btn").disabled = true;
-    button.disabled = false;
-    $("review-speak-status").textContent = "Speech was interrupted. The complete brief remains visible.";
-  };
-  window.speechSynthesis.speak(weeklyReviewUtterance);
+    $("review-speak-status").textContent = `Jarvis voice unavailable: ${error.message}. The complete brief remains visible.`;
+  }
 }
 
 async function loadReview() {

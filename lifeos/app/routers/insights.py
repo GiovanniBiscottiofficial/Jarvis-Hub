@@ -1,10 +1,15 @@
 """Insights: morning briefing + weekly review (both return a `speech`
 string Jarvis/HA can read aloud via TTS)."""
+import asyncio
+import io
 import os
+import re
+import wave
 from datetime import date, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from ..body_intelligence import daily_loop
@@ -20,6 +25,7 @@ router = APIRouter(prefix="/api", tags=["insights"])
 
 LAT = os.environ.get("LIFEOS_LAT", "")
 LON = os.environ.get("LIFEOS_LON", "")
+PIPER_URI = os.environ.get("PIPER_URI", "tcp://piper:10200")
 
 WEATHER_CODES = {
     0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
@@ -642,6 +648,66 @@ def weekly_review():
 
 class MemoryIn(BaseModel):
     fact: str
+
+
+class LocalSpeechIn(BaseModel):
+    text: str
+
+
+async def _piper_wav(text: str) -> bytes:
+    """Synthesize speech through the local Wyoming Piper service."""
+    from wyoming.audio import AudioChunk, AudioStart, AudioStop
+    from wyoming.client import AsyncClient
+    from wyoming.tts import Synthesize
+
+    client = AsyncClient.from_uri(PIPER_URI)
+    audio_start = None
+    chunks = bytearray()
+    try:
+        await asyncio.wait_for(client.connect(), timeout=5)
+        await client.write_event(Synthesize(text=text).event())
+        while True:
+            event = await asyncio.wait_for(client.read_event(), timeout=45)
+            if event is None:
+                raise RuntimeError("Piper closed the audio stream")
+            if AudioStart.is_type(event.type):
+                audio_start = AudioStart.from_event(event)
+            elif AudioChunk.is_type(event.type):
+                chunks.extend(AudioChunk.from_event(event).audio)
+            elif AudioStop.is_type(event.type):
+                break
+    finally:
+        await client.disconnect()
+
+    if audio_start is None or not chunks:
+        raise RuntimeError("Piper returned no audio")
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav_file:
+        wav_file.setnchannels(audio_start.channels)
+        wav_file.setsampwidth(audio_start.width)
+        wav_file.setframerate(audio_start.rate)
+        wav_file.writeframes(bytes(chunks))
+    return output.getvalue()
+
+
+@router.post("/speech/local")
+async def local_speech(body: LocalSpeechIn):
+    """Return local Piper audio for playback on the requesting X1 browser."""
+    text = re.sub(r"(?i)\bsir\b", "Giovanni", body.text).strip()
+    text = re.sub(r"\s+", " ", text)
+    if not text:
+        raise HTTPException(400, "speech text cannot be empty")
+    if len(text) > 6000:
+        raise HTTPException(400, "speech text is too long")
+    try:
+        audio = await _piper_wav(text)
+    except (OSError, RuntimeError, asyncio.TimeoutError) as exc:
+        raise HTTPException(503, "local Piper voice is unavailable") from exc
+    return Response(
+        content=audio,
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/memory")

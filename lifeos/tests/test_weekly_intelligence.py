@@ -1,6 +1,13 @@
 from datetime import date, timedelta
 
+from fastapi.testclient import TestClient
+
+from app.main import app
+from app.routers import insights
 from app.routers.insights import weekly_review
+
+
+AUTH = {"Authorization": "Bearer test-token"}
 
 
 def day(offset: int) -> str:
@@ -70,3 +77,43 @@ def test_weekly_intelligence_compares_periods_and_cites_recommendations(fresh_db
     assert review["priorities"]
     assert all(set(item) == {"domain", "title", "evidence"} for item in review["priorities"])
     assert review["policy"].startswith("Recommendations are advisory")
+
+
+def test_local_speech_returns_piper_audio_and_enforces_address_policy(
+    fresh_db, monkeypatch
+):
+    captured = []
+
+    async def fake_piper(text):
+        captured.append(text)
+        return b"RIFF-test-wave"
+
+    monkeypatch.setattr(insights, "_piper_wav", fake_piper)
+    response = TestClient(app).post(
+        "/api/speech/local",
+        headers=AUTH,
+        json={"text": "  Weekly brief, sir.  "},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.content == b"RIFF-test-wave"
+    assert captured == ["Weekly brief, Giovanni."]
+
+
+def test_local_speech_rejects_oversized_copy_without_calling_piper(
+    fresh_db, monkeypatch
+):
+    async def fail_if_called(_text):
+        raise AssertionError("Piper must not run for rejected input")
+
+    monkeypatch.setattr(insights, "_piper_wav", fail_if_called)
+    response = TestClient(app).post(
+        "/api/speech/local",
+        headers=AUTH,
+        json={"text": "x" * 6001},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "speech text is too long"
