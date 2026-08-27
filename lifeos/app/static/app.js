@@ -1492,26 +1492,184 @@ $("learning-submit").onclick = async () => {
 };
 
 // ---------- Review + profiles ----------
-async function loadReview() {
-  const r = await api("/api/review/weekly");
-  $("review-speech").textContent = r.speech;
-  const stats = $("review-stats");
-  stats.replaceChildren();
-  [
-    ["Weight change", r.weight.delta_lb === null ? "–" : `${r.weight.delta_lb} lb`],
-    ["Avg protein", `${r.avg_daily_protein_g}g / ${r.protein_target_g}g`],
-    ["Avg steps", r.avg_daily_steps.toLocaleString()],
-    ["Money in", `$${r.money_in.toFixed(2)}`],
-    ["Bills paid this month", `$${r.bills_paid_this_month.toFixed(2)}`],
-    ["Treats / workouts", `${r.treats_this_week} / ${r.workouts_this_week}`],
-    ["Streaks", `vitamins ${r.streaks.vitamins}d · steps ${r.streaks.steps}d`],
-  ].forEach(([label, value]) => {
-    const line = el("div", "line");
-    line.append(el("span", "", label), el("span", "", value));
-    stats.appendChild(line);
-  });
-  loadProfiles();
+function reviewMoney(value) {
+  return Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
+
+function reviewDate(value) {
+  if (!value) return "–";
+  return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function renderReviewSignals(id, items, emptyMessage) {
+  const target = $(id);
+  target.replaceChildren();
+  if (!Array.isArray(items) || !items.length) {
+    target.className = "review-signal-list muted";
+    target.textContent = emptyMessage;
+    return;
+  }
+  target.className = "review-signal-list";
+  items.forEach((item) => {
+    const row = el("div", "review-signal");
+    row.append(
+      el("span", "review-domain", String(item.domain || "signal").toUpperCase()),
+      el("strong", "", item.title || "Signal"),
+      el("p", "", item.evidence || "No evidence detail returned."),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderReviewPriorities(items) {
+  const target = $("review-priorities");
+  target.replaceChildren();
+  target.className = "review-priority-list";
+  (items || []).slice(0, 3).forEach((item, index) => {
+    const row = el("div", "review-priority");
+    row.append(
+      el("span", "review-priority-number", String(index + 1).padStart(2, "0")),
+      el("strong", "", item.title || "Maintain course"),
+      el("p", "", item.evidence || "No corrective action is supported."),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderReviewCoverage(confidence) {
+  const target = $("review-coverage");
+  target.replaceChildren();
+  Object.entries(confidence.coverage || {}).forEach(([name, value]) => {
+    const row = el("div", "review-coverage-row");
+    const label = el("span", "", name);
+    const meter = el("div", "review-meter");
+    const fill = el("span", "");
+    fill.style.width = `${Math.max(0, Math.min(100, Number(value || 0)))}%`;
+    meter.appendChild(fill);
+    row.append(label, meter, el("strong", "", `${Number(value || 0)}%`));
+    target.appendChild(row);
+  });
+}
+
+function renderReviewTrends(trends) {
+  const target = $("review-trends");
+  target.replaceChildren();
+  const labels = { protein: "Protein", steps: "Steps", spending: "Spending", workouts: "Workouts" };
+  Object.entries(trends || {}).forEach(([key, item]) => {
+    const card = el("div", `review-trend ${item.favorable === true ? "good" : item.favorable === false ? "warn" : ""}`);
+    const percent = item.percent === null ? "NEW SIGNAL" : `${item.percent > 0 ? "+" : ""}${item.percent}%`;
+    let current = Number(item.current || 0).toLocaleString();
+    if (key === "protein") current += "g";
+    if (key === "spending") current = reviewMoney(item.current);
+    card.append(
+      el("span", "", labels[key] || key),
+      el("strong", "", current),
+      el("small", "", `${percent} · ${String(item.direction || "steady").toUpperCase()}`),
+    );
+    target.appendChild(card);
+  });
+}
+
+let weeklyReviewSpeech = "";
+let weeklyReviewUtterance = null;
+function stopWeeklyReview() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  weeklyReviewUtterance = null;
+  $("review-stop-btn").disabled = true;
+  $("review-speak-btn").disabled = false;
+  $("review-speak-status").textContent = "Weekly brief stopped. The full text remains visible.";
+}
+
+async function speakWeeklyReview() {
+  if (!weeklyReviewSpeech) return;
+  const button = $("review-speak-btn");
+  button.disabled = true;
+  $("review-speak-status").textContent = "Sending the weekly intelligence brief to Jarvis…";
+  if (await speakThroughHomeAssistant(weeklyReviewSpeech)) {
+    $("review-speak-status").textContent = "Weekly brief sent to the X1 speakers.";
+    button.disabled = false;
+    return;
+  }
+  if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+    $("review-speak-status").textContent = "Speech is unavailable here. The complete brief remains visible.";
+    button.disabled = false;
+    return;
+  }
+  window.speechSynthesis.cancel();
+  weeklyReviewUtterance = new SpeechSynthesisUtterance(weeklyReviewSpeech);
+  const voices = window.speechSynthesis.getVoices();
+  weeklyReviewUtterance.voice = voices.find((voice) => /^en-US/i.test(voice.lang)) || voices.find((voice) => /^en/i.test(voice.lang)) || null;
+  weeklyReviewUtterance.rate = 0.92;
+  weeklyReviewUtterance.pitch = 0.96;
+  weeklyReviewUtterance.onstart = () => {
+    $("review-stop-btn").disabled = false;
+    $("review-speak-status").textContent = "Jarvis is delivering the weekly intelligence brief.";
+  };
+  weeklyReviewUtterance.onend = () => {
+    weeklyReviewUtterance = null;
+    $("review-stop-btn").disabled = true;
+    button.disabled = false;
+    $("review-speak-status").textContent = "Weekly brief complete.";
+  };
+  weeklyReviewUtterance.onerror = () => {
+    weeklyReviewUtterance = null;
+    $("review-stop-btn").disabled = true;
+    button.disabled = false;
+    $("review-speak-status").textContent = "Speech was interrupted. The complete brief remains visible.";
+  };
+  window.speechSynthesis.speak(weeklyReviewUtterance);
+}
+
+async function loadReview() {
+  $("review-status").className = "inline-status";
+  $("review-status").textContent = "Reconciling the last seven days…";
+  try {
+    const r = await api("/api/review/weekly");
+    weeklyReviewSpeech = String(r.speech || "");
+    $("review-speech").textContent = weeklyReviewSpeech || "No weekly narration was returned.";
+    $("review-score").textContent = r.operating_score === null ? "–" : Number(r.operating_score || 0);
+    $("review-verdict").textContent = r.verdict || "Weekly picture available";
+    $("review-period").textContent = `${reviewDate(r.period_start)} — ${reviewDate(r.period_end)}`.toUpperCase();
+    $("review-confidence").textContent = `${String(r.confidence?.label || "limited").toUpperCase()} EVIDENCE · ${Number(r.confidence?.score || 0)}%`;
+    $("review-confidence-state").textContent = String(r.confidence?.label || "limited").toUpperCase();
+    renderReviewCoverage(r.confidence || { coverage: {} });
+    renderReviewTrends(r.trends);
+    renderReviewSignals("review-wins", r.wins, "No strong win is supported yet; keep logging the baseline.");
+    renderReviewSignals("review-watch", r.watch, "No material watch item surfaced this week.");
+    renderReviewPriorities(r.priorities);
+    $("review-policy").textContent = r.policy || "Recommendations remain advisory.";
+    const stats = $("review-stats");
+    stats.replaceChildren();
+    [
+      ["Weight change", r.weight.delta_lb === null ? "Not enough readings" : `${r.weight.delta_lb > 0 ? "+" : ""}${r.weight.delta_lb} lb`],
+      ["Protein target days", `${r.target_days?.protein || 0} / 7`],
+      ["Step target days", `${r.target_days?.steps || 0} / 7`],
+      ["Vitamins taken", `${r.target_days?.vitamins || 0} / 7`],
+      ["Workouts", Number(r.workouts_this_week || 0).toLocaleString()],
+      ["Spending", reviewMoney(r.spending_this_week)],
+      ["Money in", reviewMoney(r.money_in)],
+      ["Next payday", r.next_payday ? `${r.next_payday.label} · ${reviewDate(r.next_payday.date)}` : "Not available"],
+    ].forEach(([label, value]) => {
+      const line = el("div", "line");
+      line.append(el("span", "", label), el("span", "", value));
+      stats.appendChild(line);
+    });
+    $("review-speak-btn").disabled = !weeklyReviewSpeech;
+    $("review-speak-status").textContent = weeklyReviewSpeech ? "Ready for Giovanni." : "No spoken brief is available.";
+    $("review-status").textContent = `Weekly intelligence current through ${reviewDate(r.period_end)}.`;
+    await loadProfiles();
+  } catch (error) {
+    weeklyReviewSpeech = "";
+    $("review-speak-btn").disabled = true;
+    $("review-status").className = "inline-status error-state";
+    $("review-status").textContent = `Weekly intelligence is unavailable: ${error.message}`;
+    $("review-verdict").textContent = "Weekly evidence could not be loaded";
+    $("review-speech").textContent = "Jarvis is holding recommendations until the data connection recovers.";
+  }
+}
+
+$("review-speak-btn").onclick = speakWeeklyReview;
+$("review-stop-btn").onclick = stopWeeklyReview;
 
 async function loadProfiles() {
   const profiles = await api("/api/profiles");

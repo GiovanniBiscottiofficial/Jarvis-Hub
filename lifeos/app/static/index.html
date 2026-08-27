@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <header class="app-header">
@@ -490,27 +490,73 @@
 
   <!-- ============ REVIEW ============ -->
   <section id="review" class="panel">
-    <div class="section-intro"><div><span class="section-index">SYNTHESIS / 05</span><h2>Weekly intelligence</h2><p>Signals, momentum, and the decisions that matter next.</p></div></div>
+    <div class="section-intro review-intro">
+      <div><span class="section-index">SYNTHESIS / 05</span><h2>Weekly intelligence</h2><p>Seven days of evidence distilled into the next three decisions.</p></div>
+      <div class="review-period-lockup"><span id="review-period">LAST 7 DAYS</span><strong id="review-confidence">EVIDENCE LOADING</strong></div>
+    </div>
     <div class="lifeos-page-grid review-grid">
-    <div class="card">
-      <h2>Weekly review</h2>
-      <div id="review-speech" class="muted">–</div>
-      <div id="review-stats"></div>
-    </div>
-    <div class="card">
-      <h2>Profiles</h2>
-      <div id="profiles"></div>
-      <div class="row">
-        <input id="profile-name" placeholder="name">
-        <input id="profile-protein" type="number" placeholder="protein g">
-        <button id="profile-btn">Add</button>
+      <article class="card review-command-card">
+        <div class="review-command-heading"><div><span class="finance-index">JARVIS / ASSESSMENT</span><h2>Operating picture</h2></div><span class="finance-state">ADVISORY</span></div>
+        <div class="review-command-body">
+          <div class="review-score" aria-label="Weekly operating score"><strong id="review-score">–</strong><span>/ 100</span></div>
+          <div><h3 id="review-verdict">Building the weekly picture…</h3><p id="review-speech" class="muted">Jarvis is reconciling body, routine, and money signals.</p></div>
+        </div>
+        <div class="review-speech-controls">
+          <button id="review-speak-btn" class="pill">Hear weekly brief</button>
+          <button id="review-stop-btn" class="secondary" disabled>Stop</button>
+          <span id="review-speak-status" role="status" aria-live="polite">Ready when the evidence is loaded.</span>
+        </div>
+      </article>
+
+      <article class="card review-pulse-card">
+        <div class="review-command-heading"><div><span class="finance-index">SIGNAL / COVERAGE</span><h2>Evidence confidence</h2></div><span id="review-confidence-state" class="finance-state">LOADING</span></div>
+        <div id="review-coverage" class="review-coverage"><span class="muted">Checking daily signal coverage…</span></div>
+        <p class="card-note">Missing data reduces confidence; it is never scored as poor performance.</p>
+      </article>
+
+      <article class="card review-trends-card">
+        <div class="review-command-heading"><div><span class="finance-index">DELTA / PRIOR WEEK</span><h2>Momentum matrix</h2></div><span class="finance-state">OBSERVED</span></div>
+        <div id="review-trends" class="review-trends"><span class="muted">Calculating week-over-week movement…</span></div>
+      </article>
+
+      <article class="card review-wins-card">
+        <div class="review-command-heading"><div><span class="finance-index">MOMENTUM / HELD</span><h2>What worked</h2></div><span class="finance-state good">WINS</span></div>
+        <div id="review-wins" class="review-signal-list muted">No wins loaded.</div>
+      </article>
+
+      <article class="card review-watch-card">
+        <div class="review-command-heading"><div><span class="finance-index">ATTENTION / OPEN</span><h2>What needs watching</h2></div><span class="finance-state warn">WATCH</span></div>
+        <div id="review-watch" class="review-signal-list muted">No watch items loaded.</div>
+      </article>
+
+      <article class="card review-priorities-card">
+        <div class="review-command-heading"><div><span class="finance-index">NEXT / 7 DAYS</span><h2>Jarvis recommends</h2></div><span class="finance-state">3 MOVES</span></div>
+        <div id="review-priorities" class="review-priority-list muted">Building grounded recommendations…</div>
+        <footer id="review-policy" class="review-policy">Recommendations remain advisory.</footer>
+      </article>
+
+      <article class="card review-ledger-card">
+        <div class="review-command-heading"><div><span class="finance-index">LEDGER / FACTS</span><h2>Weekly measures</h2></div><span class="finance-state">7 DAYS</span></div>
+        <div id="review-stats"><span class="muted">Loading measures…</span></div>
+      </article>
+
+      <article class="card review-profiles-card">
+        <div class="review-command-heading"><div><span class="finance-index">BASELINE / PEOPLE</span><h2>Profiles</h2></div><span class="finance-state">LOCAL</span></div>
+        <div id="profiles"></div>
+        <div class="row review-profile-form">
+          <input id="profile-name" aria-label="Profile name" placeholder="name">
+          <input id="profile-protein" aria-label="Protein target in grams" type="number" placeholder="protein g">
+          <button id="profile-btn">Add</button>
+        </div>
+      </article>
+      <div id="review-status" class="inline-status" role="status" aria-live="polite">
+        Weekly intelligence refreshes whenever this page opens.
       </div>
-    </div>
     </div>
   </section>
 </main>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
   <script src="bodyops-enhanced.js?v=2"></script>
   <script src="money-command.js?v=5"></script>
   <script src="release-watch.js?v=1"></script>

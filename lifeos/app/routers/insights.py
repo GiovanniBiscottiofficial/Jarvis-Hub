@@ -344,9 +344,16 @@ def morning_briefing():
 
 @router.get("/review/weekly")
 def weekly_review():
-    """Sunday summary: weight trend, protein/step averages, money in vs
-    bills paid, streaks, treats."""
-    week_ago = (date.today() - timedelta(days=7)).isoformat()
+    """Evidence-backed weekly operating picture for Giovanni.
+
+    The review separates missing data from poor performance, compares the last
+    seven calendar days with the seven before them, and returns explainable
+    recommendations.  It never authorizes household, health, or money actions.
+    """
+    today = date.today()
+    period_start = (today - timedelta(days=6)).isoformat()
+    previous_start = (today - timedelta(days=13)).isoformat()
+    previous_end = (today - timedelta(days=7)).isoformat()
     month = date.today().strftime("%Y-%m")
     with conn() as c:
         prof = active_profile(c)
@@ -356,36 +363,69 @@ def weekly_review():
             for r in c.execute(
                 "SELECT ts, weight_lb FROM weighins WHERE date(ts)>=?"
                 " AND profile_id=? ORDER BY ts",
-                (week_ago, pid),
+                (period_start, pid),
             ).fetchall()
         ]
-        protein_days = c.execute(
+        protein_days = [dict(r) for r in c.execute(
             "SELECT date(ts) d, SUM(protein_g) p FROM meal_log"
-            " WHERE date(ts)>=? AND profile_id=? GROUP BY date(ts)",
-            (week_ago, pid),
-        ).fetchall()
-        step_days = c.execute(
-            "SELECT count FROM steps WHERE date>=? AND profile_id=?",
-            (week_ago, pid),
-        ).fetchall()
+                " WHERE date(ts)>=? AND profile_id=? GROUP BY date(ts)",
+            (period_start, pid),
+        ).fetchall()]
+        previous_protein_days = [dict(r) for r in c.execute(
+            "SELECT date(ts) d, SUM(protein_g) p FROM meal_log"
+            " WHERE date(ts)>=? AND date(ts)<=? AND profile_id=?"
+            " GROUP BY date(ts)",
+            (previous_start, previous_end, pid),
+        ).fetchall()]
+        step_days = [dict(r) for r in c.execute(
+            "SELECT date, count FROM steps WHERE date>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchall()]
+        previous_step_days = [dict(r) for r in c.execute(
+            "SELECT date, count FROM steps WHERE date>=? AND date<=?"
+            " AND profile_id=?",
+            (previous_start, previous_end, pid),
+        ).fetchall()]
+        vitamin_days = [dict(r) for r in c.execute(
+            "SELECT date, taken FROM vitamins WHERE date>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchall()]
         deposits_row = c.execute(
             "SELECT COALESCE(SUM(amount),0) s FROM deposits WHERE date(ts)>=?",
-            (week_ago,),
+            (period_start,),
         ).fetchone()
         bills_paid = c.execute(
             "SELECT COALESCE(SUM(amount),0) s FROM bills WHERE paid_month=?",
             (month,),
         ).fetchone()
         treats = c.execute(
-            "SELECT COUNT(*) n FROM overrides WHERE date(ts)>=?", (week_ago,)
+            "SELECT COUNT(*) n FROM overrides WHERE date(ts)>=?", (period_start,)
         ).fetchone()
         workouts_done = c.execute(
             "SELECT COUNT(*) n FROM workouts WHERE date(ts)>=?"
             " AND profile_id=?",
-            (week_ago, pid),
+            (period_start, pid),
+        ).fetchone()
+        previous_workouts = c.execute(
+            "SELECT COUNT(*) n FROM workouts WHERE date(ts)>=? AND date(ts)<=?"
+            " AND profile_id=?",
+            (previous_start, previous_end, pid),
         ).fetchone()
         streaks = {"vitamins": streak(c, "vitamins"), "steps": streak(c, "steps")}
         spent_week = week_spending(c)
+        previous_spending = c.execute(
+            "SELECT COALESCE(SUM(amount),0) s FROM spending"
+            " WHERE date(ts)>=? AND date(ts)<=?",
+            (previous_start, previous_end),
+        ).fetchone()["s"]
+        spending_entries = c.execute(
+            "SELECT COUNT(*) n FROM spending WHERE date(ts)>=?", (period_start,)
+        ).fetchone()["n"]
+        meal_entries = c.execute(
+            "SELECT COUNT(*) n FROM meal_log WHERE date(ts)>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchone()["n"]
+        budget = budget_speech(c)
 
     weight_delta = (
         round(weights[-1]["weight_lb"] - weights[0]["weight_lb"], 1)
@@ -397,14 +437,140 @@ def weekly_review():
     step_vals = [r["count"] for r in step_days]
     avg_steps = round(sum(step_vals) / len(step_vals)) if step_vals else 0
 
-    parts = ["Weekly review."]
+    def observed_average(rows: list[dict], key: str, digits: int = 1) -> float:
+        values = [float(row[key]) for row in rows]
+        return round(sum(values) / len(values), digits) if values else 0
+
+    def trend(current: float, previous: float, *, lower_is_better: bool = False) -> dict:
+        delta = round(current - previous, 1)
+        percent = round(delta / previous * 100, 1) if previous else None
+        if not previous:
+            direction = "new" if current else "flat"
+        elif abs(percent or 0) < 3:
+            direction = "steady"
+        else:
+            direction = "up" if delta > 0 else "down"
+        favorable = None if direction in ("new", "flat", "steady") else (
+            delta < 0 if lower_is_better else delta > 0
+        )
+        return {
+            "current": current,
+            "previous": previous,
+            "delta": delta,
+            "percent": percent,
+            "direction": direction,
+            "favorable": favorable,
+        }
+
+    previous_protein = observed_average(previous_protein_days, "p")
+    previous_steps = observed_average(previous_step_days, "count", 0)
+    protein_target_days = sum(
+        1 for value in protein_vals if value >= prof["protein_target_g"]
+    )
+    step_target_days = sum(1 for value in step_vals if value >= prof["step_target"])
+    vitamins_taken = sum(1 for row in vitamin_days if row["taken"])
+
+    coverage_inputs = {
+        "protein": round(min(len(protein_days), 7) / 7 * 100),
+        "steps": round(min(len(step_days), 7) / 7 * 100),
+        "vitamins": round(min(len(vitamin_days), 7) / 7 * 100),
+        "weight": round(min(len(weights), 2) / 2 * 100),
+    }
+    confidence_score = round(sum(coverage_inputs.values()) / len(coverage_inputs))
+    confidence_label = (
+        "strong" if confidence_score >= 75
+        else "developing" if confidence_score >= 45
+        else "limited"
+    )
+    audit_score = {
+        "balanced": 1.0, "buffered": 0.85, "scheduled": 0.75,
+        "action needed": 0.35,
+    }.get(budget["audit_health"], 0.5)
+    protein_score = (
+        min(avg_protein / max(prof["protein_target_g"], 1), 1)
+        if protein_days else 0.5
+    )
+    step_score = (
+        min(avg_steps / max(prof["step_target"], 1), 1)
+        if step_days else 0.5
+    )
+    vitamin_score = vitamins_taken / 7 if vitamin_days else 0.5
+    calculated_score = round(100 * (
+        protein_score * 0.25
+        + step_score * 0.20
+        + vitamin_score * 0.15
+        + min(workouts_done["n"] / 3, 1) * 0.15
+        + audit_score * 0.15
+        + confidence_score / 100 * 0.10
+    ))
+    operating_score = calculated_score if confidence_score >= 25 else None
+
+    wins: list[dict] = []
+    watch: list[dict] = []
+    priorities: list[dict] = []
+
+    def signal(target: list[dict], domain: str, title: str, evidence: str) -> None:
+        target.append({"domain": domain, "title": title, "evidence": evidence})
+
+    if len(protein_days) < 3:
+        pass  # Coverage guidance below handles unknown performance honestly.
+    elif protein_target_days >= 4:
+        signal(wins, "body", "Protein rhythm held", f"Target reached on {protein_target_days} of 7 days.")
+    else:
+        signal(watch, "body", "Protein consistency is open", f"Target reached on {protein_target_days} of 7 days.")
+        signal(priorities, "body", "Protect the weekday protein floor", "Use the three one-tap protein anchors before adding new meal complexity.")
+    if step_target_days >= 4:
+        signal(wins, "body", "Movement cleared the weekly majority", f"Step target reached on {step_target_days} days.")
+    elif len(step_days) >= 3:
+        signal(watch, "body", "Movement is below target", f"Average {avg_steps:,} against {prof['step_target']:,} steps.")
+        signal(priorities, "body", "Raise the movement floor", "Add one reliable walk window to the lowest-step workdays.")
+    if len(vitamin_days) < 3:
+        pass
+    elif vitamins_taken >= 5:
+        signal(wins, "routine", "Morning vitamins stayed protected", f"Taken on {vitamins_taken} of 7 days.")
+    else:
+        signal(watch, "routine", "Vitamin cue needs reinforcement", f"Recorded on {vitamins_taken} of 7 days.")
+        signal(priorities, "routine", "Keep vitamins inside Full Wake", "Use the 7:00 AM Jarvis cue until the routine is automatic.")
+    if workouts_done["n"] >= 3:
+        signal(wins, "body", "Training cadence is on line", f"{workouts_done['n']} workouts completed.")
+    elif workouts_done["n"]:
+        signal(watch, "body", "Training volume is light", f"{workouts_done['n']} workout{'s' if workouts_done['n'] != 1 else ''} completed.")
+    if previous_spending and spent_week > previous_spending * 1.15:
+        signal(watch, "money", "Spending accelerated", f"${spent_week:,.0f} vs ${previous_spending:,.0f} in the prior week.")
+        signal(priorities, "money", "Review the spending delta", "Confirm the larger purchases before changing the paycheck plan.")
+    elif spending_entries and previous_spending and spent_week <= previous_spending:
+        signal(wins, "money", "Discretionary spending eased", f"Down ${previous_spending - spent_week:,.0f} week over week.")
+    if confidence_score < 60:
+        signal(watch, "system", "Evidence coverage is incomplete", f"Weekly confidence is {confidence_score} percent.")
+        signal(priorities, "system", "Close the data gaps", "Log the missing daily signals before Jarvis changes any recommendation.")
+
+    next_pay = payday_schedule(today, 1)[0]
+    if next_pay["days_away"] <= 7:
+        signal(priorities, "money", f"Stage {next_pay['label']}", f"${next_pay['amount']:,.2f} is expected in {next_pay['days_away']} days.")
+    priorities = priorities[:3]
+    if not priorities:
+        signal(priorities, "system", "Maintain the current rhythm", "No material correction is supported by this week's evidence.")
+
+    if operating_score is None:
+        verdict = "Evidence incomplete — holding the weekly verdict"
+    elif operating_score >= 80:
+        verdict = "Strong operating week"
+    elif operating_score >= 60:
+        verdict = "Stable week with a few open loops"
+    else:
+        verdict = "Recovery week — simplify and rebuild the floor"
+
+    parts = [f"Giovanni, weekly intelligence. {verdict}."]
+    if operating_score is not None:
+        parts.append(f"Operating score {operating_score} out of 100.")
     if weight_delta is not None:
         direction = "down" if weight_delta < 0 else "up"
         parts.append(f"Weight is {direction} {abs(weight_delta)} pounds.")
-    parts.append(
-        f"Protein averaged {round(avg_protein)} grams a day against a "
-        f"{round(prof['protein_target_g'])} gram target."
-    )
+    if protein_days:
+        parts.append(
+            f"Protein averaged {round(avg_protein)} grams a day against a "
+            f"{round(prof['protein_target_g'])} gram target."
+        )
     if avg_steps:
         parts.append(f"Steps averaged {avg_steps:,} a day.")
     parts.append(
@@ -419,9 +585,23 @@ def weekly_review():
             f"{workouts_done['n']} workout"
             f"{'s' if workouts_done['n'] != 1 else ''} done — balanced week."
         )
+    if wins:
+        parts.append(f"Top win: {wins[0]['title'].lower()}. {wins[0]['evidence']}")
+    parts.append(f"Next priority: {priorities[0]['title'].lower()}. {priorities[0]['evidence']}")
+    if confidence_label == "limited":
+        parts.append("Evidence is limited, so Jarvis is holding recommendations conservative.")
 
     return {
-        "period_start": week_ago,
+        "period_start": period_start,
+        "period_end": today.isoformat(),
+        "previous_period": {"start": previous_start, "end": previous_end},
+        "verdict": verdict,
+        "operating_score": operating_score,
+        "confidence": {
+            "score": confidence_score,
+            "label": confidence_label,
+            "coverage": coverage_inputs,
+        },
         "weight": {"entries": weights, "delta_lb": weight_delta},
         "avg_daily_protein_g": avg_protein,
         "protein_target_g": prof["protein_target_g"],
@@ -432,6 +612,30 @@ def weekly_review():
         "spending_this_week": spent_week,
         "workouts_this_week": workouts_done["n"],
         "streaks": streaks,
+        "target_days": {
+            "protein": protein_target_days,
+            "steps": step_target_days,
+            "vitamins": vitamins_taken,
+        },
+        "activity": {
+            "meal_entries": meal_entries,
+            "spending_entries": spending_entries,
+        },
+        "trends": {
+            "protein": trend(avg_protein, previous_protein),
+            "steps": trend(avg_steps, previous_steps),
+            "spending": trend(spent_week, previous_spending, lower_is_better=True),
+            "workouts": trend(workouts_done["n"], previous_workouts["n"]),
+        },
+        "wins": wins,
+        "watch": watch,
+        "priorities": priorities,
+        "next_payday": next_pay,
+        "finance_state": {
+            "audit_health": budget["audit_health"],
+            "safe_to_spend": budget["safe_to_spend"],
+        },
+        "policy": "Recommendations are advisory. Manual control and confirmed data remain authoritative.",
         "speech": " ".join(parts),
     }
 
