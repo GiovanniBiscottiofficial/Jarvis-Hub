@@ -632,20 +632,188 @@ views:
     icon: mdi:television
     theme: Jarvis
     type: sections
-    max_columns: 1
+    max_columns: 3
     sections:
       - type: grid
         cards:
-          - type: iframe
-            url: /local/jarvis-media.html
-            aspect_ratio: 145%
-            card_mod:
-              style: |
-                ha-card {
-                  background: #02070d;
-                  border: 1px solid rgba(69, 217, 238, 0.22);
-                  box-shadow: none;
-                }
+          - type: heading
+            heading: Now playing
+            icon: mdi:television-play
+          - type: media-control
+            entity: media_player.fire_tv_192_168_1_62
+          - type: tile
+            entity: script.movie_night
+            name: Cinema
+            icon: mdi:movie-open
+            color: purple
+            tap_action:
+              action: call-service
+              service: script.movie_night
+          - type: tile
+            entity: script.goodnight
+            name: Thunderstorm
+            icon: mdi:weather-lightning-rainy
+            color: indigo
+            tap_action:
+              action: call-service
+              service: script.goodnight
+          - type: button
+            name: Full-screen Media Command
+            icon: mdi:monitor-dashboard
+            tap_action:
+              action: navigate
+              navigation_path: /jarvis-hub/media-command
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Apps & Media
+            icon: mdi:apps
+          - type: tile
+            entity: sun.sun
+            name: Netflix
+            icon: mdi:netflix
+            color: red
+            hide_state: true
+            tap_action: { action: url, url_path: "https://netflix.com" }
+          - type: tile
+            entity: sun.sun
+            name: YouTube
+            icon: mdi:youtube
+            color: red
+            hide_state: true
+            tap_action: { action: url, url_path: "https://youtube.com" }
+          - type: tile
+            entity: sun.sun
+            name: Spotify
+            icon: mdi:spotify
+            color: green
+            hide_state: true
+            tap_action: { action: url, url_path: "https://open.spotify.com" }
+          - type: tile
+            entity: sun.sun
+            name: YouTube Music
+            icon: mdi:music-circle
+            color: red
+            hide_state: true
+            tap_action: { action: url, url_path: "https://music.youtube.com" }
+          - type: tile
+            entity: sun.sun
+            name: Plex
+            icon: mdi:plex
+            color: amber
+            hide_state: true
+            tap_action: { action: url, url_path: "https://app.plex.tv" }
+          - type: tile
+            entity: sun.sun
+            name: Jellyfin
+            icon: mdi:play-network
+            color: amber
+            hide_state: true
+            tap_action: { action: url, url_path: "/local/open.html?port=8096" }
+          - type: tile
+            entity: sun.sun
+            name: Prime Video
+            icon: mdi:filmstrip
+            color: cyan
+            hide_state: true
+            tap_action: { action: url, url_path: "https://primevideo.com" }
+          - type: tile
+            entity: sun.sun
+            name: Disney+
+            icon: mdi:movie-star
+            color: blue
+            hide_state: true
+            tap_action: { action: url, url_path: "https://disneyplus.com" }
+          - type: tile
+            entity: sun.sun
+            name: Hulu
+            icon: mdi:play-box
+            color: green
+            hide_state: true
+            tap_action: { action: url, url_path: "https://hulu.com" }
+          - type: tile
+            entity: sun.sun
+            name: Max
+            icon: mdi:alpha-m-circle
+            color: indigo
+            hide_state: true
+            tap_action: { action: url, url_path: "https://max.com" }
+          - type: tile
+            entity: sun.sun
+            name: Twitch
+            icon: mdi:twitch
+            color: purple
+            hide_state: true
+            tap_action: { action: url, url_path: "https://twitch.tv" }
+          - type: tile
+            entity: sun.sun
+            name: GeForce Now
+            icon: mdi:gamepad-variant
+            color: green
+            hide_state: true
+            tap_action: { action: url, url_path: "https://play.geforcenow.com" }
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Free & Local
+            icon: mdi:play-circle-outline
+          - type: tile
+            entity: sun.sun
+            name: Tubi
+            icon: mdi:television-classic
+            color: purple
+            hide_state: true
+            tap_action: { action: url, url_path: "https://tubitv.com" }
+          - type: tile
+            entity: sun.sun
+            name: Pluto TV
+            icon: mdi:television-guide
+            color: amber
+            hide_state: true
+            tap_action: { action: url, url_path: "https://pluto.tv" }
+          - type: tile
+            entity: sun.sun
+            name: LifeOS
+            icon: mdi:heart-pulse
+            color: cyan
+            hide_state: true
+            tap_action:
+              action: navigate
+              navigation_path: /lifeos-app/app
+          - type: markdown
+            content: >-
+              {% set players = states.media_player
+                 | rejectattr('state', 'in', ['unknown', 'unavailable']) | list %}
+              ## Jarvis media readiness
+              **{{ players | count }} player{{ 's' if players | count != 1 else '' }} ready**
+
+              Sanctuary mode: **{{ states('input_select.sanctuary_mode') }}**
+
+              Every app above remains directly available on the X1. The
+              full-screen command view adds player routing when Home Assistant
+              exposes that capability.
+
+  - title: Media Command
+    path: media-command
+    icon: mdi:monitor-dashboard
+    theme: Jarvis
+    subview: true
+    type: panel
+    cards:
+      - type: iframe
+        url: /local/jarvis-media.html
+        aspect_ratio: 72%
+        card_mod:
+          style: |
+            ha-card {
+              width: 100%;
+              min-height: calc(100vh - 8px);
+              background: #02070d;
+              border: 0;
+              box-shadow: none;
+            }
 
   # ------------------------------------------------------------------
   - title: Kitchen
