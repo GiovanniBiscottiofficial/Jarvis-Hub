@@ -720,12 +720,43 @@ body:has(#budget.active) main { max-width: 1540px; }
 .scale-fallback small { grid-column: 1/-1; margin: 0; }
 .error-state { color: #f3a3a3; border-color: rgba(248,113,113,.3); }
 
+/* Learning Ledger: evidence and decisions stay visually distinct. */
+body:has(#learning.active) main { max-width: 1540px; }
+.learning-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; margin: 0 0 12px; background: rgba(70,210,236,.12); }
+.learning-summary > div { min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 14px 18px; background: linear-gradient(145deg,#091a29,#06111c); }
+.learning-summary strong { color: #dcf8ff; font: 500 1.65rem ui-monospace,SFMono-Regular,Consolas,monospace; }
+.learning-summary span { margin-top: 7px; color: #6f8d9e; font: 600 .56rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; text-transform: uppercase; }
+.learning-grid { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
+.learning-composer-card { grid-column: 1/-1; border-color: rgba(77,226,151,.25) !important; }
+.learning-composer { display: grid; grid-template-columns: .75fr 1fr 1.6fr .9fr auto; gap: 9px; align-items: end; }
+.learning-composer label { min-width: 0; color: #7790a3; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; text-transform: uppercase; }
+.learning-composer input,.learning-composer select { display: block; width: 100%; margin-top: 6px; }
+.learning-composer button { min-height: 46px; white-space: nowrap; }
+.learning-list { display: grid; gap: 8px; margin-top: 12px; }
+.learning-row { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; padding: 13px; border: 1px solid rgba(70,210,236,.12); border-left: 2px solid #55cce4; background: rgba(4,16,26,.62); }
+.learning-copy { min-width: 0; }
+.learning-row-label { display: block; color: #67d6e9; font: 650 .55rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; }
+.learning-copy strong { display: block; margin-top: 7px; color: #deedf1; font-size: .84rem; overflow-wrap: anywhere; }
+.learning-copy small { display: block; margin-top: 6px; color: #7290a1; font-size: .63rem; }
+.learning-copy p { margin: 7px 0 0; color: #8ba0ad; font-size: .68rem; line-height: 1.4; }
+.learning-actions { display: flex; flex-wrap: wrap; align-content: center; justify-content: flex-end; gap: 7px; }
+.learning-actions button { min-height: 44px; }
+.learning-evidence-row { min-height: 52px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 2px; border-bottom: 1px solid rgba(75,205,234,.09); }
+.learning-evidence-row span { min-width: 0; color: #d8e7ee; overflow-wrap: anywhere; }
+.learning-evidence-row small { display: block; margin-top: 4px; color: #6e8596; font-size: .62rem; }
+.learning-evidence-row b { color: #6fcde0; font: 600 .54rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; }
+.learning-policy { display: grid; grid-template-columns: auto 1fr; gap: 14px; margin-top: 12px; padding: 14px 16px; border: 1px solid rgba(247,185,85,.18); background: rgba(247,185,85,.05); }
+.learning-policy strong { color: #efc778; font: 650 .59rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .1em; text-transform: uppercase; }
+.learning-policy span { color: #9aabb3; font-size: .69rem; line-height: 1.45; }
+
 @media (max-width: 1050px) {
   .paycheck-card,.spending-card,.runway-card,.bills-card,.accounts-card,.goals-card { grid-column: span 12; }
   .finance-grid > .card:not(.paycheck-card):not(.spending-card):not(.runway-card):not(.bills-card):not(.accounts-card):not(.goals-card) { grid-column: span 6; }
   .pantry-composer { grid-template-columns: 1fr 1fr; }
   .pantry-composer button { grid-column: 1/-1; }
   .chef-actions { grid-template-columns: 1fr 1fr; }
+  .learning-composer { grid-template-columns: 1fr 1fr; }
+  .learning-composer button { grid-column: 1/-1; }
 }
 @media (max-width: 650px) {
   .finance-grid { display: flex; flex-direction: column; }
@@ -750,6 +781,13 @@ body:has(#budget.active) main { max-width: 1540px; }
   .inventory-row,.market-row { grid-template-columns: 1fr; }
   .inventory-actions { justify-content: stretch; }
   .inventory-actions button,.market-row button { width: 100%; }
+  .learning-summary { grid-template-columns: 1fr 1fr; }
+  .learning-grid,.learning-composer { grid-template-columns: 1fr; }
+  .learning-composer button { grid-column: auto; width: 100%; }
+  .learning-row { grid-template-columns: 1fr; }
+  .learning-actions { justify-content: stretch; }
+  .learning-actions button { flex: 1 1 100%; }
+  .learning-evidence-row,.learning-policy { grid-template-columns: 1fr; }
 }
 @media (min-width: 2200px) and (min-height: 1400px) {
   body:has(#budget.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }
@@ -762,4 +800,6 @@ body:has(#budget.active) main { max-width: 1540px; }
   .bill-row { min-height: 72px; }
   .spending-composer button,.pantry-composer button { min-height: 56px; }
   .transaction-row,.inventory-row { min-height: 62px; }
+  body:has(#learning.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }
+  .learning-summary > div { min-height: 120px; }
 }

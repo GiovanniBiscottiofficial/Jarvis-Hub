@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="jarvis-release" content="2026.08.26-money-v7">
+<meta name="jarvis-release" content="2026.08.26-learning-v1">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,6 +23,7 @@
       <button class="tab active" data-tab="today">Today</button>
       <button class="tab" data-tab="body">Body Ops</button>
       <button class="tab" data-tab="budget">Budget &amp; Vault</button>
+      <button class="tab" data-tab="learning">Learning</button>
       <button class="tab" data-tab="review">Review</button>
     </nav>
     <span class="nav-more" aria-hidden="true">›</span>
@@ -445,9 +446,51 @@
     </div>
   </section>
 
+  <!-- ============ LEARNING ============ -->
+  <section id="learning" class="panel">
+    <div class="section-intro"><div><span class="section-index">INTELLIGENCE / 04</span><h2>Learning Ledger</h2><p>What Jarvis observed, what he inferred, and what Giovanni explicitly approved.</p></div><span class="section-date">LOCAL · REVERSIBLE</span></div>
+    <div id="learning-status" class="inline-status muted" role="status" aria-live="polite">Open this view to inspect Jarvis’s learning.</div>
+    <div class="learning-summary" aria-label="Learning summary">
+      <div><strong id="learning-confirmed-count">—</strong><span>Confirmed</span></div>
+      <div><strong id="learning-candidate-count">—</strong><span>Needs review</span></div>
+      <div><strong id="learning-rejected-count">—</strong><span>Rejected</span></div>
+      <div><strong id="learning-observation-count">—</strong><span>Recent evidence</span></div>
+    </div>
+    <div class="lifeos-page-grid learning-grid">
+      <article class="card learning-composer-card">
+        <div class="finance-card-heading"><div><span class="finance-index">TEACH / EXPLICIT</span><h2>Teach Jarvis</h2></div><span class="finance-state">NO SILENT ASSUMPTIONS</span></div>
+        <p class="card-note">Record a preference or correction. It becomes guidance only after you confirm it.</p>
+        <div class="learning-composer">
+          <label>Domain<select id="learning-domain"><option value="home">Home</option><option value="routine">Routine</option><option value="food">Food</option><option value="conversation">Conversation</option><option value="body_ops">Body Ops</option></select></label>
+          <label>About<input id="learning-subject" maxlength="80" placeholder="e.g. evening lighting"></label>
+          <label>Preference<input id="learning-value" maxlength="240" placeholder="e.g. keep the hallway dark after 9 PM"></label>
+          <label>Signal<select id="learning-signal"><option value="stated">I prefer this</option><option value="corrected">I do not want this</option><option value="liked">This worked well</option><option value="disliked">This worked poorly</option></select></label>
+          <button id="learning-submit" class="pill">Record evidence</button>
+        </div>
+      </article>
+      <article class="card learning-candidates-card">
+        <div class="finance-card-heading"><div><span class="finance-index">REVIEW / CANDIDATES</span><h2>Needs your decision</h2></div><span class="finance-state">ACTION LOCKED</span></div>
+        <div id="learning-candidates" class="learning-list muted">No candidates loaded.</div>
+      </article>
+      <article class="card learning-confirmed-card">
+        <div class="finance-card-heading"><div><span class="finance-index">MEMORY / CONFIRMED</span><h2>Approved guidance</h2></div><span class="finance-state">REVERSIBLE</span></div>
+        <div id="learning-confirmed" class="learning-list muted">No confirmed guidance loaded.</div>
+      </article>
+      <article class="card learning-rejected-card">
+        <div class="finance-card-heading"><div><span class="finance-index">BOUNDARY / REJECTED</span><h2>Ruled out</h2></div><span class="finance-state">RECONSIDERABLE</span></div>
+        <div id="learning-rejected" class="learning-list muted">No rejected guidance loaded.</div>
+      </article>
+      <article class="card learning-evidence-card">
+        <div class="finance-card-heading"><div><span class="finance-index">EVIDENCE / PROVENANCE</span><h2>Recent observations</h2></div><span class="finance-state">LOCAL ONLY</span></div>
+        <div id="learning-evidence" class="learning-list muted">No observations loaded.</div>
+      </article>
+    </div>
+    <footer class="learning-policy"><strong>Learning boundary</strong><span>Inferences cannot authorize Home Assistant actions. Confirmed preferences guide explanations and future proposals; manual control and safety policy always win.</span></footer>
+  </section>
+
   <!-- ============ REVIEW ============ -->
   <section id="review" class="panel">
-    <div class="section-intro"><div><span class="section-index">SYNTHESIS / 04</span><h2>Weekly intelligence</h2><p>Signals, momentum, and the decisions that matter next.</p></div></div>
+    <div class="section-intro"><div><span class="section-index">SYNTHESIS / 05</span><h2>Weekly intelligence</h2><p>Signals, momentum, and the decisions that matter next.</p></div></div>
     <div class="lifeos-page-grid review-grid">
     <div class="card">
       <h2>Weekly review</h2>
@@ -467,7 +510,7 @@
   </section>
 </main>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
   <script src="bodyops-enhanced.js?v=2"></script>
   <script src="money-command.js?v=5"></script>
   <script src="release-watch.js?v=1"></script>

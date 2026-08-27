@@ -488,7 +488,9 @@ Build these in evidence-driven order rather than adding disconnected gadgets.
 - Turn daily health, meals, workouts, bills, spending, groceries, and routines into a
   ranked daily plan with dismiss/snooze/complete states.
 - Add calendar/time-block integration and an inbox for voice-captured tasks.
-- Add local semantic memory with explicit review, editing, expiry, and privacy controls.
+- Expand the implemented local Learning Ledger with semantic retrieval and optional
+  expiry. Explicit review, confirm/reject/forget controls, evidence provenance,
+  profile scoping, confidence, audit, and action-lock policy are implemented.
 - Add explainable weekly trend detection; recommendations must cite the underlying
   measurements and never present medical or financial guesses as facts.
 

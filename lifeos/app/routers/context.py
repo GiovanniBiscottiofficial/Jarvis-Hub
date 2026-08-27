@@ -19,6 +19,7 @@ from ..context_engine import (
 )
 from ..db import conn
 from ..conversation_bridge import conversation_status
+from .learning import learning_snapshot
 
 router = APIRouter(prefix="/api", tags=["context"])
 
@@ -58,6 +59,7 @@ class DismissalIn(BaseModel):
 def get_context(event_limit: int = Query(default=20, ge=1, le=100)):
     payload = current_context(event_limit)
     payload["conversation"] = conversation_status()
+    payload["learning"] = learning_snapshot(limit=12)
     return payload
 
 
@@ -65,6 +67,7 @@ def get_context(event_limit: int = Query(default=20, ge=1, le=100)):
 def get_command_center(event_limit: int = Query(default=40, ge=1, le=100)):
     payload = command_center_payload(event_limit)
     payload.setdefault("context", {})["conversation"] = conversation_status()
+    payload["context"]["learning"] = learning_snapshot(limit=12)
     return payload
 
 

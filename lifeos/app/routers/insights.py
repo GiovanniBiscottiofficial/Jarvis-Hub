@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime, timedelta
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..body_intelligence import daily_loop
@@ -13,6 +13,7 @@ from ..db import active_profile, conn, get_setting
 from ..paydays import payday_schedule, scheduled_bill_due_date
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
+from .learning import forget_learning_value, record_learning_observation
 from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
@@ -443,8 +444,22 @@ class MemoryIn(BaseModel):
 def remember(body: MemoryIn):
     """'Remember that I park in spot 22B' — durable fact storage."""
     fact = body.fact.strip()
+    if not fact:
+        raise HTTPException(400, "memory fact cannot be empty")
     with conn() as c:
         c.execute("INSERT INTO memories(fact) VALUES(?)", (fact,))
+        profile = active_profile(c)
+        record_learning_observation(
+            c,
+            profile_id=profile["id"],
+            domain="memory",
+            subject="durable fact",
+            value=fact,
+            signal="stated",
+            source="voice",
+            context={"origin": "remember_that"},
+            auto_confirm=True,
+        )
     return {"ok": True, "fact": fact}
 
 
@@ -458,6 +473,15 @@ def forget():
         if not row:
             return {"ok": False, "fact": ""}
         c.execute("UPDATE memories SET active=0 WHERE id=?", (row["id"],))
+        profile = active_profile(c)
+        forget_learning_value(
+            c,
+            profile_id=profile["id"],
+            domain="memory",
+            subject="durable fact",
+            value=row["fact"],
+            reason="Forgotten through the Jarvis voice memory command.",
+        )
         return {"ok": True, "fact": row["fact"]}
 
 
@@ -514,6 +538,15 @@ def ask():
             r["fact"]
             for r in c.execute(
                 "SELECT fact FROM memories WHERE active=1 ORDER BY ts DESC LIMIT 10"
+            ).fetchall()
+        ]
+        learned_preferences = [
+            dict(r)
+            for r in c.execute(
+                "SELECT subject,value,sentiment FROM learned_preferences"
+                " WHERE profile_id=? AND status='confirmed' AND domain!='memory'"
+                " ORDER BY updated_at DESC LIMIT 8",
+                (pid,),
             ).fetchall()
         ]
         budget = budget_speech(c)
@@ -611,10 +644,17 @@ def ask():
     evening_parts.append(bills_speech)
     evening_speech = " ".join(evening_parts)
 
-    memory_speech = (
-        "You asked me to remember: " + "; ".join(memory_facts) + "."
-        if memory_facts
-        else "I don't have anything memorized yet — say 'remember that' and a fact."
+    learned_speech = [
+        f"for {item['subject']}, you {item['sentiment']} {item['value']}"
+        for item in learned_preferences
+    ]
+    memory_parts = []
+    if memory_facts:
+        memory_parts.append("You asked me to remember: " + "; ".join(memory_facts) + ".")
+    if learned_speech:
+        memory_parts.append("Confirmed preferences: " + "; ".join(learned_speech) + ".")
+    memory_speech = " ".join(memory_parts) or (
+        "I have no confirmed memories or preferences yet. Say 'remember that' or use the LifeOS Learning Ledger."
     )
 
     goals_speech = (

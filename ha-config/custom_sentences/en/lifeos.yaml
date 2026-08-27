@@ -370,6 +370,8 @@ intents:
       - sentences:
           - "what did I ask you to remember"
           - "what do you remember"
+          - "what have you learned [about me]"
+          - "tell me what you have learned [about me]"
           - "read [me] (my | your) (notes | memories)"
           - "memory check"
   JarvisForget:

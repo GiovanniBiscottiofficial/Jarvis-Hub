@@ -116,6 +116,7 @@ document.querySelectorAll(".tab").forEach((btn) =>
     $(btn.dataset.tab).classList.add("active");
     if (btn.dataset.tab === "budget") loadFinance();
     if (btn.dataset.tab === "body") loadBody();
+    if (btn.dataset.tab === "learning") loadLearning();
     if (btn.dataset.tab === "review") loadReview();
     if (btn.dataset.tab === "command") loadCommandCenter();
     document.body.classList.toggle("command-active", btn.dataset.tab === "command");
@@ -1339,6 +1340,155 @@ $("bill-btn").onclick = async () => {
     await loadFinance();
   } catch (error) { $("bill-status").textContent = `Bill was not added: ${error.message}`; }
   finally { button.disabled = false; }
+};
+
+// ---------- Learning Ledger ----------
+function learningPreferenceRow(preference, actions = []) {
+  const row = el("article", "learning-row");
+  const copy = el("div", "learning-copy");
+  const eyebrow = el(
+    "span",
+    "learning-row-label",
+    `${String(preference.domain || "general").toUpperCase()} · ${String(preference.sentiment || "prefer").toUpperCase()}`,
+  );
+  const title = el("strong", "", `${preference.subject}: ${preference.value}`);
+  const evidence = el(
+    "small",
+    "",
+    `${Math.round(Number(preference.confidence || 0) * 100)}% confidence · ${preference.evidence_count || 0} explicit signal${preference.evidence_count === 1 ? "" : "s"}`,
+  );
+  const reason = el("p", "", preference.reason || "Awaiting an explanation from the learning engine.");
+  copy.append(eyebrow, title, evidence, reason);
+  row.appendChild(copy);
+  if (actions.length) {
+    const controls = el("div", "learning-actions");
+    actions.forEach(({ label, decision, className = "secondary" }) => {
+      const button = el("button", className, label);
+      button.onclick = () => decideLearningPreference(preference.id, decision, button);
+      controls.appendChild(button);
+    });
+    row.appendChild(controls);
+  }
+  return row;
+}
+
+function renderLearningList(targetId, items, emptyMessage, actions) {
+  const target = $(targetId);
+  target.replaceChildren();
+  if (!items.length) {
+    target.appendChild(el("div", "empty-state", emptyMessage));
+    return;
+  }
+  items.forEach((item) => target.appendChild(learningPreferenceRow(item, actions)));
+}
+
+async function loadLearning() {
+  const status = $("learning-status");
+  status.textContent = "Synchronizing local evidence and decisions…";
+  status.className = "inline-status muted";
+  try {
+    const data = await api("/api/learning");
+    const summary = data.summary || {};
+    $("learning-confirmed-count").textContent = summary.confirmed ?? 0;
+    $("learning-candidate-count").textContent = summary.candidate ?? 0;
+    $("learning-rejected-count").textContent = summary.rejected ?? 0;
+    $("learning-observation-count").textContent = summary.observations ?? 0;
+    const preferences = Array.isArray(data.preferences) ? data.preferences : [];
+    renderLearningList(
+      "learning-candidates",
+      preferences.filter((item) => item.status === "candidate"),
+      "No unreviewed learning candidates.",
+      [
+        { label: "Confirm guidance", decision: "confirm", className: "pill" },
+        { label: "Reject", decision: "reject" },
+      ],
+    );
+    renderLearningList(
+      "learning-confirmed",
+      preferences.filter((item) => item.status === "confirmed"),
+      "Nothing confirmed yet. Jarvis will not treat candidates as truth.",
+      [{ label: "Forget", decision: "forget", className: "secondary danger-subtle" }],
+    );
+    renderLearningList(
+      "learning-rejected",
+      preferences.filter((item) => item.status === "rejected"),
+      "No rejected guidance. Rejected candidates remain visible here.",
+      [{ label: "Reconsider", decision: "reconsider", className: "secondary" }],
+    );
+    const evidence = $("learning-evidence");
+    evidence.replaceChildren();
+    const observations = Array.isArray(data.recent_observations) ? data.recent_observations : [];
+    if (!observations.length) {
+      evidence.appendChild(el("div", "empty-state", "No explicit observations recorded yet."));
+    } else {
+      observations.forEach((observation) => {
+        const row = el("div", "learning-evidence-row");
+        const copy = el("span", "", `${observation.subject}: ${observation.value}`);
+        copy.appendChild(el("small", "", `${observation.signal} · ${observation.source} · ${String(observation.ts || "").replace("T", " ")}`));
+        row.append(copy, el("b", "", String(observation.domain || "general").toUpperCase()));
+        evidence.appendChild(row);
+      });
+    }
+    status.textContent = `${data.profile || "Giovanni"} · learning ledger synchronized · inferences remain action-locked.`;
+  } catch (error) {
+    status.textContent = `Learning ledger unavailable: ${error.message}`;
+    status.className = "inline-status error-state";
+    ["learning-candidates", "learning-confirmed", "learning-rejected", "learning-evidence"].forEach((id) => {
+      const target = $(id);
+      target.replaceChildren();
+      const retry = el("button", "secondary", "Retry learning ledger");
+      retry.onclick = loadLearning;
+      target.append(el("div", "empty-state", "This section could not be loaded."), retry);
+    });
+  }
+}
+
+async function decideLearningPreference(preferenceId, decision, button) {
+  button.disabled = true;
+  const previous = button.textContent;
+  button.textContent = `${decision === "confirm" ? "Confirming" : decision === "reject" ? "Rejecting" : decision === "reconsider" ? "Reopening" : "Forgetting"}…`;
+  try {
+    await api(`/api/learning/preferences/${preferenceId}/decision`, "POST", {
+      decision,
+      reason: `${decision} selected by Giovanni in the LifeOS Learning Ledger`,
+    });
+    await loadLearning();
+  } catch (error) {
+    $("learning-status").textContent = `Learning decision was not saved: ${error.message}`;
+    $("learning-status").className = "inline-status error-state";
+    button.disabled = false;
+    button.textContent = previous;
+  }
+}
+
+$("learning-submit").onclick = async () => {
+  const subject = $("learning-subject").value.trim();
+  const value = $("learning-value").value.trim();
+  if (!subject || !value) {
+    $("learning-status").textContent = "Describe what the preference is about and what Jarvis should learn.";
+    return;
+  }
+  const button = $("learning-submit");
+  button.disabled = true;
+  $("learning-status").textContent = "Recording explicit evidence…";
+  try {
+    await api("/api/learning/feedback", "POST", {
+      domain: $("learning-domain").value,
+      subject,
+      value,
+      signal: $("learning-signal").value,
+      source: "lifeos_ui",
+      context: { surface: "learning_ledger" },
+    });
+    $("learning-subject").value = "";
+    $("learning-value").value = "";
+    await loadLearning();
+  } catch (error) {
+    $("learning-status").textContent = `Evidence was not recorded: ${error.message}`;
+    $("learning-status").className = "inline-status error-state";
+  } finally {
+    button.disabled = false;
+  }
 };
 
 // ---------- Review + profiles ----------

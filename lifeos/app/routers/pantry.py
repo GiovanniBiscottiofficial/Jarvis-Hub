@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from .. import grocy
 from ..chef import chef_summary, excluded_reason, market_items, recipe_by_id
 from ..db import active_profile, conn
+from .learning import record_learning_observation
 
 router = APIRouter(prefix="/api/pantry", tags=["pantry"])
 
@@ -235,7 +236,8 @@ def build_top_meal_market_list():
 
 @router.post("/chef/feedback")
 def chef_feedback(body: ChefFeedbackIn):
-    if recipe_by_id(body.recipe_id) is None:
+    recipe = recipe_by_id(body.recipe_id)
+    if recipe is None:
         raise HTTPException(404, "recipe not found")
     if body.action not in {"liked", "cooked", "skipped"}:
         raise HTTPException(400, "action must be liked, cooked, or skipped")
@@ -249,6 +251,17 @@ def chef_feedback(body: ChefFeedbackIn):
             " VALUES('lifeos','chef.feedback',?,?,?)",
             (f"recipe.{body.recipe_id}", body.action,
              json.dumps({"recipe_id": body.recipe_id, "learning": "explicit"})),
+        )
+        profile = active_profile(c)
+        record_learning_observation(
+            c,
+            profile_id=profile["id"],
+            domain="food",
+            subject="recipe",
+            value=body.recipe_id,
+            signal={"liked": "liked", "cooked": "chosen", "skipped": "skipped"}[body.action],
+            source="chef",
+            context={"name": recipe["name"]},
         )
     return {"ok": True, "learned": body.action, "recipe_id": body.recipe_id}
 
