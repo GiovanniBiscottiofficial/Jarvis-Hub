@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from .db import active_profile, conn, get_setting
+from .intelligence import build_intelligence, simulate_intelligence
 from .paydays import scheduled_bill_due_date
 
 
@@ -811,12 +812,14 @@ def capability_manifest(snapshot: dict[str, Any] | None = None) -> list[dict[str
 
 def command_center_payload(event_limit: int = 40) -> dict[str, Any]:
     snapshot = current_context(event_limit=event_limit)
+    proposals = list_proposals("pending")
     return {
         "context": snapshot,
         "sanctuary": snapshot["sanctuary"],
-        "proposals": list_proposals("pending"),
+        "proposals": proposals,
         "actions": ACTION_REGISTRY,
         "capabilities": capability_manifest(snapshot),
+        "intelligence": build_intelligence(snapshot, proposals=proposals),
     }
 
 
@@ -927,11 +930,28 @@ def simulate_sanctuary_mode(
 
 def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     """Predict a behavior without writing facts, proposals, audits, or HA state."""
-    if behavior not in {"arrival", "departure", "nightly", "perception", "sanctuary"}:
+    if behavior not in {
+        "arrival", "departure", "nightly", "perception", "sanctuary", "intelligence"
+    }:
         raise ValueError(behavior)
     scenario = deepcopy(overrides or {})
     if behavior == "sanctuary":
         return simulate_sanctuary_mode(str(scenario.pop("mode", "Home Base")), scenario)
+    if behavior == "intelligence":
+        if not scenario:
+            scenario = {
+                "sanctuary_mode": "Away",
+                "occupied": True,
+                "people_home": ["giovanni"],
+                "visual_presence": True,
+                "visual_confidence": 0.9,
+                "telemetry_state": "online",
+            }
+        return simulate_intelligence(
+            current_context(event_limit=100),
+            scenario,
+            proposals=list_proposals("pending"),
+        )
     actions: list[dict[str, Any]] = []
     if behavior == "arrival":
         person = scenario.setdefault("person", "person.simulated_resident")

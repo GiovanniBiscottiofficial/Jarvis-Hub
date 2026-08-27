@@ -257,6 +257,10 @@ input_boolean:
     name: Thunderstorm video on bedroom Fire TV
     icon: mdi:television-play
     initial: true
+  jarvis_arrival_music_enabled:
+    name: Arrival R&B music
+    icon: mdi:music-heart
+    initial: true
   guest_mode:
     name: Guest mode
     icon: mdi:account-group
@@ -319,7 +323,11 @@ input_text:
   sanctuary_thunderstorm_media_url:
     name: Thunderstorm media URL
     max: 255
-    initial: https://www.youtube.com/watch?v=oebqrILXLWs
+    initial: https://www.youtube.com/watch?v=HoB02OepXlE&t=31047s
+  jarvis_arrival_spotify_playlist_uri:
+    name: Arrival Spotify R&B playlist URI
+    max: 255
+    initial: ""
 
 # Calibration values are device commands, never assumptions about perceived
 # brightness. The first five helpers are intentionally capped at 5 percent.
@@ -448,6 +456,17 @@ rest:
         unit_of_measurement: "$"
         value_template: "{{ value_json.safe_to_spend | round(2) }}"
         json_attributes: [audit, audit_note, allocated, unpaid_total, ecosystem_cash, total_debt, net_worth, period]
+  # One machine-readable verdict for every Jarvis subsystem. Optional devices
+  # remain uncommissioned instead of presenting as failed dependencies.
+  - resource: http://localhost:8090/api/integrations
+    headers:
+      Authorization: !secret lifeos_api_authorization
+    scan_interval: 60
+    sensor:
+      - name: Jarvis integration fabric
+        unique_id: jarvis_integration_fabric
+        value_template: "{{ value_json.status }}"
+        json_attributes: [summary, node_states, issues, required_disconnected, integrity]
 
 # The X1's built-in UPS: reads the laptop's own AC-adapter and battery
 # state from the kernel, so a power outage is detected the second the

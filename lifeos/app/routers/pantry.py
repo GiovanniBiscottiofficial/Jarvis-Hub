@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from .. import grocy
 from ..chef import chef_summary, excluded_reason, market_items, recipe_by_id
+from ..internet_recipes import discover_recipes
 from ..db import active_profile, conn
 from .learning import record_learning_observation
 
@@ -190,6 +191,12 @@ def list_pantry():
 def chef(max_minutes: int = 45):
     """Jarvis's pantry-aware recommendations and explainable ranking."""
     return chef_summary(max(5, min(max_minutes, 120)))
+
+
+@router.get("/chef/discover")
+def chef_discover(limit: int = 6):
+    """Discover rotating internet recipes seeded by currently stocked food."""
+    return discover_recipes(limit)
 
 
 @router.post("/items")

@@ -29,8 +29,8 @@ def test_jarvis_iframes_are_cache_versioned_and_have_explicit_x1_sizing():
     views = {view["path"]: view for view in dashboard["views"]}
     iframe_cards = [item for view in dashboard["views"] for item in _iframe_cards(view)]
 
-    assert len(iframe_cards) == 6
-    assert all("?v=" in card["url"] for _, card in iframe_cards)
+    assert len(iframe_cards) == 7
+    assert all("v=" in card["url"] for _, card in iframe_cards)
 
     wall = {card["url"].split("?")[0]: card for _, card in _iframe_cards(views["wall"])}
     assert wall["/local/jarvis-avatar.html"]["grid_options"] == {
@@ -56,6 +56,13 @@ def test_jarvis_iframes_are_cache_versioned_and_have_explicit_x1_sizing():
 
     media = _iframe_cards(views["media-command"])[0][1]
     assert "min-height: calc(100vh - 8px)" in media["card_mod"]["style"]
+
+    todo_section, todo = _iframe_cards(views["todo"])[0]
+    assert todo_section["column_span"] == 2
+    assert todo["url"].startswith("/local/lifeos.html?tab=todo&v=")
+    assert "aspect_ratio" not in todo
+    assert todo["grid_options"] == {"columns": "full", "rows": 8}
+    assert views["todo"]["max_columns"] == 4
 
 
 def test_legacy_lifeos_dashboard_iframe_is_cache_versioned():

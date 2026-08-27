@@ -8,11 +8,21 @@
   trigger:
     - platform: state
       entity_id: person.giovanni_biscotti
+      from: "not_home"
       to: "home"
+      for: "00:00:15"
   condition:
     - condition: state
       entity_id: input_boolean.guest_mode
       state: "off"
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: "off"
+    - condition: template
+      value_template: >-
+        {{ state_attr('automation.welcome_home_lights_on_after_sunset', 'last_triggered') is none
+           or now() - state_attr('automation.welcome_home_lights_on_after_sunset', 'last_triggered')
+              > timedelta(minutes=10) }}
   action:
     - service: script.jarvis_say
       data:
@@ -26,6 +36,7 @@
             Good evening, Giovanni. I've kept the house exactly as you like it.
           {% endif %}
           {{ state_attr('sensor.lifeos_answers', 'nudge') or '' }}
+    - service: script.jarvis_arrival_relaxation
 
 # Midnight philosophy: a short musing before the day rolls over. Respects
 # quiet mode and stays silent during sleep mode.

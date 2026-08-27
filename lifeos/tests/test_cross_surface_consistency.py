@@ -72,5 +72,6 @@ def test_frontend_mutations_invalidate_all_affected_surfaces():
     assert 'window.addEventListener("jarvis:data-changed"' in app_script
     assert 'window.addEventListener("jarvis:refresh-active"' in body_script
     assert 'window.addEventListener("jarvis:refresh-active"' in money_script
-    assert 'if (btn.dataset.tab === "today") loadToday();' in app_script
+    assert 'if (panelName === "today") loadToday();' in app_script
+    assert 'if (panelName === "todo") loadShopping();' in app_script
     assert 'window.setInterval(() =>' in app_script

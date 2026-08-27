@@ -14,11 +14,17 @@ from pydantic import BaseModel
 
 from ..body_intelligence import daily_loop
 from ..chef import chef_summary
+from ..context_engine import current_context, list_proposals
 from ..db import active_profile, conn, get_setting
+from ..intelligence import build_intelligence
 from ..paydays import payday_schedule, scheduled_bill_due_date
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
-from .learning import forget_learning_value, record_learning_observation
+from .learning import (
+    forget_learning_value,
+    learning_snapshot,
+    record_learning_observation,
+)
 from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
@@ -234,6 +240,10 @@ def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
     if period != "morning" and meal_name:
         add("meal", f"Your best pantry match is {meal_name}.")
 
+    decision_support = facts.get("decision_support")
+    if decision_support:
+        add("decision_support", str(decision_support))
+
     add(
         "closing",
         _pick(
@@ -299,6 +309,25 @@ def morning_briefing():
     )
     affirmation = affirmations[date.today().toordinal() % len(affirmations)]
 
+    intelligence = build_intelligence(
+        current_context(event_limit=40),
+        learning=learning_snapshot(limit=20),
+        proposals=list_proposals("pending"),
+    )
+    # Body, food, and finance already have dedicated briefing sections.  Only
+    # inject cross-domain safety/presence conflicts so Jarvis adds intelligence
+    # without repeating the same facts in different words.
+    spoken_intelligence = next(
+        (
+            item
+            for item in intelligence["recommendations"]
+            if item["id"] in {"review_security", "resolve_away_presence"}
+            and item["confidence"] >= 0.7
+            and intelligence["data_quality"]["fresh"]
+        ),
+        None,
+    )
+
     spoken = compose_briefing(
         {
             "name": prof["name"],
@@ -317,6 +346,12 @@ def morning_briefing():
             "audit_health": budget["audit_health"],
             "workouts": workouts,
             "next_pay": next_pay,
+            "decision_support": (
+                f"Decision support: {spoken_intelligence['title']}. "
+                f"{spoken_intelligence['rationale']}"
+                if spoken_intelligence
+                else None
+            ),
         },
         hour=datetime.now().hour,
         day_ordinal=date.today().toordinal(),
@@ -341,6 +376,7 @@ def morning_briefing():
             else "Choose and thaw something for dinner before leaving."
         ),
         "paydays": paydays,
+        "intelligence": intelligence,
         "briefing_style": spoken["style"],
         "briefing_period": spoken["period"],
         "sections": spoken["sections"],

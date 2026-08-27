@@ -4,7 +4,7 @@ import json
 import os
 import uuid
 import mimetypes
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, UploadFile
 import httpx
@@ -28,6 +28,7 @@ class MealLogIn(BaseModel):
     protein_g: float = 0
     calories: float = 0
     override_kind: str | None = None
+    logged_at: str | None = None
 
 
 class PhotoMealLogIn(BaseModel):
@@ -266,6 +267,16 @@ def scale_readiness():
 
 @router.post("/meals/log")
 def log_meal(body: MealLogIn):
+    logged_at = None
+    if body.logged_at:
+        try:
+            parsed = datetime.fromisoformat(body.logged_at)
+        except ValueError as exc:
+            raise HTTPException(400, "logged_at must be an ISO date or date-time") from exc
+        earliest = datetime.now() - timedelta(days=7)
+        if parsed > datetime.now() + timedelta(minutes=5) or parsed < earliest:
+            raise HTTPException(400, "logged_at must be within the last 7 days and not in the future")
+        logged_at = parsed.strftime("%Y-%m-%d %H:%M:%S")
     with conn() as c:
         if body.protein_g == 0 and body.calories == 0:
             row = c.execute(
@@ -273,16 +284,25 @@ def log_meal(body: MealLogIn):
             ).fetchone()
             if row:
                 body.protein_g, body.calories = row["protein_g"], row["calories"]
+        profile_id = active_profile(c)["id"]
+        if logged_at:
+            c.execute(
+                "INSERT INTO meal_log(ts,name,protein_g,calories,override_kind,profile_id)"
+                " VALUES(?,?,?,?,?,?)",
+                (logged_at, body.name, body.protein_g, body.calories, body.override_kind, profile_id),
+            )
+        else:
+            c.execute(
+                "INSERT INTO meal_log(name,protein_g,calories,override_kind,profile_id)"
+                " VALUES(?,?,?,?,?)",
+                (body.name, body.protein_g, body.calories, body.override_kind, profile_id),
+            )
         c.execute(
-            "INSERT INTO meal_log(name,protein_g,calories,override_kind,profile_id)"
-            " VALUES(?,?,?,?,?)",
-            (
-                body.name,
-                body.protein_g,
-                body.calories,
-                body.override_kind,
-                active_profile(c)["id"],
-            ),
+            "INSERT INTO context_events(source,event_type,entity_id,state,attributes_json)"
+            " VALUES('lifeos','body.meal_logged','sensor.protein','recorded',?)",
+            (json.dumps({"meal": body.name, "protein_g": body.protein_g,
+                         "calories": body.calories, "logged_at": logged_at,
+                         "backdated": bool(logged_at)}),),
         )
         return {"ok": True, "protein_today": protein_today(c)}
 

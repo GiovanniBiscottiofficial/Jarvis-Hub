@@ -152,7 +152,8 @@ sanctuary_apply_thunderstorm_lighting:
   alias: "Sanctuary: apply protected Thunderstorm lighting"
   description: >-
     Exact overnight layout: only Bathroom Light 5 is retained as the bathroom
-    night light, Dining remains at one percent, and task/navigation paths are off.
+    night light, Dining remains at one percent, bedroom color-capable lights hold
+    a dim storm blue, and task/navigation paths are off.
   mode: restart
   sequence:
     - service: light.turn_off
@@ -185,7 +186,8 @@ sanctuary_apply_thunderstorm_lighting:
         brightness: >-
           {% set requested = states('input_number.sanctuary_bedroom_sleep_brightness') | int(1) %}
           {{ [1, [requested, 2] | min] | max }}
-        kelvin: 2200
+        hue: 220
+        saturation: 90
         transition: 45
 
 sanctuary_start_thunderstorm_media:

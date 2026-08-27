@@ -127,7 +127,9 @@
       retryTimer = null;
     }, 10000);
   });
-  app.src = appOrigin + '/?embedded=home-assistant&parent_origin=' + encodeURIComponent(window.location.origin);
+  const requestedTab = new URLSearchParams(window.location.search).get('tab');
+  const focusedTab = requestedTab === 'todo' ? '&tab=todo' : '';
+  app.src = appOrigin + '/?embedded=home-assistant&parent_origin=' + encodeURIComponent(window.location.origin) + focusedTab;
 </script>
 </body>
 </html>

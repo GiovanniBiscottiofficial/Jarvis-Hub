@@ -114,21 +114,44 @@ async function api(path, method = "GET", body, retried = false) {
 }
 
 // ---------- tabs ----------
-document.querySelectorAll(".tab").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    $(btn.dataset.tab).classList.add("active");
-    if (btn.dataset.tab === "budget") loadFinance();
-    if (btn.dataset.tab === "body") loadBody();
-    if (btn.dataset.tab === "today") loadToday();
-    if (btn.dataset.tab === "learning") loadLearning();
-    if (btn.dataset.tab === "review") loadReview();
-    if (btn.dataset.tab === "command") loadCommandCenter();
-    document.body.classList.toggle("command-active", btn.dataset.tab === "command");
-  })
-);
+const ALLOWED_PANELS = new Set(["command", "today", "body", "todo", "budget", "learning", "review"]);
+
+function activatePanel(requestedPanel) {
+  const panelName = ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today";
+  let activeTab = null;
+  document.querySelectorAll(".tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === panelName);
+    if (button.dataset.tab === panelName) activeTab = button;
+  });
+  document.querySelectorAll(".panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === panelName);
+  });
+  if (panelName === "budget") loadFinance();
+  if (panelName === "body") loadBody();
+  if (panelName === "todo") loadShopping();
+  if (panelName === "today") loadToday();
+  if (panelName === "learning") loadLearning();
+  if (panelName === "review") loadReview();
+  if (panelName === "command") loadCommandCenter();
+  document.body.classList.toggle("command-active", panelName === "command");
+  if (activeTab && window.matchMedia("(max-width: 650px)").matches) {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const nav = activeTab.closest("nav");
+      const rail = activeTab.closest(".nav-rail");
+      if (!nav || !rail) return;
+      const chevronWidth = rail.querySelector(".nav-more")?.getBoundingClientRect().width || 0;
+      const visibleWidth = Math.min(nav.clientWidth, Math.max(0, rail.clientWidth - chevronWidth));
+      const targetLeft = activeTab.offsetLeft - ((visibleWidth - activeTab.offsetWidth) / 2);
+      const maxLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+      nav.scrollTo({ left: Math.min(maxLeft, Math.max(0, targetLeft)), behavior: "auto" });
+    }));
+  }
+  return panelName;
+}
+
+document.querySelectorAll(".tab").forEach((button) => {
+  button.addEventListener("click", () => activatePanel(button.dataset.tab));
+});
 
 // ---------- Today ----------
 function renderTodayPriorities(fusedPriorities, fallback) {
@@ -517,6 +540,57 @@ function renderChefSuggestions(chef) {
   });
 }
 
+function renderInternetChef(data) {
+  const container = $("chef-internet-suggestions");
+  container.replaceChildren();
+  if (!data.ok || !data.suggestions?.length) {
+    container.appendChild(el("div", "empty-state", data.message || "No fresh recipes matched the current pantry."));
+    return;
+  }
+  data.suggestions.forEach((recipe, index) => {
+    const card = el("article", "chef-option internet-chef-option");
+    const head = el("div", "chef-option-head");
+    const title = el("div");
+    title.append(el("span", "chef-rank", `${String(index + 1).padStart(2, "0")} · ${recipe.area || recipe.category || "DINNER"}`), el("h3", "", recipe.name));
+    head.append(title, el("strong", "chef-coverage", `${recipe.stock_coverage}% STOCKED`));
+    const metrics = el("div", "chef-metrics");
+    metrics.append(el("span", "", `${recipe.ingredient_count} INGREDIENTS`), el("span", "", `SOURCE · ${recipe.source}`));
+    const missingNames = (recipe.missing || []).map((item) => item.name);
+    const description = missingNames.length ? `Missing: ${missingNames.join(", ")}` : "Ready from current stock.";
+    const actions = el("div", "chef-actions internet-chef-actions");
+    const market = el("button", "secondary", missingNames.length ? "Add missing to market list" : "Market list ready");
+    market.disabled = !missingNames.length;
+    market.onclick = async () => {
+      market.disabled = true;
+      try {
+        for (const item of missingNames) await api("/api/pantry/grocery", "POST", { item, shopping_type: "food" });
+        $("chef-internet-status").textContent = `${missingNames.length} ingredient${missingNames.length === 1 ? "" : "s"} added for ${recipe.name}. Review before purchase.`;
+        loadShopping();
+      } catch (error) { $("chef-internet-status").textContent = error.message; market.disabled = false; }
+    };
+    const view = el("button", "", recipe.recipe_url ? "View recipe" : "Source details unavailable");
+    view.disabled = !recipe.recipe_url;
+    view.onclick = () => window.open(recipe.recipe_url, "_blank", "noopener,noreferrer");
+    actions.append(market, view);
+    card.append(head, metrics, el("p", "chef-why", `${description} ${recipe.nutrition}`), actions);
+    container.appendChild(card);
+  });
+}
+
+async function discoverInternetRecipes() {
+  const button = $("chef-discover-btn");
+  button.disabled = true;
+  $("chef-internet-status").textContent = "Jarvis is searching for pantry-aware recipe ideas…";
+  try {
+    const data = await api("/api/pantry/chef/discover?limit=6");
+    renderInternetChef(data);
+    $("chef-internet-status").textContent = `${data.message} Source: TheMealDB.`;
+  } catch (error) {
+    renderInternetChef({ ok: false, suggestions: [], message: "Internet recipes are unavailable; local Chef options remain ready." });
+    $("chef-internet-status").textContent = error.message;
+  } finally { button.disabled = false; }
+}
+
 async function recordChefFeedback(recipeId, action, message) {
   try {
     await api("/api/pantry/chef/feedback", "POST", { recipe_id: recipeId, action });
@@ -583,7 +657,7 @@ function renderMarketList(items) {
           const target = route === "food" ? "home" : "food";
           await api(`/api/pantry/grocery/${item.id}/type`, "POST", { shopping_type: target });
           $("shopping-status").textContent = `${item.item} now routes to ${target === "food" ? "Food Lion and Instacart" : "Walmart and Amazon"}.`;
-          loadPantry();
+          loadShopping();
         } catch (error) {
           $("shopping-status").textContent = `Route not changed: ${error.message}`;
           reroute.disabled = false;
@@ -595,7 +669,7 @@ function renderMarketList(items) {
         try {
           await api("/api/pantry/grocery/remove", "POST", { item: item.item });
           $("shopping-status").textContent = `${item.item} removed from the shopping list.`;
-          loadPantry();
+          loadShopping();
         } catch (error) {
           $("shopping-status").textContent = `Item not removed: ${error.message}`;
           done.disabled = false;
@@ -613,7 +687,7 @@ async function loadPantry() {
   const pantryEl = $("pantry");
   pantryEl.textContent = "Loading inventory…";
   try {
-    const [p, market, chef] = await Promise.all([api("/api/pantry"), api("/api/pantry/grocery"), api("/api/pantry/chef")]);
+    const [p, chef] = await Promise.all([api("/api/pantry"), api("/api/pantry/chef")]);
     renderChefSuggestions(chef);
     $("pantry-readiness").textContent = `${p.items.length} ITEMS · ${chef.pantry.out} OUT · ${chef.pantry.low} LOW`;
     pantryEl.replaceChildren();
@@ -653,10 +727,23 @@ async function loadPantry() {
         pantryEl.appendChild(line);
       });
     }
-    renderMarketList(market);
   } catch (error) {
     pantryEl.replaceChildren(el("div", "empty-state error-state", `Pantry unavailable · ${error.message}`));
     $("chef-suggestions").replaceChildren(el("div", "empty-state error-state", `Chef Jarvis unavailable · ${error.message}`));
+  }
+}
+
+async function loadShopping() {
+  const grocery = $("grocery");
+  grocery.replaceChildren(el("div", "empty-state", "Loading routed shopping list…"));
+  try {
+    renderMarketList(await api("/api/pantry/grocery"));
+  } catch (error) {
+    const message = String(error.message || "Shopping service unavailable");
+    const state = message.includes("Home Assistant session required")
+      ? "Authentication required · open this To-do view through Home Assistant."
+      : `Shopping list stale or offline · ${message}`;
+    grocery.replaceChildren(el("div", "empty-state error-state", state));
   }
 }
 
@@ -875,15 +962,22 @@ $("pantry-sync-btn").onclick = async () => {
   finally { button.disabled = false; }
 };
 
+$("pantry-open-grocy-btn").onclick = () => {
+  const host = window.location.hostname;
+  window.open(`${window.location.protocol}//${host}:9283/`, "_blank", "noopener,noreferrer");
+};
+
+$("chef-discover-btn").onclick = discoverInternetRecipes;
+
 $("market-build-btn").onclick = async () => {
   const button = $("market-build-btn");
   button.disabled = true;
-  $("pantry-status").textContent = "Jarvis is checking low and depleted stock…";
+  $("shopping-status").textContent = "Jarvis is checking low and depleted stock…";
   try {
     const result = await api("/api/pantry/market-list/build", "POST", { recipe_ids: [], include_low_stock: true });
-    $("pantry-status").textContent = `${result.added} low-stock item${result.added === 1 ? "" : "s"} reviewed. ${result.checkout}`;
-    loadPantry();
-  } catch (error) { $("pantry-status").textContent = error.message; }
+    $("shopping-status").textContent = `${result.added} low-stock item${result.added === 1 ? "" : "s"} reviewed. ${result.checkout}`;
+    loadShopping();
+  } catch (error) { $("shopping-status").textContent = `Low-stock review failed: ${error.message}`; }
   finally { button.disabled = false; }
 };
 
@@ -902,7 +996,7 @@ $("shopping-add-btn").onclick = async () => {
     await api("/api/pantry/grocery", "POST", { item, shopping_type: shoppingType });
     $("shopping-status").textContent = `${item} added for ${shoppingType === "food" ? "Food Lion or Instacart" : "Walmart or Amazon"}.`;
     $("shopping-item").value = "";
-    loadPantry();
+    loadShopping();
   } catch (error) {
     $("shopping-status").textContent = `Item not added: ${error.message}`;
   } finally {
@@ -1823,7 +1917,8 @@ $("profile-btn").onclick = async () => {
   loadProfiles();
 };
 
-loadToday();
+const requestedPanel = new URLSearchParams(window.location.search).get("tab");
+activatePanel(requestedPanel || "today");
 loadProfiles();
 
 // ---------- Jarvis Command Center ----------
@@ -2235,6 +2330,123 @@ function renderCapabilities(capabilities) {
   });
 }
 
+function renderIntegrationFabric(fabric) {
+  const state = String(fabric.status || "degraded").toLowerCase();
+  const summary = fabric.summary || {};
+  const stateNode = $("integration-state");
+  stateNode.className = `integration-state state-${state}`;
+  stateNode.textContent = state.toUpperCase();
+  commandText(
+    "integration-summary",
+    `${summary.ready || 0}/${summary.nodes || 0} READY · ${summary.degraded || 0} DEGRADED · ${summary.disconnected || 0} DISCONNECTED · ${summary.uncommissioned || 0} UNCOMMISSIONED · ${summary.orphaned || 0} ORPHANED`
+  );
+
+  const list = $("integration-list");
+  list.replaceChildren();
+  const nodes = Array.isArray(fabric.nodes) ? fabric.nodes : [];
+  if (!nodes.length) {
+    list.textContent = "Integration assessment is unavailable.";
+  } else {
+    nodes.forEach((node) => {
+      const nodeState = String(node.state || "degraded").toLowerCase();
+      const row = document.createElement("article");
+      row.className = `integration-node state-${nodeState}`;
+      const marker = document.createElement("span");
+      marker.className = "integration-marker";
+      const copy = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = node.name || friendlyEntity(node.id);
+      const detail = document.createElement("small");
+      detail.textContent = `${nodeState.toUpperCase()} · ${node.canonical_state || "canonical state unspecified"}`;
+      copy.append(name, detail);
+      row.title = node.reason || "No readiness detail supplied.";
+      row.append(marker, copy);
+      list.appendChild(row);
+    });
+  }
+
+  const issues = $("integration-issues");
+  issues.replaceChildren();
+  const issueList = Array.isArray(fabric.issues) ? fabric.issues : [];
+  const orphaned = Array.isArray(fabric.orphaned_nodes) ? fabric.orphaned_nodes : [];
+  if (!issueList.length && !orphaned.length) {
+    issues.textContent = "All commissioned subsystems have a producer, canonical state, and consumer.";
+    issues.className = "integration-issues is-clear";
+    return;
+  }
+  issues.className = "integration-issues has-attention";
+  const label = document.createElement("strong");
+  label.textContent = "ATTENTION";
+  const detail = document.createElement("span");
+  detail.textContent = orphaned.length
+    ? `Orphaned: ${orphaned.map(friendlyEntity).join(", ")}.`
+    : issueList.slice(0, 2).map((issue) => issue.reason).join(" ");
+  issues.append(label, detail);
+}
+
+function renderIntelligence(intelligence) {
+  const panel = document.querySelector(".command-intelligence");
+  const state = String(intelligence.status || "degraded").toLowerCase();
+  panel.classList.remove("intelligence-nominal", "intelligence-attention", "intelligence-degraded");
+  panel.classList.add(`intelligence-${state}`);
+  commandText("intelligence-state", state.toUpperCase());
+  commandText("intelligence-headline", intelligence.headline || "No intelligence assessment available.");
+  const confidence = Number(intelligence.confidence);
+  commandText("intelligence-confidence", Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—");
+
+  const summary = intelligence.summary || {};
+  const temporal = intelligence.temporal?.summary || {};
+  commandText(
+    "intelligence-summary",
+    `${summary.signals || 0} SIGNALS · ${summary.conflicts || 0} CONFLICTS · ${summary.urgent || 0} URGENT · ${temporal.established || 0} ROUTINES`
+  );
+  const policy = intelligence.policy || {};
+  commandText(
+    "intelligence-policy",
+    policy.inferences_authorize_actions === false
+      ? "ADVISORY ONLY · NO EXECUTION AUTHORITY"
+      : "POLICY STATE UNKNOWN"
+  );
+
+  const list = $("intelligence-list");
+  list.replaceChildren();
+  const recommendations = Array.isArray(intelligence.recommendations)
+    ? intelligence.recommendations.slice(0, 4)
+    : [];
+  if (!recommendations.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = intelligence.data_quality?.fresh === false
+      ? "Waiting for fresh context before ranking recommendations."
+      : "No cross-domain intervention recommended.";
+    list.appendChild(empty);
+    return;
+  }
+  recommendations.forEach((recommendation) => {
+    const priority = String(recommendation.priority || "low").toLowerCase();
+    const row = document.createElement("article");
+    row.className = `intelligence-item priority-${priority}`;
+    const label = document.createElement("span");
+    label.className = "intelligence-priority";
+    label.textContent = `${priority} / ${String(recommendation.horizon || "now")}`;
+    const copy = document.createElement("div");
+    copy.className = "intelligence-copy";
+    const title = document.createElement("strong");
+    title.textContent = recommendation.title || "Review recommendation";
+    const rationale = document.createElement("small");
+    rationale.textContent = recommendation.rationale || "Evidence is available in the intelligence API.";
+    copy.append(title, rationale);
+    const score = document.createElement("output");
+    const recommendationConfidence = Number(recommendation.confidence);
+    score.textContent = Number.isFinite(recommendationConfidence)
+      ? `${Math.round(recommendationConfidence * 100)}%`
+      : "—";
+    score.setAttribute("aria-label", "Recommendation confidence");
+    row.append(label, copy, score);
+    list.appendChild(row);
+  });
+}
+
 function renderAudit(audit) {
   const list = $("command-audit-list");
   list.replaceChildren();
@@ -2279,7 +2491,24 @@ async function runBehaviorSimulation(behavior, button) {
     if (!predictions.length) {
       const observation = document.createElement("div");
       observation.className = "simulation-observation";
-      if (behavior === "perception") {
+      if (behavior === "intelligence") {
+        const assessment = simulation.assessment || {};
+        const changes = simulation.changes || {};
+        const recommendations = Array.isArray(assessment.recommendations)
+          ? assessment.recommendations.slice(0, 3)
+          : [];
+        const summary = document.createElement("span");
+        summary.textContent = `${String(assessment.status || "unknown").toUpperCase()} · ${assessment.headline || "No changed verdict"}`;
+        observation.appendChild(summary);
+        recommendations.forEach((recommendation) => {
+          const line = document.createElement("small");
+          line.textContent = `${String(recommendation.priority || "low").toUpperCase()} · ${recommendation.title}`;
+          observation.appendChild(line);
+        });
+        const boundary = document.createElement("small");
+        boundary.textContent = `${(changes.added_recommendations || []).length} recommendation(s) added · no database writes · no house state changed.`;
+        observation.appendChild(boundary);
+      } else if (behavior === "perception") {
         const scenario = simulation.scenario || {};
         const presence = scenario.visual_presence === true ? "OCCUPIED" : scenario.visual_presence === false ? "CLEAR" : "AWAITING SIGNAL";
         const confidence = Number(scenario.confidence);
@@ -2332,7 +2561,7 @@ async function loadCommandCenter() {
   $("command").classList.remove("has-error", "is-attention", "is-nominal", "is-awaiting");
   try {
     const [payload, audit] = await Promise.all([
-      api("/api/command-center?event_limit=40"),
+      api("/api/command-center?event_limit=100"),
       api("/api/actions/audit?limit=6"),
     ]);
     const context = payload.context || {};
@@ -2372,11 +2601,13 @@ async function loadCommandCenter() {
     commandText("command-proposal-count", `${proposals.length} PENDING`);
     renderCommandProposals(proposals);
     renderLifeOSPulse(lifeos);
+    renderIntelligence(payload.intelligence || {});
     renderHardwareTelemetry(hardware);
     renderVoiceTelemetry(context.voice || {}, context.conversation || {});
     renderSupervisor(context.supervisor || {});
     renderPerception(perception);
     renderCapabilities(capabilities);
+    renderIntegrationFabric(payload.integrations || {});
     renderCommandEvents(context.recent_events || []);
     renderCommandPolicies(actions);
     renderAudit(Array.isArray(audit) ? audit : []);
@@ -2420,6 +2651,7 @@ function refreshOperatingPicture({ mutation = false } = {}) {
   if (mutation || active === "today") runSafely(loadToday);
   if (active === "budget") runSafely(loadFinance);
   if (active === "body") runSafely(loadBody);
+  if (active === "todo") runSafely(loadShopping);
   if (active === "learning") runSafely(loadLearning);
   if (active === "review") runSafely(loadReview);
   if (active === "command") runSafely(loadCommandCenter);
