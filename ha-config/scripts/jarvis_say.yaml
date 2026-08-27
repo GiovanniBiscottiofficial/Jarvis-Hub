@@ -54,9 +54,12 @@ jarvis_say:
              | regex_replace('\\s+', ' ')
              | trim }}
         x1_satellite: >-
-          {{ 'assist_satellite.x1'
-             if states('assist_satellite.x1') not in ['unknown', 'unavailable']
-             else '' }}
+          {{ 'assist_satellite.jarvis_x1_assist_satellite'
+             if states('assist_satellite.jarvis_x1_assist_satellite')
+                not in ['unknown', 'unavailable']
+             else ('assist_satellite.x1'
+               if states('assist_satellite.x1') not in ['unknown', 'unavailable']
+               else '') }}
         satellite: >-
           {{ x1_satellite if x1_satellite != '' else
              (states.assist_satellite
