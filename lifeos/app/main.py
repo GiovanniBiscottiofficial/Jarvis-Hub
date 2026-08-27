@@ -1,5 +1,7 @@
 """LifeOS — Vault Flow + Body Ops for the Jarvis Hub."""
+import asyncio
 import base64
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 import hmac
 import hashlib
@@ -26,8 +28,19 @@ from .routers import (
     webhooks,
 )
 from .routers.bodyops import protein_today, streak, water_today
+from .conversation_bridge import stop_voice_events, watch_voice_events
 
-app = FastAPI(title="LifeOS", version="0.2.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    voice_bridge_task = asyncio.create_task(watch_voice_events())
+    try:
+        yield
+    finally:
+        await stop_voice_events(voice_bridge_task)
+
+
+app = FastAPI(title="LifeOS", version="0.2.0", lifespan=lifespan)
 
 
 PUBLIC_PATHS = {"/api/auth", "/api/auth/home-assistant", "/healthz"}

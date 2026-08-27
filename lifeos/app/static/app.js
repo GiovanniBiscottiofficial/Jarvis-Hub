@@ -1611,7 +1611,7 @@ function renderHardwareTelemetry(hardware) {
       : "NODE NOMINAL";
 }
 
-function renderVoiceTelemetry(voice = {}) {
+function renderVoiceTelemetry(voice = {}, conversation = {}) {
   const ready = voice.ready === true;
   const muted = voice.microphone_muted === true || voice.state === "muted";
   const state = $("voice-io-state");
@@ -1642,6 +1642,25 @@ function renderVoiceTelemetry(voice = {}) {
   const privacy = voice.privacy && typeof voice.privacy === "object" ? voice.privacy : {};
   commandText("voice-storage", privacy.raw_audio_stored === false ? "NO RAW AUDIO STORED" : "STORAGE POLICY UNKNOWN");
   commandText("voice-mute", muted ? "MICROPHONE MUTED" : ready ? "MICROPHONE OPEN" : "MIC STATE UNKNOWN");
+  const phase = String(conversation.phase || "unavailable").replaceAll("_", " ").toUpperCase();
+  commandText("conversation-phase", conversation.connected === true ? phase : "VOICE LINK OFFLINE");
+  commandText(
+    "conversation-user",
+    conversation.phase === "listening"
+      ? "Listening…"
+      : conversation.last_user || "Say “Hey Jarvis” to begin.",
+  );
+  commandText(
+    "conversation-assistant",
+    conversation.last_assistant || "The latest response will appear here.",
+  );
+  const retention = conversation.privacy?.retention;
+  commandText(
+    "conversation-privacy",
+    retention
+      ? `EPHEMERAL · ${String(retention).toUpperCase()} · NO AUDIO STORED`
+      : "EPHEMERAL · LATEST EXCHANGE ONLY · NO AUDIO STORED",
+  );
 }
 
 function renderSupervisor(supervisor = {}) {
@@ -1930,7 +1949,7 @@ async function loadCommandCenter() {
     renderCommandProposals(proposals);
     renderLifeOSPulse(lifeos);
     renderHardwareTelemetry(hardware);
-    renderVoiceTelemetry(context.voice || {});
+    renderVoiceTelemetry(context.voice || {}, context.conversation || {});
     renderSupervisor(context.supervisor || {});
     renderPerception(perception);
     renderCapabilities(capabilities);
