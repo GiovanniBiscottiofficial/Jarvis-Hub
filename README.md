@@ -405,6 +405,19 @@ LifeOS is an installable PWA: open `http://<hub-ip>:8090` on your phone, then
 get a proper Jarvis-blue app icon and a fullscreen standalone app — no browser
 bars — and the app shell still opens if the hub is briefly unreachable.
 
+### Routed shopping list
+
+Body Ops includes one local shopping list with two deliberate routes:
+
+- **Food** opens at Food Lion or Instacart.
+- **Household supplies, personal care, and other items** open at Walmart or Amazon.
+
+Choose the route when adding an item. Pantry depletion and Chef Jarvis recipe
+ingredients are classified automatically, and every row has a **Move to food** or
+**Move to home & personal** correction. Retailer buttons open a search/list in a
+new tab for review; LifeOS does not add to a cart, submit an order, claim live
+pricing, or store retailer credentials.
+
 ## The hub display (Google-Home style)
 
 The X1 isn't just the server — its own screen becomes the house's control panel:

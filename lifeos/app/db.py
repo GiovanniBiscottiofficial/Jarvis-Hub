@@ -186,7 +186,8 @@ CREATE TABLE IF NOT EXISTS grocery_list (
     reason TEXT NOT NULL DEFAULT '',
     department TEXT NOT NULL DEFAULT 'Other',
     estimated_price REAL,
-    recipe_id TEXT
+    recipe_id TEXT,
+    shopping_type TEXT NOT NULL DEFAULT 'auto'
 );
 
 CREATE TABLE IF NOT EXISTS financial_transactions (
@@ -574,6 +575,7 @@ def _migrate(c: sqlite3.Connection) -> None:
             ("department", "TEXT NOT NULL DEFAULT 'Other'"),
             ("estimated_price", "REAL"),
             ("recipe_id", "TEXT"),
+            ("shopping_type", "TEXT NOT NULL DEFAULT 'auto'"),
         ],
     }
     for table, adds in simple_adds.items():

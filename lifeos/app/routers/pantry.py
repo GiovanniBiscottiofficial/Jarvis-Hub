@@ -1,7 +1,9 @@
 """Pantry: local inventory mirror of Grocy + grocery suggestions from
 protein deficits."""
 import json
+import re
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -24,6 +26,28 @@ HIGH_PROTEIN_STAPLES = [
     ("Sweet potatoes", 2.0),
 ]
 
+FOOD_DEPARTMENTS = {
+    "produce", "meat", "seafood", "dairy", "canned goods", "pantry",
+    "bakery", "frozen", "beverages", "snacks", "food",
+}
+HOME_DEPARTMENTS = {
+    "household", "household supplies", "personal", "personal care", "health",
+    "beauty", "home", "office", "cleaning", "laundry", "other",
+}
+FOOD_TERMS = {
+    "apple", "avocado", "banana", "beef", "bread", "butter", "cheese",
+    "chicken", "coffee", "cream", "cucumber", "egg", "fish", "flour",
+    "grape", "juice", "lettuce", "milk", "oat", "oil", "pasta", "pepper",
+    "protein", "rice", "salmon", "snack", "steak", "sugar", "sweet potato",
+    "tea", "tuna", "turkey", "water", "yogurt", "zucchini",
+}
+HOME_TERMS = {
+    "battery", "cleaner", "conditioner", "deodorant", "detergent", "diaper",
+    "dish soap", "foil", "garbage bag", "laundry", "light bulb", "paper towel",
+    "razor", "shampoo", "soap", "sponge", "tissue", "toilet paper", "toothbrush",
+    "toothpaste", "trash bag", "vitamin", "water filter",
+}
+
 
 class PantryItemIn(BaseModel):
     name: str
@@ -36,6 +60,11 @@ class PantryItemIn(BaseModel):
 
 class GroceryItemIn(BaseModel):
     item: str
+    shopping_type: Literal["auto", "food", "home"] = "auto"
+
+
+class ShoppingTypeIn(BaseModel):
+    shopping_type: Literal["food", "home"]
 
 
 class MarketListIn(BaseModel):
@@ -48,15 +77,48 @@ class ChefFeedbackIn(BaseModel):
     action: str
 
 
+def classify_shopping_type(
+    item: str,
+    department: str = "Other",
+    source: str = "manual",
+    stored: str = "auto",
+) -> tuple[str, str]:
+    """Route food to Food Lion/Instacart and everything else to Walmart/Amazon."""
+    if stored in {"food", "home"}:
+        return stored, "explicit"
+    normalized = re.sub(r"[^a-z0-9]+", " ", item.lower()).strip()
+    department_key = department.strip().lower()
+    def contains_term(term: str) -> bool:
+        return re.search(rf"(?:^| )({re.escape(term)})(?:s|es)?(?: |$)", normalized) is not None
+
+    if any(contains_term(term) for term in HOME_TERMS):
+        return "home", "item"
+    if source == "chef_jarvis" or department_key in FOOD_DEPARTMENTS:
+        return "food", "source" if source == "chef_jarvis" else "department"
+    if any(contains_term(term) for term in FOOD_TERMS):
+        return "food", "item"
+    if department_key in HOME_DEPARTMENTS:
+        return "home", "department"
+    return "home", "default"
+
+
 @router.get("/grocery")
 def grocery_list():
     with conn() as c:
-        return [
+        rows = [
             dict(r)
             for r in c.execute(
                 "SELECT * FROM grocery_list WHERE done=0 ORDER BY ts"
             ).fetchall()
         ]
+    for row in rows:
+        resolved, reason = classify_shopping_type(
+            row["item"], row.get("department") or "Other",
+            row.get("source") or "manual", row.get("shopping_type") or "auto",
+        )
+        row["shopping_type"] = resolved
+        row["shopping_type_source"] = reason
+    return rows
 
 
 @router.post("/grocery")
@@ -64,7 +126,7 @@ def grocery_add(body: GroceryItemIn):
     item = body.item.strip()
     if not item:
         raise HTTPException(400, "grocery item is required")
-    if reason := excluded_reason(item):
+    if body.shopping_type != "home" and (reason := excluded_reason(item)):
         raise HTTPException(400, f"{reason} is excluded from Giovanni's food plan")
     with conn() as c:
         existing = c.execute(
@@ -73,8 +135,28 @@ def grocery_add(body: GroceryItemIn):
             (item,),
         ).fetchone()
         if existing is None:
-            c.execute("INSERT INTO grocery_list(item) VALUES(?)", (item,))
-        return {"ok": True, "item": item}
+            c.execute(
+                "INSERT INTO grocery_list(item,shopping_type) VALUES(?,?)",
+                (item, body.shopping_type),
+            )
+        elif body.shopping_type in {"food", "home"}:
+            c.execute(
+                "UPDATE grocery_list SET shopping_type=? WHERE id=?",
+                (body.shopping_type, existing["id"]),
+            )
+        return {"ok": True, "item": item, "shopping_type": body.shopping_type}
+
+
+@router.post("/grocery/{item_id}/type")
+def grocery_set_type(item_id: int, body: ShoppingTypeIn):
+    with conn() as c:
+        result = c.execute(
+            "UPDATE grocery_list SET shopping_type=? WHERE id=? AND done=0",
+            (body.shopping_type, item_id),
+        )
+        if result.rowcount == 0:
+            raise HTTPException(404, "shopping item not found")
+    return {"ok": True, "id": item_id, "shopping_type": body.shopping_type}
 
 
 @router.post("/grocery/remove")
@@ -147,12 +229,14 @@ def mark_item_out(item_id: int):
             "last_depleted_at=datetime('now','localtime') WHERE id=?", (item_id,),
         )
         c.execute(
-            "INSERT INTO grocery_list(item,qty,unit,source,reason,department)"
-            " SELECT ?,MAX(1,?),?,'pantry','Marked out by Giovanni',?"
+            "INSERT INTO grocery_list(item,qty,unit,source,reason,department,shopping_type)"
+            " SELECT ?,MAX(1,?),?,'pantry','Marked out by Giovanni',?,?"
             " WHERE NOT EXISTS (SELECT 1 FROM grocery_list WHERE done=0"
             " AND item=? COLLATE NOCASE)",
             (item["name"], item["low_stock_threshold"], item["unit"],
-             item["category"] or "Other", item["name"]),
+             item["category"] or "Other",
+             classify_shopping_type(item["name"], item["category"] or "Other", "pantry")[0],
+             item["name"]),
         )
         c.execute(
             "INSERT INTO context_events(source,event_type,entity_id,state,"
@@ -202,7 +286,7 @@ def build_market_list(body: MarketListIn):
         for item in items:
             added += c.execute(
                 "INSERT INTO grocery_list(item,qty,unit,source,reason,department,"
-                "estimated_price,recipe_id) SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS"
+                "estimated_price,recipe_id,shopping_type) SELECT ?,?,?,?,?,?,?,?,'food' WHERE NOT EXISTS"
                 " (SELECT 1 FROM grocery_list WHERE done=0 AND item=? COLLATE NOCASE)",
                 (item["item"], item["qty"], item["unit"], "chef_jarvis",
                  item["reason"], item["department"], item["estimated_price"],

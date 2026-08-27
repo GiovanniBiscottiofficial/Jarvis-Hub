@@ -1,6 +1,6 @@
 // Minimal service worker: makes LifeOS installable and shows the app shell
 // when the hub is briefly unreachable. API calls always go to the network.
-const CACHE = "lifeos-v10-learning-ledger";
+const CACHE = "lifeos-v11-routed-shopping";
 const SHELL = [
   "./", "index.html", "style.css", "app.js", "bodyops-enhanced.js",
   "bodyops-enhanced.css", "money-command.js", "money-command.css",
