@@ -40,16 +40,14 @@ class JarvisLifeOSPanel extends HTMLElement {
         return;
       }
       try {
-        const speechJob = this._hass.callService("script", "jarvis_say", {
+        await this._hass.callService("script", "jarvis_say", {
           message,
           urgent: true,
           listen_after: true,
         });
         reply({ ok: true, output: "home_assistant" });
-        Promise.resolve(speechJob).catch((error) => {
-          console.error("LifeOS briefing speaker job failed", error);
-        });
       } catch (error) {
+        console.warn("LifeOS Home Assistant speaker unavailable; using local speech", error);
         reply({
           ok: false,
           error: error instanceof Error ? error.message : "Jarvis speaker call failed.",
