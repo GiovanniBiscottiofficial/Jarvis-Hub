@@ -1582,14 +1582,10 @@ function stopWeeklyReview() {
 
 async function speakWeeklyReview() {
   if (!weeklyReviewSpeech) return;
+  primeBrowserSpeech();
   const button = $("review-speak-btn");
   button.disabled = true;
-  $("review-speak-status").textContent = "Sending the weekly intelligence brief to Jarvis…";
-  if (await speakThroughHomeAssistant(weeklyReviewSpeech)) {
-    $("review-speak-status").textContent = "Weekly brief sent to the X1 speakers.";
-    button.disabled = false;
-    return;
-  }
+  $("review-speak-status").textContent = "Preparing Jarvis on the X1 audio output…";
   if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
     $("review-speak-status").textContent = "Speech is unavailable here. The complete brief remains visible.";
     button.disabled = false;
@@ -1603,7 +1599,7 @@ async function speakWeeklyReview() {
   weeklyReviewUtterance.pitch = 0.96;
   weeklyReviewUtterance.onstart = () => {
     $("review-stop-btn").disabled = false;
-    $("review-speak-status").textContent = "Jarvis is delivering the weekly intelligence brief.";
+    $("review-speak-status").textContent = "Jarvis is delivering the weekly brief through the X1 audio output.";
   };
   weeklyReviewUtterance.onend = () => {
     weeklyReviewUtterance = null;
