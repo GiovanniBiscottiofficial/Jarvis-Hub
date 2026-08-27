@@ -128,7 +128,7 @@
   }
 
   function renderTargets(targets, completion) {
-    const card = section("ADAPTIVE PLAN", "Targets that respect recovery", "bodyops-targets");
+    const card = section("UNIFIED DAILY PLAN", "One goal across Jarvis and LifeOS", "bodyops-targets");
     const grid = node("div", "bodyops-metric-grid");
     append(grid,
       metric("Protein", `${targets.protein_g} g`, `${completion.protein_percent}% complete`),

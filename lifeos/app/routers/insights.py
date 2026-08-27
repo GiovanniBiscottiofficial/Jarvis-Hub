@@ -957,7 +957,7 @@ def ask():
     if dinner:
         body_morning_parts.append(dinner["prep"])
     body_morning_parts.append(
-        f"Today's adaptive movement target is {targets['steps']:,} steps, "
+        f"Today's movement goal is {targets['steps']:,} steps, "
         f"with {targets['protein_g']} grams of protein and {targets['water_glasses']} glasses of water."
     )
     body_morning_speech = " ".join(body_morning_parts)

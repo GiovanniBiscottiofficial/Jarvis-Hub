@@ -233,8 +233,11 @@ def adaptive_targets(readiness: dict[str, Any] | None = None) -> dict[str, Any]:
     with conn() as c:
         profile = active_profile(c)
         water = int(get_setting("water_target_glasses") or 8)
-    factor = 1.0 if score >= 75 else 0.85 if score >= 55 else 0.7
-    steps = max(4000, round(int(profile["step_target"]) * factor / 500) * 500)
+    # The active profile is the single source of truth for the daily step goal.
+    # Readiness may change *how* Jarvis recommends moving, but it must never make
+    # Today, Body Ops, weekly intelligence, and spoken briefings report different
+    # goals for the same person and day.
+    steps = int(profile["step_target"])
     workout = (
         "Normal planned session; stop or scale down if your body disagrees."
         if score >= 75
@@ -245,10 +248,11 @@ def adaptive_targets(readiness: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "protein_g": int(round(float(profile["protein_target_g"]))),
         "steps": steps,
+        "step_goal_source": "active_profile",
         "water_glasses": water,
         "calories": int(profile["calorie_target"]),
         "workout_guidance": workout,
-        "reason": f"Step and training guidance adapted to readiness {score}; protein, hydration, and calories were not reduced.",
+        "reason": f"The step goal comes from the active profile; training guidance adapts to readiness {score} without changing that goal.",
         "confirmation": "Targets are suggestions and never override symptoms, clinician guidance, or manual choice.",
     }
 

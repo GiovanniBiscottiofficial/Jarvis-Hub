@@ -36,7 +36,7 @@ and calibrating each room on the X1. Missing hardware stays visibly
 
 **Built and in this repo:**
 - Core stack: Home Assistant + LifeOS + optional profiles (voice, LLM, Grocy, cameras, Plex, Jellyfin)
-- LifeOS: briefings, protein/water/steps, meals & favorites, pantry/grocery, workouts,
+- LifeOS: briefings, protein/water/steps with one profile-owned goal across every page, meals & favorites, pantry/grocery, workouts,
   weigh-ins, spending, bills, accounts, savings goals, weekly review, PWA install
 - Voice: ~60 sentence intents (ask/log/control), timers, reminders, context memory,
   wisdom & sarcasm, diagnostics, announcements

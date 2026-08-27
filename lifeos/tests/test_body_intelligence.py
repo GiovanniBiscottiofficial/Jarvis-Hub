@@ -10,7 +10,8 @@ from app.body_intelligence import (
     readiness_snapshot,
 )
 from app.db import active_profile, conn
-from app.routers.bodyops import BodyCheckIn, body_checkin
+from app.context_engine import lifeos_snapshot
+from app.routers.bodyops import BodyCheckIn, body_checkin, body_summary
 
 
 def test_missing_health_data_is_neutral_not_failure(fresh_db):
@@ -40,15 +41,33 @@ def test_checkin_is_validated_and_changes_readiness(fresh_db):
         body_checkin(BodyCheckIn(energy=6))
 
 
-def test_adaptive_targets_scale_movement_not_nutrition(fresh_db):
+def test_targets_keep_one_profile_step_goal_while_guidance_adapts(fresh_db):
     low = {"score": 40}
     high = {"score": 90}
     low_targets = adaptive_targets(low)
     high_targets = adaptive_targets(high)
-    assert low_targets["steps"] < high_targets["steps"]
+    with conn() as c:
+        profile_step_goal = active_profile(c)["step_target"]
+    assert low_targets["steps"] == profile_step_goal
+    assert high_targets["steps"] == profile_step_goal
+    assert low_targets["step_goal_source"] == "active_profile"
+    assert low_targets["workout_guidance"] != high_targets["workout_guidance"]
     assert low_targets["protein_g"] == high_targets["protein_g"]
     assert low_targets["water_glasses"] == high_targets["water_glasses"]
     assert low_targets["calories"] == high_targets["calories"]
+
+
+def test_step_goal_is_identical_across_bodyops_today_and_context(fresh_db):
+    with conn() as c:
+        c.execute("UPDATE profiles SET step_target=8000 WHERE id=?", (active_profile(c)["id"],))
+
+    loop = daily_loop()
+    summary = body_summary()
+    operating_picture = lifeos_snapshot()
+
+    assert loop["targets"]["steps"] == 8000
+    assert summary["steps"]["target"] == 8000
+    assert operating_picture["body"]["step_target"] == 8000
 
 
 def test_weight_trend_and_timeline_preserve_sources(fresh_db):
