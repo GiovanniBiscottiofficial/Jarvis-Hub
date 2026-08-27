@@ -190,7 +190,10 @@
       { name:'Tubi', url:'https://tubitv.com', search:'https://tubitv.com/search/', sources:['tubi'], brand:'#f05bdf', free:true },
       { name:'Pluto TV', url:'https://pluto.tv', search:'https://pluto.tv', sources:['pluto tv','pluto'], brand:'#f0d754', free:true },
       { name:'Twitch', url:'https://www.twitch.tv', search:'https://www.twitch.tv/search?term=', sources:['twitch'], brand:'#a577ff', free:true },
-      { name:'YouTube Music', url:'https://music.youtube.com', search:'https://music.youtube.com/search?q=', sources:['youtube music'], brand:'#ff6060', free:true }
+      { name:'YouTube Music', url:'https://music.youtube.com', search:'https://music.youtube.com/search?q=', sources:['youtube music'], brand:'#ff6060', free:true },
+      { name:'Jellyfin', url:'/local/open.html?port=8096', search:'/local/open.html?port=8096', sources:['jellyfin'], brand:'#b693ff', free:true },
+      { name:'GeForce Now', url:'https://play.geforcenow.com', search:'https://play.geforcenow.com', sources:['geforce now','nvidia games'], brand:'#79d44b', free:true },
+      { name:'LifeOS', url:'/lifeos-app/app', search:'/lifeos-app/app', sources:[], brand:'#45d9ee', free:true }
     ];
     const $ = id => document.getElementById(id);
     const consoleEl = $('console'), targetSelect = $('targetSelect'), linkDot = $('linkDot'), linkText = $('linkText'), notice = $('notice');
@@ -238,12 +241,16 @@
     }
     function openOnX1(url) {
       const opened = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!opened) showNotice('The kiosk blocked the new app window. Allow pop-ups for Home Assistant.', 'error');
+      if (!opened) { showNotice('The kiosk blocked the new app window. Allow pop-ups for Home Assistant.', 'error'); return false; }
+      return true;
     }
     function launchApp(app) {
       if (selectedTarget === 'x1') { openOnX1(app.url); return; }
       const state = currentPlayer(), source = matchedSource(app,state);
-      if (!source) { showNotice(app.name+' is not exposed as a source on '+playerName(state)+'. Select This X1 or configure the app on the player.', 'error'); return; }
+      if (!source || !sessionFresh) {
+        if (openOnX1(app.url)) showNotice(app.name+' opened on this X1 because '+playerName(state)+' does not expose it as a controllable source.', 'success');
+        return;
+      }
       safeService('media_player','select_source',{ entity_id:selectedTarget, source },app.name+' launched on '+playerName(state)+'.');
     }
     function searchMedia(query) {
@@ -341,9 +348,9 @@
       const grid=el('div','apps'), state=currentPlayer();
       APPS.forEach(app => {
         const source=matchedSource(app,state), button=el('button','app'); button.type='button'; button.style.setProperty('--brand',app.brand);
-        button.append(el('strong','',app.name),el('small','',selectedTarget==='x1'?'Open web app':(source?'Ready · '+source:'Not exposed on player')));
+        button.append(el('strong','',app.name),el('small','',selectedTarget==='x1'?'Open on this X1':(source?'Launch on '+playerName(state):'Open on X1 instead')));
         if (app.free) button.append(el('span','badge','FREE OPTION'));
-        button.disabled=!sessionFresh || (selectedTarget!=='x1' && !source); button.addEventListener('click',()=>launchApp(app)); grid.append(button);
+        button.disabled=false; button.addEventListener('click',()=>launchApp(app)); grid.append(button);
       });
       panel.append(grid); return panel;
     }
