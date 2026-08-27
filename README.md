@@ -179,10 +179,25 @@ Context APIs:
 - `POST /api/simulations/{arrival|departure|nightly}` — side-effect-free behavior lab;
 - `GET /api/actions`, `GET /api/actions/audit`, and `POST /api/actions/{action_id}` —
   policies, audit history, and guarded execution.
+- `GET /api/learning` — local observations, candidates, confirmed preferences, and audit;
+- `POST /api/learning/feedback` — record explicit evidence without authorizing an action;
+- `POST /api/learning/preferences/{id}/decision` — confirm, reject, or forget guidance.
 
 Every action declares its scope, risk, reversibility, confirmation policy, and
 whether remote execution is allowed. This is the central rule: the LLM may explain
 and propose, but only the deterministic policy layer may authorize an action.
+
+### Learning Ledger
+
+Select **Learning** in LifeOS to inspect what Jarvis is learning. Explicit voice
+memories and Chef feedback now feed one profile-scoped ledger. Observations remain
+separate from candidates, candidates remain action-locked until Giovanni confirms
+them, and confirmed guidance can be forgotten at any time. Confidence is based on
+visible evidence count and agreement; it is not presented as certainty. The ledger,
+its decisions, and its audit history stay in the local LifeOS database.
+
+Learning never bypasses the action registry. A confirmed preference may influence
+an explanation or future proposal, but it cannot directly operate Home Assistant.
 
 ### System architecture
 
@@ -192,6 +207,7 @@ flowchart LR
     HA -->|state events| CE["LifeOS context engine"]
     BO["Body Ops"] --> CE
     VF["Vault Flow"] --> CE
+    LL["Learning Ledger"] -->|confirmed guidance| CE
     CE --> CC["Command Center + Behavior Lab"]
     CE --> PP["Policy and proposal gate"]
     LLM["Jarvis conversation agent"] -->|intent / explanation| PP

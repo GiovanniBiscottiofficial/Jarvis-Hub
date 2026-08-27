@@ -222,6 +222,59 @@ CREATE TABLE IF NOT EXISTS water (
     PRIMARY KEY (date, profile_id)
 );
 
+CREATE TABLE IF NOT EXISTS learning_observations (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    domain TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    value TEXT NOT NULL,
+    signal TEXT NOT NULL CHECK (
+        signal IN ('liked','disliked','chosen','skipped','stated','corrected')
+    ),
+    polarity REAL NOT NULL,
+    weight REAL NOT NULL,
+    source TEXT NOT NULL,
+    context_json TEXT NOT NULL DEFAULT '{}',
+    active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_observations_key
+    ON learning_observations(profile_id, domain, subject, value, active, ts DESC);
+
+CREATE TABLE IF NOT EXISTS learned_preferences (
+    id INTEGER PRIMARY KEY,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    domain TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    value TEXT NOT NULL,
+    sentiment TEXT NOT NULL CHECK (sentiment IN ('prefer','avoid')),
+    status TEXT NOT NULL DEFAULT 'candidate' CHECK (
+        status IN ('candidate','confirmed','rejected','forgotten')
+    ),
+    confidence REAL NOT NULL DEFAULT 0,
+    evidence_count INTEGER NOT NULL DEFAULT 0,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    UNIQUE(profile_id, domain, subject, value)
+);
+
+CREATE INDEX IF NOT EXISTS idx_learned_preferences_status
+    ON learned_preferences(profile_id, status, confidence DESC, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS learning_audit (
+    id INTEGER PRIMARY KEY,
+    ts TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    preference_id INTEGER,
+    action TEXT NOT NULL,
+    before_json TEXT NOT NULL DEFAULT '{}',
+    after_json TEXT NOT NULL DEFAULT '{}',
+    reason TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(preference_id) REFERENCES learned_preferences(id)
+);
+
 CREATE TABLE IF NOT EXISTS savings_goals (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
