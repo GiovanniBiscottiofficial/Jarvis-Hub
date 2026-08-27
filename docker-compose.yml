@@ -62,7 +62,7 @@ services:
     image: rhasspy/wyoming-whisper
     profiles: [voice]
     restart: unless-stopped
-    command: --model small-int8 --language en
+    command: --model base-int8 --language en
     ports:
       - "10300:10300"
     volumes:

@@ -605,8 +605,8 @@ returns. The Command Center shows health, repair decisions, and protected bounda
   the live camera state. The channel contains no images and does not require a LifeOS
   token.
 
-- **Conversation continuity**: Jarvis's local `qwen2.5:1.5b` agent uses a 10-turn rolling history
-  and a 3072-token context window on the 8 GB X1. The versioned prompt in
+- **Conversation continuity**: Jarvis's local `qwen2.5:1.5b` agent uses a 4-turn rolling history
+  and a 2048-token context window on the 8 GB X1. The versioned prompt in
   `docs/jarvis-conversation-prompt.txt` teaches pronoun resolution, fragmentary
   follow-ups, concise clarification, correction handling, and spoken-response
   discipline. Apply it only while Home Assistant is stopped:

@@ -68,7 +68,7 @@ Then open `http://<laptop-ip>:8123` from any device on your WiFi, create your ac
 2. Run Whisper (speech-to-text) + Piper (text-to-speech) as Docker containers on the X1:
    ```bash
    docker run -d --restart=unless-stopped -p 10300:10300 \
-     rhasspy/wyoming-whisper --model small-int8 --language en
+     rhasspy/wyoming-whisper --model base-int8 --language en
    docker run -d --restart=unless-stopped -p 10200:10200 \
      rhasspy/wyoming-piper --voice en_GB-alan-medium --length-scale 1.03 \
        --noise-scale 0.45 --noise-w-scale 0.70 --sentence-silence 0.18
