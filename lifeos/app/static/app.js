@@ -591,6 +591,32 @@ async function discoverInternetRecipes() {
   } finally { button.disabled = false; }
 }
 
+// These are the only external commerce destinations Jarvis may construct.
+// Authentication and all retailer actions stay in Chromium, outside LifeOS.
+const RETAILER_ALLOWLIST = Object.freeze({
+  foodlion: Object.freeze({
+    name: "Food Lion", home: "https://foodlion.com/", itemLabel: "Food Lion list",
+    itemUrl: () => "https://foodlion.com/personal-list",
+  }),
+  instacart: Object.freeze({
+    name: "Instacart", home: "https://www.instacart.com/", itemLabel: "Instacart",
+    itemUrl: (item) => `https://www.instacart.com/store/s?k=${encodeURIComponent(item)}`,
+  }),
+  walmart: Object.freeze({
+    name: "Walmart", home: "https://www.walmart.com/", itemLabel: "Walmart",
+    itemUrl: (item) => `https://www.walmart.com/search?q=${encodeURIComponent(item)}`,
+  }),
+  amazon: Object.freeze({
+    name: "Amazon", home: "https://www.amazon.com/", itemLabel: "Amazon",
+    itemUrl: (item) => `https://www.amazon.com/s?k=${encodeURIComponent(item)}`,
+  }),
+});
+
+document.querySelectorAll(".retailer-airlock").forEach((link) => {
+  const retailer = RETAILER_ALLOWLIST[link.dataset.retailer];
+  if (!retailer || link.href !== retailer.home) link.remove();
+});
+
 async function recordChefFeedback(recipeId, action, message) {
   try {
     await api("/api/pantry/chef/feedback", "POST", { recipe_id: recipeId, action });
@@ -632,22 +658,16 @@ function renderMarketList(items) {
       );
       const actions = document.createElement("div");
       actions.className = "market-actions";
-      const query = encodeURIComponent(item.item);
-      const retailers = route === "food"
-        ? [
-            ["Food Lion list", "https://foodlion.com/personal-list"],
-            ["Instacart", `https://www.instacart.com/store/s?k=${query}`],
-          ]
-        : [
-            ["Walmart", `https://www.walmart.com/search?q=${query}`],
-            ["Amazon", `https://www.amazon.com/s?k=${query}`],
-          ];
-      retailers.forEach(([label, href]) => {
+      const retailers = route === "food" ? ["foodlion", "instacart"] : ["walmart", "amazon"];
+      retailers.forEach((retailerId) => {
+        const retailer = RETAILER_ALLOWLIST[retailerId];
+        const href = retailer.itemUrl(item.item);
+        const label = retailer.itemLabel;
         const link = el("a", "retailer-link secondary", label);
         link.href = href;
-        link.target = "_blank";
+        link.target = "_top";
         link.rel = "noopener noreferrer";
-        link.setAttribute("aria-label", `Open ${item.item} with ${label}`);
+        link.setAttribute("aria-label", `Shop for ${item.item} with ${retailer.name}`);
         actions.appendChild(link);
       });
       const reroute = el("button", "secondary route-toggle", route === "food" ? "Move to home & personal" : "Move to food");

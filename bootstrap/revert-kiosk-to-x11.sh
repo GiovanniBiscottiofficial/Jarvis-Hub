@@ -2,6 +2,7 @@
 # Replace the unstable Weston/Wayland kiosk with an X11/Openbox kiosk.
 # Preserves Chromium's profile, HA login, and all Jarvis/Home Assistant data.
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 KIOSK_USER="${KIOSK_USER:-$USER}"
 KIOSK_SCALE="${KIOSK_SCALE:-2.25}"
@@ -198,6 +199,9 @@ stay_visible()
 root.mainloop()
 PYEOF
 sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
+# Install the same tracked bar as setup-kiosk.sh so recovery cannot regress
+# the retailer escape controls.
+sudo install -m 0755 "${SCRIPT_DIR}/kiosk/hub-bar.py" /opt/jarvis-kiosk/hub-bar.py
 
 sudo tee /opt/jarvis-kiosk/jarvis-keyboard.py >/dev/null <<'PYEOF'
 #!/usr/bin/env python3
