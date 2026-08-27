@@ -25,6 +25,7 @@ def test_body_facts_share_one_operating_picture_after_mutations(fresh_db):
     today = client.get("/api/today").json()
     summary = client.get("/api/body/summary").json()
     loop = client.get("/api/body/daily-loop").json()
+    weekly = client.get("/api/review/weekly").json()
     command = client.get("/api/command-center?event_limit=1").json()["context"]["lifeos"]
     answers = client.get("/api/ask").json()
 
@@ -32,8 +33,10 @@ def test_body_facts_share_one_operating_picture_after_mutations(fresh_db):
     assert today["protein"] == summary["protein"]
     assert today["protein"]["today_g"] == loop["today"]["protein_g"] == command["body"]["protein_g"] == 35
     assert today["protein"]["target_g"] == loop["targets"]["protein_g"] == command["body"]["protein_target_g"] == 120
+    assert weekly["protein_target_g"] == 120
     assert today["steps_today"] == summary["steps"]["today"] == loop["today"]["steps"] == command["body"]["steps"] == 4321
     assert today["step_target"] == summary["steps"]["target"] == loop["targets"]["steps"] == command["body"]["step_target"] == 9000
+    assert weekly["step_target"] == 9000
     assert today["water"]["today"] == summary["water"]["today"] == loop["today"]["water_glasses"] == command["body"]["water"] == 3
     assert today["water"]["target"] == summary["water"]["target"] == loop["targets"]["water_glasses"] == command["body"]["water_target"]
     assert today["vitamins_taken"] is summary["vitamins_taken"] is loop["completion"]["vitamins_taken"] is command["body"]["vitamins_taken"] is True

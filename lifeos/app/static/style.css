@@ -458,7 +458,7 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .review-trend { display: flex; flex-direction: column; min-height: 112px; padding: 14px; background: #0a1623; border-top: 2px solid #4d7086; }
 .review-trend.good { border-color: #55d6a0; }
 .review-trend.warn { border-color: #e9a85c; }
-.review-trend > span, .review-trend small { color: #657e90; font: 600 .55rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.review-trend > span, .review-trend small { color: #718a9c; font: 600 .55rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
 .review-trend strong { color: #edf9fc; font: 500 1.25rem ui-monospace, SFMono-Regular, Consolas, monospace; margin: auto 0 8px; }
 .review-trend.good small { color: #65cfa3; }
 .review-trend.warn small { color: #dba15f; }
@@ -506,7 +506,7 @@ button.is-loading span { animation: reactor-spin .8s linear infinite; display: i
 .score-dial, .pulse-metric { min-width: 0; min-height: 85px; padding: 11px; background: #0a1422; }
 .score-dial { display: grid; place-items: center; align-content: center; border-left: 2px solid #9d7bf2; }
 .score-dial strong { color: #d2c1ff; font: 600 1.9rem ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1; }
-.score-dial span, .pulse-metric > span { color: #776c94; font: 600 .52rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .09em; }
+.score-dial span, .pulse-metric > span { color: #9688b4; font: 600 .52rem ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .09em; }
 .pulse-metric { display: flex; flex-direction: column; justify-content: center; }
 .pulse-metric strong { overflow: hidden; color: #e5e0f2; font: 600 .72rem ui-monospace, SFMono-Regular, Consolas, monospace; margin-top: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .pulse-metric > i { height: 3px; background: #24243a; margin-top: 9px; }

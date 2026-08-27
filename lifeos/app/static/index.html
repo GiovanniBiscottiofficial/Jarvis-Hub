@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="jarvis-release" content="2026.08.27-internet-intelligence-v2">
+<meta name="jarvis-release" content="2026.08.27-elite-integration-v1">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <header class="app-header">
@@ -130,7 +130,7 @@
             <div><dt>Interrupt</dt><dd id="voice-interrupt">UNAVAILABLE</dd></div>
           </dl>
           <p id="voice-reason" class="voice-reason">Waiting for X1 voice health.</p>
-          <div class="conversation-live" aria-labelledby="conversation-live-heading">
+          <div class="conversation-live" role="region" aria-labelledby="conversation-live-heading">
             <div class="conversation-live-head">
               <strong id="conversation-live-heading">LIVE DIALOGUE</strong>
               <span id="conversation-phase">AWAITING VOICE LINK</span>
@@ -143,7 +143,7 @@
             </div>
             <small id="conversation-privacy">EPHEMERAL · LATEST EXCHANGE ONLY · NO AUDIO STORED</small>
           </div>
-          <div class="voice-privacy" aria-label="Microphone privacy facts">
+          <div class="voice-privacy" role="group" aria-label="Microphone privacy facts">
             <span>LOCAL WAKE + SPEECH PIPELINE</span>
             <span id="voice-storage">NO RAW AUDIO STORED</span>
             <span id="voice-mute">MIC STATE UNKNOWN</span>
@@ -162,7 +162,7 @@
             <span class="muted">Supervisor telemetry pending.</span>
           </div>
           <p id="supervisor-policy" class="voice-reason">Allow-listed reversible service restarts only.</p>
-          <div id="supervisor-boundaries" class="voice-privacy" aria-label="Protected recovery boundaries"></div>
+          <div id="supervisor-boundaries" class="voice-privacy" role="group" aria-label="Protected recovery boundaries"></div>
         </section>
       </article>
 
@@ -183,7 +183,7 @@
             <div><dt>Last gesture / app</dt><dd id="perception-gesture">NONE / —</dd></div>
           </dl>
         </div>
-        <div class="privacy-boundary" aria-label="Perception privacy boundaries">
+        <div class="privacy-boundary" role="group" aria-label="Perception privacy boundaries">
           <span class="privacy-title">PRIVACY BOUNDARY</span>
           <span id="perception-processing" class="privacy-nominal">LOCAL PROCESSING</span>
           <span id="perception-storage" class="privacy-disabled">NO RAW-FRAME STORAGE</span>
@@ -205,7 +205,7 @@
             <strong id="integration-state" aria-live="polite">ASSESSING</strong>
           </div>
           <p id="integration-summary" class="integration-summary">Tracing producers, canonical state, and consumers.</p>
-          <div id="integration-list" class="integration-list muted" aria-live="polite">Loading subsystem graph.</div>
+          <div id="integration-list" class="integration-list muted" role="region" tabindex="0" aria-label="Integration subsystem graph" aria-live="polite">Loading subsystem graph.</div>
           <div id="integration-issues" class="integration-issues" aria-live="polite"></div>
         </section>
       </article>
@@ -225,7 +225,7 @@
 
       <article class="tactical-panel command-events">
         <header class="panel-heading"><span>09</span><h2>Live event stream</h2><i id="command-event-count">0 EVENTS</i></header>
-        <div id="command-event-list" class="event-stream muted" aria-live="polite">No telemetry received.</div>
+        <div id="command-event-list" class="event-stream muted" role="region" tabindex="0" aria-label="Live event stream" aria-live="polite">No telemetry received.</div>
       </article>
 
       <article class="tactical-panel command-policy">
@@ -299,7 +299,7 @@
     <div class="card">
       <h2>Weigh-in</h2>
       <div class="row">
-        <input id="weight-input" type="number" step="0.1" placeholder="lb">
+        <input id="weight-input" type="number" step="0.1" placeholder="lb" aria-label="Weight in pounds">
         <button id="weight-btn">Log</button>
       </div>
       <div id="weight-msg" class="muted"></div>
@@ -309,7 +309,7 @@
     <div class="card">
       <h2>Steps (manual)</h2>
       <div class="row">
-        <input id="steps-input" type="number" placeholder="today's steps">
+        <input id="steps-input" type="number" placeholder="today's steps" aria-label="Today's steps">
         <button id="steps-btn">Save</button>
       </div>
       <p class="muted">Auto-sync: point the Health Auto Export app at
@@ -318,8 +318,8 @@
     <div class="card">
       <h2>Quick log a meal</h2>
       <div class="row">
-        <input id="meal-name" placeholder="what you ate">
-        <input id="meal-protein" type="number" placeholder="g protein">
+        <input id="meal-name" placeholder="what you ate" aria-label="Meal name">
+        <input id="meal-protein" type="number" placeholder="g protein" aria-label="Meal protein in grams">
         <button id="meal-btn">Log</button>
       </div>
     </div>
@@ -331,15 +331,15 @@
       <h2>Workouts</h2>
       <div id="workouts" class="muted">Nothing planned.</div>
       <div class="row">
-        <input id="workout-kind" placeholder="e.g. 20-min walk">
-        <input id="workout-min" type="number" placeholder="min">
+        <input id="workout-kind" placeholder="e.g. 20-min walk" aria-label="Workout type">
+        <input id="workout-min" type="number" placeholder="min" aria-label="Workout minutes">
         <button id="workout-btn">Plan</button>
       </div>
     </div>
     <div class="card">
       <h2>Photo a meal</h2>
       <div class="row">
-        <input id="photo-input" type="file" accept="image/*" capture="environment">
+        <input id="photo-input" type="file" accept="image/*" capture="environment" aria-label="Meal photo">
         <button id="photo-btn">Analyze</button>
       </div>
       <div id="photo-msg" class="muted"></div>
@@ -361,7 +361,7 @@
     <div class="card pantry-card">
       <div class="chef-heading"><div><span class="chef-kicker">STOCK / LOCAL</span><h2>Pantry inventory</h2></div><span id="pantry-readiness" class="chef-state">LOADING</span></div>
       <p class="card-note">Tell Jarvis what arrived or tap “Ran out” when it is gone. Grocy remains an optional inventory bridge.</p>
-      <div class="pantry-composer" aria-label="Add pantry item">
+      <div class="pantry-composer" role="group" aria-label="Add pantry item">
         <label>Item<input id="pantry-item" autocomplete="off" placeholder="Chicken breast"></label>
         <label>Quantity<input id="pantry-qty" type="number" min="0" step="0.1" value="1"></label>
         <label>Unit<input id="pantry-unit" autocomplete="off" placeholder="lb, cans, servings"></label>
@@ -454,9 +454,9 @@
       <div class="finance-card-heading"><div><span class="finance-index">OBLIGATIONS / 03</span><h2>Bill stacks</h2></div><span class="finance-state">P1 → P2</span></div>
       <div id="budget-bills" class="bill-stacks muted">Loading both paycheck stacks…</div>
       <details class="subordinate-tools"><summary>Add a bill</summary><div class="row">
-        <input id="bill-name" placeholder="bill">
-        <input id="bill-amount" type="number" step="0.01" placeholder="$">
-        <input id="bill-day" type="number" min="1" max="31" placeholder="due day">
+        <input id="bill-name" placeholder="bill" aria-label="Bill name">
+        <input id="bill-amount" type="number" step="0.01" placeholder="$" aria-label="Bill amount">
+        <input id="bill-day" type="number" min="1" max="31" placeholder="due day" aria-label="Bill due day">
         <select id="bill-paycheck" aria-label="Bill paycheck stack">
           <option value="1" selected>Paycheck 1</option>
           <option value="2">Paycheck 2</option>
@@ -471,13 +471,13 @@
       <div id="budget-accounts"></div>
       <div id="accounts" hidden></div>
       <details class="subordinate-tools"><summary>Reconcile actual balance</summary><div class="row">
-        <select id="bal-account"></select>
-        <input id="bal-amount" type="number" step="0.01" placeholder="actual balance $">
+        <select id="bal-account" aria-label="Account to reconcile"></select>
+        <input id="bal-amount" type="number" step="0.01" placeholder="actual balance $" aria-label="Actual account balance">
         <button id="bal-btn">Update</button>
       </div><div id="bal-status" class="inline-status muted" role="status" aria-live="polite"></div></details>
       <details class="subordinate-tools"><summary>Add a deposit</summary><div class="row">
-        <select id="dep-account"></select>
-        <input id="dep-amount" type="number" step="0.01" placeholder="$">
+        <select id="dep-account" aria-label="Deposit account"></select>
+        <input id="dep-amount" type="number" step="0.01" placeholder="$" aria-label="Deposit amount">
         <button id="dep-btn">Add deposit</button>
       </div></details>
       <div id="plan" class="vault-plan muted"></div>
@@ -489,8 +489,8 @@
       <div id="budget-funds" class="muted">–</div>
       <div id="goals" class="muted" hidden></div>
       <details class="subordinate-tools"><summary>Manage a goal</summary>
-        <div class="row"><input id="goal-name" placeholder="goal (e.g. vacation)"><input id="goal-target" type="number" step="0.01" placeholder="target $"><button id="goal-btn">Add goal</button></div>
-        <div class="row"><select id="goal-select"></select><input id="goal-amount" type="number" step="0.01" placeholder="$"><button id="goal-add-btn">Save to goal</button></div>
+        <div class="row"><input id="goal-name" placeholder="goal (e.g. vacation)" aria-label="Goal name"><input id="goal-target" type="number" step="0.01" placeholder="target $" aria-label="Goal target amount"><button id="goal-btn">Add goal</button></div>
+        <div class="row"><select id="goal-select" aria-label="Savings goal"></select><input id="goal-amount" type="number" step="0.01" placeholder="$" aria-label="Goal contribution amount"><button id="goal-add-btn">Save to goal</button></div>
       </details>
     </div>
 
@@ -502,7 +502,7 @@
     <div class="card">
       <h2>Windfall dispatcher <span class="muted">(side income, bonuses, gifts)</span></h2>
       <div class="row">
-        <input id="wf-amount" type="number" step="0.01" placeholder="windfall $">
+        <input id="wf-amount" type="number" step="0.01" placeholder="windfall $" aria-label="Windfall amount">
         <button id="wf-debt" class="secondary">100% debt</button>
         <button id="wf-split" class="secondary">50/50 debt+buckets</button>
         <button id="wf-buffer" class="secondary">Boost buffer</button>
@@ -572,7 +572,7 @@
   <section id="learning" class="panel">
     <div class="section-intro"><div><span class="section-index">INTELLIGENCE / 04</span><h2>Learning Ledger</h2><p>What Jarvis observed, what he inferred, and what Giovanni explicitly approved.</p></div><span class="section-date">LOCAL · REVERSIBLE</span></div>
     <div id="learning-status" class="inline-status muted" role="status" aria-live="polite">Open this view to inspect Jarvis’s learning.</div>
-    <div class="learning-summary" aria-label="Learning summary">
+    <div class="learning-summary" role="group" aria-label="Learning summary">
       <div><strong id="learning-confirmed-count">—</strong><span>Confirmed</span></div>
       <div><strong id="learning-candidate-count">—</strong><span>Needs review</span></div>
       <div><strong id="learning-rejected-count">—</strong><span>Rejected</span></div>
@@ -627,7 +627,7 @@
       <article class="card review-command-card">
         <div class="review-command-heading"><div><span class="finance-index">JARVIS / ASSESSMENT</span><h2>Operating picture</h2></div><span class="finance-state">ADVISORY</span></div>
         <div class="review-command-body">
-          <div class="review-score" aria-label="Weekly operating score"><strong id="review-score">–</strong><span>/ 100</span></div>
+          <div class="review-score" role="group" aria-label="Weekly operating score"><strong id="review-score">–</strong><span>/ 100</span></div>
           <div><h3 id="review-verdict">Building the weekly picture…</h3><p id="review-speech" class="muted">Jarvis is reconciling body, routine, and money signals.</p></div>
         </div>
         <div class="review-speech-controls">
@@ -685,9 +685,9 @@
   </section>
 </main>
 
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
   <script src="bodyops-enhanced.js?v=3"></script>
-  <script src="money-command.js?v=6"></script>
+  <script src="money-command.js?v=8"></script>
   <script src="release-watch.js?v=1"></script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

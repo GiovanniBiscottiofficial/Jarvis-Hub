@@ -707,6 +707,7 @@ def weekly_review():
         "avg_daily_protein_g": avg_protein,
         "protein_target_g": prof["protein_target_g"],
         "avg_daily_steps": avg_steps,
+        "step_target": prof["step_target"],
         "money_in": deposits_row["s"],
         "bills_paid_this_month": bills_paid["s"],
         "treats_this_week": treats["n"],

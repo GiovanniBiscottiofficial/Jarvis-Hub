@@ -41,6 +41,17 @@ for (const file of htmlFiles) {
       fail(file, "button missing an accessible name");
     }
   }
+  for (const match of html.matchAll(/<(input|select|textarea)\b[^>]*\bid=["']([^"']+)["'][^>]*>/gi)) {
+    const tag = match[0];
+    const id = match[2];
+    if (/\btype=["']hidden["']/i.test(tag)) continue;
+    if (/\baria-(label|labelledby)=["'][^"']+["']/i.test(tag)) continue;
+    const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`<label\\b[^>]*\\bfor=["']${escapedId}["']`, "i").test(html)) continue;
+    const before = html.slice(0, match.index);
+    if (before.lastIndexOf("<label") > before.lastIndexOf("</label>")) continue;
+    fail(file, `${match[1]}#${id} missing an accessible name`);
+  }
 }
 
 for (const file of safeDomFiles) {

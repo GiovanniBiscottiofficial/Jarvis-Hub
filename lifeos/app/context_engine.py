@@ -413,7 +413,12 @@ def lifeos_snapshot() -> dict[str, Any]:
             {"domain": "body", "label": f"{water_target - water} glasses of water remaining"}
         )
     if due_soon:
-        priorities.append({"domain": "vault", "label": f"{len(due_soon)} bill(s) need attention"})
+        priorities.append(
+            {
+                "domain": "vault",
+                "label": f"{len(due_soon)} bill(s) staged within 7 days",
+            }
+        )
     if any(not workout["done"] for workout in workouts):
         priorities.append({"domain": "body", "label": "Planned workout remains open"})
     depleted = [item for item in pantry_items if float(item["qty"]) <= 0]

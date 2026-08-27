@@ -265,6 +265,9 @@
         const fact = node("div", ""); append(fact, node("span", "", label), node("strong", "", currency(value))); facts.appendChild(fact);
       });
       const bills = node("div", "money-mission-bills");
+      bills.tabIndex = 0;
+      bills.setAttribute("role", "region");
+      bills.setAttribute("aria-label", `${mission.period} planned bills`);
       mission.bills.forEach((bill) => bills.appendChild(node("span", bill.paid ? "is-paid" : "", `${bill.name} · ${currency(bill.amount)} · due ${localDate(bill.due_date)}`)));
       if (!mission.bills.length) bills.appendChild(node("span", "money-empty", "No obligations assigned."));
       const controls = node("div", "money-mission-controls");
