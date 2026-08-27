@@ -137,11 +137,6 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Shopping
-            icon: mdi:cart-outline
-          - type: todo-list
-            entity: todo.shopping_list
-          - type: heading
             heading: Jarvis activity
             icon: mdi:robot
           # His recent actions at a glance. Full transcripts of what he
@@ -504,16 +499,6 @@ views:
             animate: true
             show:
               fill: fade
-          - type: heading
-            heading: Shopping
-            icon: mdi:cart-outline
-          - type: todo-list
-            entity: todo.shopping_list
-          - type: heading
-            heading: Errands
-            icon: mdi:run-fast
-          - type: todo-list
-            entity: todo.errands
 
   # ------------------------------------------------------------------
   - title: Home
@@ -834,19 +819,8 @@ views:
     icon: mdi:clipboard-check-outline
     theme: Jarvis
     type: sections
-    max_columns: 4
+    max_columns: 3
     sections:
-      - type: grid
-        cards:
-          - type: heading
-            heading: Home Assistant list
-            icon: mdi:format-list-checks
-          - type: markdown
-            content: >
-              Voice and manually added Home Assistant tasks live here. This is
-              separate from the routed Jarvis list.
-          - type: todo-list
-            entity: todo.shopping_list
       - type: grid
         column_span: 2
         cards:
@@ -865,8 +839,9 @@ views:
             icon: mdi:fridge-outline
           - type: markdown
             content: >
-              Grocy tracks inventory and expiry dates. It is separate from both
-              Home Assistant tasks and the Jarvis routed shopping database.
+              Grocy is the inventory and expiry ledger. LifeOS reads it to build
+              one routed Jarvis shopping list; Home Assistant does not keep a
+              competing list.
           - type: button
             name: Open Grocy
             icon: mdi:open-in-new

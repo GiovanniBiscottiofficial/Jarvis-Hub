@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from ..body_intelligence import daily_loop
 from ..chef import chef_summary
+from ..commute import commute_snapshot
 from ..context_engine import current_context, list_proposals
 from ..db import active_profile, conn, get_setting
 from ..intelligence import build_intelligence
@@ -158,6 +159,24 @@ def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
             ),
         )
 
+    commute = facts.get("commute")
+    if period == "morning" and facts.get("workday") and commute and commute.get("minutes"):
+        distance = (
+            f" over {commute['miles']:.1f} miles" if commute.get("miles") is not None else ""
+        )
+        if commute.get("traffic_live"):
+            add(
+                "commute",
+                f"Your live commute to work is {commute['minutes']} minutes{distance}. "
+                f"Your planned departure is {commute.get('planned_departure', '07:35')}.",
+            )
+        else:
+            add(
+                "commute",
+                f"Your normal drive to work is about {commute['minutes']} minutes{distance}. "
+                f"Live traffic is not commissioned, so keep your {commute.get('planned_departure', '07:35')} departure buffer.",
+            )
+
     vitamins_pending = not facts["vitamins_taken"]
     meal_name = facts.get("meal_name")
     if period == "morning" and vitamins_pending and meal_name:
@@ -298,6 +317,8 @@ def morning_briefing():
     leftover = total - bills_total
     meals = chef_summary()["suggestions"][:2]
     weather = _weather()
+    workday = date.today().weekday() < 5
+    commute = commute_snapshot() if workday else None
 
     paydays = payday_schedule(count=2)
     next_pay = paydays[0]
@@ -333,6 +354,8 @@ def morning_briefing():
             "name": prof["name"],
             "affirmation": affirmation,
             "weather": weather,
+            "workday": workday,
+            "commute": commute,
             "protein": protein,
             "protein_target": prof["protein_target_g"],
             "vitamins_taken": bool(vit_row and vit_row["taken"]),
@@ -361,6 +384,7 @@ def morning_briefing():
         "date": today_iso,
         "profile": prof["name"],
         "weather": weather,
+        "commute": commute,
         "protein": {"today_g": protein, "target_g": prof["protein_target_g"]},
         "steps_today": steps_row["count"] if steps_row else 0,
         "vitamins_taken": bool(vit_row and vit_row["taken"]),

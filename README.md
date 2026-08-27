@@ -413,9 +413,10 @@ bars — and the app shell still opens if the hub is briefly unreachable.
 
 ### Routed shopping list
 
-The **To-do** surface brings Home Assistant's native list, the local Jarvis
-routed shopping list, and a Grocy launcher together while keeping their data
-boundaries explicit. The three stores are not presented as synchronized.
+The **To-do** surface has one owner: LifeOS maintains the routed Jarvis shopping
+list, while Grocy supplies inventory and expiry data. Home Assistant no longer
+keeps a competing shopping or errands list; voice grocery commands route to
+LifeOS.
 
 Jarvis shopping uses two deliberate routes:
 
@@ -460,7 +461,7 @@ It boots into a live animated **Jarvis boot splash** (spinning arc-reactor core,
 "INITIALIZING SYSTEMS…", moving circuit grid — `ha-config/www/jarvis-splash.html`,
 also viewable any time at `http://<hub-ip>:8123/local/jarvis-splash.html`), which
 hands over to the **Wall** view of the Jarvis dashboard — big clock, the
-morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
+morning briefing, giant light/scene/vacuum tiles, a LifeOS shopping launcher, and a "Jarvis
 activity" feed of his recent actions — fullscreen,
 screen always on, running on a lightweight **Wayland** compositor (Weston) with
 Chromium in native Wayland mode for smooth touch and proper HiDPI,

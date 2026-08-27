@@ -61,9 +61,6 @@ notify:
       - action: persistent_notification
       - action: mobile_app_se_device
 
-# Local shopping list ("Jarvis, add milk to the shopping list")
-shopping_list:
-
 # Wake computers over the network (fill in MACs, see README Phase 17)
 wake_on_lan:
 
@@ -418,7 +415,7 @@ rest:
     sensor:
       - name: LifeOS morning briefing
         value_template: "{{ value_json.date }}"
-        json_attributes: [speech, briefing_style, briefing_period, sections, leftover_after_bills, vitamins_taken, paydays, affirmation, dinner_prep]
+        json_attributes: [speech, briefing_style, briefing_period, sections, leftover_after_bills, vitamins_taken, paydays, affirmation, dinner_prep, commute]
   - resource: http://localhost:8090/api/review/weekly
     headers:
       Authorization: !secret lifeos_api_authorization

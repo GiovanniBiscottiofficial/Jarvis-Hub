@@ -62,7 +62,7 @@ def test_jarvis_iframes_are_cache_versioned_and_have_explicit_x1_sizing():
     assert todo["url"].startswith("/local/lifeos.html?tab=todo&v=")
     assert "aspect_ratio" not in todo
     assert todo["grid_options"] == {"columns": "full", "rows": 8}
-    assert views["todo"]["max_columns"] == 4
+    assert views["todo"]["max_columns"] == 3
 
 
 def test_legacy_lifeos_dashboard_iframe_is_cache_versioned():

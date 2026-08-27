@@ -95,7 +95,7 @@ def test_shopping_ui_lives_only_in_todo_and_supports_allowlisted_query_activatio
     assert 'nav.scrollTo({ left:' in javascript
 
 
-def test_home_assistant_wrapper_and_dashboard_expose_separate_todo_systems():
+def test_home_assistant_wrapper_exposes_only_the_lifeos_todo_system():
     repo = Path(__file__).resolve().parents[2]
     wrapper = (repo / "ha-config" / "www" / "lifeos.html").read_text(encoding="utf-8")
     dashboard = (repo / "ha-config" / "dashboards" / "jarvis.yaml").read_text(encoding="utf-8")
@@ -104,6 +104,10 @@ def test_home_assistant_wrapper_and_dashboard_expose_separate_todo_systems():
     assert "token" not in wrapper.split("app.src =", 1)[1]
     assert "localStorage" not in wrapper and "sessionStorage" not in wrapper
     assert "title: To-do" in dashboard
-    assert "entity: todo.shopping_list" in dashboard
+    assert "entity: todo.shopping_list" not in dashboard
+    assert "entity: todo.errands" not in dashboard
+    assert "type: todo-list" not in dashboard
     assert "url: /local/lifeos.html?tab=todo&v=" in dashboard
     assert "navigation_path: /local/open.html?port=9283&path=/" in dashboard
+    configuration = (repo / "ha-config" / "configuration.yaml").read_text(encoding="utf-8")
+    assert "\nshopping_list:" not in configuration

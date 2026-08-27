@@ -37,6 +37,12 @@ services:
       # Weather in the morning briefing (Open-Meteo, no API key)
       - LIFEOS_LAT=${LIFEOS_LAT:-}
       - LIFEOS_LON=${LIFEOS_LON:-}
+      # Home-to-work briefing route. A commissioned HA commute sensor wins;
+      # otherwise LifeOS labels the keyless OSRM estimate as baseline-only.
+      - LIFEOS_WORK_ADDRESS=${LIFEOS_WORK_ADDRESS:-4411 W. Market St, Greensboro, NC 27405}
+      - LIFEOS_WORK_LAT=${LIFEOS_WORK_LAT:-}
+      - LIFEOS_WORK_LON=${LIFEOS_WORK_LON:-}
+      - LIFEOS_COMMUTE_ENTITY=${LIFEOS_COMMUTE_ENTITY:-}
       # Grocy pantry sync (Grocy → Settings → Manage API keys)
       - GROCY_URL=${GROCY_URL:-}
       - GROCY_API_KEY=${GROCY_API_KEY:-}
