@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="jarvis-release" content="2026.08.26-learning-v1">
+<meta name="jarvis-release" content="2026.08.26-shopping-v1">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -334,8 +334,15 @@
       <div class="row pantry-tools">
         <button id="pantry-sync-btn" class="secondary">Sync from Grocy</button>
       </div>
-      <div class="market-heading"><div><span class="chef-kicker">FOOD LION / PLAN</span><h2>Market list</h2></div><button id="market-build-btn" class="secondary">Add low stock</button></div>
-      <p class="card-note">Prices are planning estimates, never live quotes. Jarvis will not place an order without your explicit review.</p>
+      <div class="market-heading"><div><span class="chef-kicker">SHOPPING / ROUTED</span><h2>Shopping list</h2></div><button id="market-build-btn" class="secondary">Add low stock</button></div>
+      <p class="card-note">Food goes to Food Lion or Instacart. Household supplies, personal care, and other items go to Walmart or Amazon.</p>
+      <div class="shopping-composer" aria-label="Add shopping-list item">
+        <label>Item<input id="shopping-item" autocomplete="off" placeholder="Paper towels or chicken breast"></label>
+        <label>Shopping route<select id="shopping-type"><option value="food">Food · Food Lion + Instacart</option><option value="home">Home, personal &amp; other · Walmart + Amazon</option></select></label>
+        <button id="shopping-add-btn">Add to shopping list</button>
+      </div>
+      <div id="shopping-status" class="inline-status muted" role="status" aria-live="polite"></div>
+      <p class="shopping-boundary">REVIEW-ONLY CHECKOUT · Store buttons open the item at the appropriate retailer. Jarvis never submits an order or assumes live price, stock, substitutions, or delivery availability.</p>
       <div id="grocery" class="market-list muted">Loading market list…</div>
     </div>
     </div>
@@ -510,7 +517,7 @@
   </section>
 </main>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 <script>
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>

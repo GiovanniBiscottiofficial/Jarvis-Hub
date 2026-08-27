@@ -525,24 +525,77 @@ function renderMarketList(items) {
     grocery.appendChild(el("div", "empty-state", "Market list clear · mark pantry items out or add missing recipe ingredients."));
     return;
   }
-  const groups = new Map();
+  const groups = new Map([
+    ["food", []],
+    ["home", []],
+  ]);
   items.forEach((item) => {
-    const department = item.department || "Other";
-    if (!groups.has(department)) groups.set(department, []);
-    groups.get(department).push(item);
+    const route = item.shopping_type === "food" ? "food" : "home";
+    groups.get(route).push(item);
   });
-  groups.forEach((departmentItems, department) => {
+  groups.forEach((routeItems, route) => {
+    if (!routeItems.length) return;
     const group = document.createElement("section");
     group.className = "market-group";
-    group.appendChild(el("h3", "", department));
-    departmentItems.forEach((item) => {
+    const title = route === "food"
+      ? "FOOD · FOOD LION + INSTACART"
+      : "HOME, PERSONAL & OTHER · WALMART + AMAZON";
+    group.appendChild(el("h3", "", title));
+    routeItems.forEach((item) => {
       const row = document.createElement("div");
       row.className = "market-row";
       const details = document.createElement("span");
-      details.append(el("strong", "", item.item), el("small", "muted", `${item.qty || 1} ${item.unit || "item"} · ${item.reason || item.source || "Market list"}${item.estimated_price != null ? ` · est. $${Number(item.estimated_price).toFixed(2)}` : ""}`));
+      details.append(
+        el("strong", "", item.item),
+        el("small", "muted", `${item.department || "Other"} · ${item.qty || 1} ${item.unit || "item"} · ${item.reason || item.source || "Shopping list"}${item.estimated_price != null ? ` · est. $${Number(item.estimated_price).toFixed(2)}` : ""}`),
+      );
+      const actions = document.createElement("div");
+      actions.className = "market-actions";
+      const query = encodeURIComponent(item.item);
+      const retailers = route === "food"
+        ? [
+            ["Food Lion list", "https://foodlion.com/personal-list"],
+            ["Instacart", `https://www.instacart.com/store/s?k=${query}`],
+          ]
+        : [
+            ["Walmart", `https://www.walmart.com/search?q=${query}`],
+            ["Amazon", `https://www.amazon.com/s?k=${query}`],
+          ];
+      retailers.forEach(([label, href]) => {
+        const link = el("a", "retailer-link secondary", label);
+        link.href = href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.setAttribute("aria-label", `Open ${item.item} with ${label}`);
+        actions.appendChild(link);
+      });
+      const reroute = el("button", "secondary route-toggle", route === "food" ? "Move to home & personal" : "Move to food");
+      reroute.onclick = async () => {
+        reroute.disabled = true;
+        try {
+          const target = route === "food" ? "home" : "food";
+          await api(`/api/pantry/grocery/${item.id}/type`, "POST", { shopping_type: target });
+          $("shopping-status").textContent = `${item.item} now routes to ${target === "food" ? "Food Lion and Instacart" : "Walmart and Amazon"}.`;
+          loadPantry();
+        } catch (error) {
+          $("shopping-status").textContent = `Route not changed: ${error.message}`;
+          reroute.disabled = false;
+        }
+      };
       const done = el("button", "secondary", "Got it");
-      done.onclick = async () => { await api("/api/pantry/grocery/remove", "POST", { item: item.item }); loadPantry(); };
-      row.append(details, done);
+      done.onclick = async () => {
+        done.disabled = true;
+        try {
+          await api("/api/pantry/grocery/remove", "POST", { item: item.item });
+          $("shopping-status").textContent = `${item.item} removed from the shopping list.`;
+          loadPantry();
+        } catch (error) {
+          $("shopping-status").textContent = `Item not removed: ${error.message}`;
+          done.disabled = false;
+        }
+      };
+      actions.append(reroute, done);
+      row.append(details, actions);
       group.appendChild(row);
     });
     grocery.appendChild(group);
@@ -825,6 +878,29 @@ $("market-build-btn").onclick = async () => {
     loadPantry();
   } catch (error) { $("pantry-status").textContent = error.message; }
   finally { button.disabled = false; }
+};
+
+$("shopping-add-btn").onclick = async () => {
+  const item = $("shopping-item").value.trim();
+  const shoppingType = $("shopping-type").value;
+  if (!item) {
+    $("shopping-status").textContent = "Enter an item to add to the shopping list.";
+    $("shopping-item").focus();
+    return;
+  }
+  const button = $("shopping-add-btn");
+  button.disabled = true;
+  $("shopping-status").textContent = `Adding ${item}…`;
+  try {
+    await api("/api/pantry/grocery", "POST", { item, shopping_type: shoppingType });
+    $("shopping-status").textContent = `${item} added for ${shoppingType === "food" ? "Food Lion or Instacart" : "Walmart or Amazon"}.`;
+    $("shopping-item").value = "";
+    loadPantry();
+  } catch (error) {
+    $("shopping-status").textContent = `Item not added: ${error.message}`;
+  } finally {
+    button.disabled = false;
+  }
 };
 
 $("pantry-add-btn").onclick = async () => {

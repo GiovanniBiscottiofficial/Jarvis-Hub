@@ -639,8 +639,8 @@ body:has(#budget.active) main { max-width: 1540px; }
 .paycheck-date,.paycheck-funds { color: #6e899b; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
 .paycheck-funds { color: #7eddb8; margin-top: 8px; }
 .spending-composer { display: grid; grid-template-columns: minmax(105px,.55fr) minmax(150px,1fr); gap: 8px; }
-.spending-composer label,.pantry-composer label { min-width: 0; color: #7790a3; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; text-transform: uppercase; }
-.spending-composer input,.pantry-composer input { display: block; width: 100%; margin-top: 6px; }
+.spending-composer label,.pantry-composer label,.shopping-composer label { min-width: 0; color: #7790a3; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .08em; text-transform: uppercase; }
+.spending-composer input,.pantry-composer input,.shopping-composer input,.shopping-composer select { display: block; width: 100%; margin-top: 6px; }
 .spending-composer button { grid-column: 1/-1; min-height: 50px; }
 .inline-status { min-height: 30px; padding: 8px 0 4px; line-height: 1.4; }
 .spending-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 6px; background: rgba(70,210,236,.1); }
@@ -694,12 +694,20 @@ body:has(#budget.active) main { max-width: 1540px; }
 .danger-subtle { border-color: rgba(243,163,163,.2) !important; color: #d9a4a4 !important; }
 .market-heading { align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(65,196,226,.1); }
 .market-heading h2 { border: 0 !important; padding: 0 !important; }
+.shopping-composer { display: grid; grid-template-columns: minmax(180px,1.15fr) minmax(250px,1fr) auto; gap: 8px; align-items: end; padding: 13px; border: 1px solid rgba(78,211,238,.14); background: rgba(5,19,30,.5); }
+.shopping-composer button { min-height: 46px; white-space: nowrap; }
+.shopping-boundary { margin: 2px 0 8px; padding: 9px 11px; border-left: 2px solid rgba(247,185,85,.6); color: #8fa3ae; background: rgba(247,185,85,.045); font: 600 .56rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .07em; }
 .market-group { margin-top: 12px; }
 .market-group h3 { color: #70e9ff; font: 600 .58rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .12em; text-transform: uppercase; }
-.market-row { min-height: 54px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 8px 2px; border-bottom: 1px solid rgba(75,205,234,.09); }
+.market-row { min-height: 64px; display: grid; grid-template-columns: minmax(170px,1fr) minmax(0,auto); align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid rgba(75,205,234,.09); }
 .market-row span { min-width: 0; }
 .market-row small { display: block; margin-top: 4px; overflow-wrap: anywhere; }
 .market-row button { min-width: 84px; }
+.market-actions { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.retailer-link { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid rgba(48,185,219,.32); color: #9eefff; background: rgba(11,42,58,.6); font-size: .65rem; text-decoration: none; }
+.retailer-link:hover,.retailer-link:focus-visible { border-color: #64dff5; color: #e6fbff; }
+.market-actions button { min-height: 44px; }
+.route-toggle { border-color: rgba(247,185,85,.23) !important; color: #d9bc82 !important; }
 .scale-readiness { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; margin-top: 12px; padding: 13px; border-left: 2px solid #71899a; background: rgba(74,115,138,.08); overflow-wrap: anywhere; }
 .scale-readiness .scale-state { color: #a9bfcb; font: 600 .61rem ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .09em; }
 .scale-readiness .scale-route { color: #c4d8e0; font-size: .76rem; }
@@ -754,6 +762,8 @@ body:has(#learning.active) main { max-width: 1540px; }
   .finance-grid > .card:not(.paycheck-card):not(.spending-card):not(.runway-card):not(.bills-card):not(.accounts-card):not(.goals-card) { grid-column: span 6; }
   .pantry-composer { grid-template-columns: 1fr 1fr; }
   .pantry-composer button { grid-column: 1/-1; }
+  .shopping-composer { grid-template-columns: 1fr 1fr; }
+  .shopping-composer button { grid-column: 1/-1; }
   .chef-actions { grid-template-columns: 1fr 1fr; }
   .learning-composer { grid-template-columns: 1fr 1fr; }
   .learning-composer button { grid-column: 1/-1; }
@@ -765,8 +775,8 @@ body:has(#learning.active) main { max-width: 1540px; }
   .paycheck-instrument { min-height: 185px; }
   .paycheck-countdown { font-size: 1.25rem; }
   .paycheck-amount { font-size: 2.2rem; margin-top: 27px; }
-  .spending-composer,.pantry-composer { grid-template-columns: 1fr; }
-  .spending-composer button,.pantry-composer button { grid-column: auto; }
+  .spending-composer,.pantry-composer,.shopping-composer { grid-template-columns: 1fr; }
+  .spending-composer button,.pantry-composer button,.shopping-composer button { grid-column: auto; width: 100%; }
   .bill-row { grid-template-columns: minmax(0,1fr) auto; }
   .bill-row .tag,.bill-row button { min-height: 44px; }
   .bill-row button { grid-column: 1/-1; width: 100%; }
@@ -780,7 +790,8 @@ body:has(#learning.active) main { max-width: 1540px; }
   .chef-actions { grid-template-columns: 1fr; }
   .inventory-row,.market-row { grid-template-columns: 1fr; }
   .inventory-actions { justify-content: stretch; }
-  .inventory-actions button,.market-row button { width: 100%; }
+  .inventory-actions button,.market-actions button,.market-actions .retailer-link { width: 100%; }
+  .market-actions { justify-content: stretch; }
   .learning-summary { grid-template-columns: 1fr 1fr; }
   .learning-grid,.learning-composer { grid-template-columns: 1fr; }
   .learning-composer button { grid-column: auto; width: 100%; }
@@ -798,7 +809,7 @@ body:has(#learning.active) main { max-width: 1540px; }
   .paycheck-amount { font-size: 4.4rem; margin-top: 54px; }
   .paycheck-countdown { font-size: 2.35rem; }
   .bill-row { min-height: 72px; }
-  .spending-composer button,.pantry-composer button { min-height: 56px; }
+  .spending-composer button,.pantry-composer button,.shopping-composer button { min-height: 56px; }
   .transaction-row,.inventory-row { min-height: 62px; }
   body:has(#learning.active) main { width: 100%; max-width: 2880px; padding: 20px 30px 34px; }
   .learning-summary > div { min-height: 120px; }
