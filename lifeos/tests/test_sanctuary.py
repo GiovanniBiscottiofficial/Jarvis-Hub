@@ -146,6 +146,31 @@ def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
     assert "<h2>Morning briefing</h2>" not in index
 
 
+def test_command_center_exposes_ephemeral_live_dialogue_without_browser_storage():
+    app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
+    index = (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    context_router = (REPO_ROOT / "lifeos/app/routers/context.py").read_text(
+        encoding="utf-8"
+    )
+    bridge = (REPO_ROOT / "lifeos/app/conversation_bridge.py").read_text(
+        encoding="utf-8"
+    )
+
+    for element_id in (
+        "conversation-phase",
+        "conversation-user",
+        "conversation-assistant",
+        "conversation-privacy",
+    ):
+        assert f'id="{element_id}"' in index
+        assert f'"{element_id}"' in app_script
+    assert 'payload["conversation"] = conversation_status()' in context_router
+    assert 'payload.setdefault("context", {})["conversation"]' in context_router
+    assert '"transcript_persisted": False' in bridge
+    assert "localStorage" not in bridge
+    assert "sessionStorage" not in bridge
+
+
 def test_jarvis_voice_profile_is_local_tuned_and_name_safe():
     compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(encoding="utf-8")

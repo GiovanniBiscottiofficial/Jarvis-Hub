@@ -18,6 +18,7 @@ from ..context_engine import (
     simulate_behavior,
 )
 from ..db import conn
+from ..conversation_bridge import conversation_status
 
 router = APIRouter(prefix="/api", tags=["context"])
 
@@ -55,12 +56,16 @@ class DismissalIn(BaseModel):
 
 @router.get("/context")
 def get_context(event_limit: int = Query(default=20, ge=1, le=100)):
-    return current_context(event_limit)
+    payload = current_context(event_limit)
+    payload["conversation"] = conversation_status()
+    return payload
 
 
 @router.get("/command-center")
 def get_command_center(event_limit: int = Query(default=40, ge=1, le=100)):
-    return command_center_payload(event_limit)
+    payload = command_center_payload(event_limit)
+    payload.setdefault("context", {})["conversation"] = conversation_status()
+    return payload
 
 
 @router.get("/events")
