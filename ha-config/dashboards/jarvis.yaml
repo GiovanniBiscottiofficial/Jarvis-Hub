@@ -816,30 +816,53 @@ views:
             }
 
   # ------------------------------------------------------------------
-  - title: Kitchen
-    path: kitchen
-    icon: mdi:fridge
+  - title: To-do
+    path: todo
+    icon: mdi:clipboard-check-outline
     theme: Jarvis
     type: sections
-    max_columns: 2
+    max_columns: 4
     sections:
       - type: grid
         cards:
           - type: heading
-            heading: Shopping list
-            icon: mdi:cart-outline
+            heading: Home Assistant list
+            icon: mdi:format-list-checks
+          - type: markdown
+            content: >
+              Voice and manually added Home Assistant tasks live here. This is
+              separate from the routed Jarvis list.
           - type: todo-list
             entity: todo.shopping_list
       - type: grid
+        column_span: 2
         cards:
           - type: heading
-            heading: Grocy
-            icon: mdi:food-apple
+            heading: Jarvis routed shopping
+            icon: mdi:cart-arrow-right
+          - type: iframe
+            url: /local/lifeos.html?tab=todo&v=20260826-1
+            grid_options:
+              columns: full
+              rows: 8
+      - type: grid
+        cards:
+          - type: heading
+            heading: Grocy inventory
+            icon: mdi:fridge-outline
           - type: markdown
             content: >
-              **Grocy** (full inventory + expiry tracking) lives at
-              `http://<hub-ip>:9283` once you run
-              `docker compose --profile grocy up -d`.
+              Grocy tracks inventory and expiry dates. It is separate from both
+              Home Assistant tasks and the Jarvis routed shopping database.
+          - type: button
+            name: Open Grocy
+            icon: mdi:open-in-new
+            show_state: false
+            tap_action:
+              action: navigate
+              navigation_path: /local/open.html?port=9283&path=/
+            hold_action:
+              action: none
 
   # ------------------------------------------------------------------
   - title: Cameras

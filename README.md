@@ -407,7 +407,11 @@ bars — and the app shell still opens if the hub is briefly unreachable.
 
 ### Routed shopping list
 
-Body Ops includes one local shopping list with two deliberate routes:
+The **To-do** surface brings Home Assistant's native list, the local Jarvis
+routed shopping list, and a Grocy launcher together while keeping their data
+boundaries explicit. The three stores are not presented as synchronized.
+
+Jarvis shopping uses two deliberate routes:
 
 - **Food** opens at Food Lion or Instacart.
 - **Household supplies, personal care, and other items** open at Walmart or Amazon.
