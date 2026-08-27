@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Jarvis Media Command</title>
+  <style>
+    @font-face { font-family: Orbitron; src: url('/local/fonts/orbitron.woff2') format('woff2'); font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+    @font-face { font-family: Rajdhani; src: url('/local/fonts/rajdhani-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    :root {
+      color-scheme: dark;
+      --ink: #02070d; --panel: #07131d; --panel-high: #0b1d29; --line: #193a49;
+      --cyan: #45d9ee; --cyan-dim: #247080; --amber: #efb654; --text: #edf8fa;
+      --steel: #8eabb7; --green: #66dda0; --red: #ef7373; --purple: #a992ff;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; background: var(--ink); color: var(--text); }
+    body {
+      font-family: Rajdhani, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(69,217,238,.023) 1px, transparent 1px),
+        linear-gradient(rgba(69,217,238,.018) 1px, transparent 1px),
+        radial-gradient(circle at 78% -10%, #123245 0, transparent 38%), var(--ink);
+      background-size: 52px 52px, 52px 52px, auto, auto;
+    }
+    button, input, select { font: inherit; }
+    button, a, select, input { -webkit-tap-highlight-color: transparent; }
+    button, .link-button, select {
+      min-height: 48px; border: 1px solid #285264; background: #081923; color: #d9edf1;
+      padding: 0 15px; font-weight: 700; letter-spacing: .08em; cursor: pointer;
+    }
+    button:hover, button:focus-visible, .link-button:hover, .link-button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--cyan); outline-offset: 2px; border-color: var(--cyan);
+    }
+    button:disabled, select:disabled, input:disabled { opacity: .38; cursor: default; }
+    button.primary { border-color: #8b632d; color: var(--amber); background: #21170b; }
+    button.danger { border-color: #6f3439; color: #ffb1b1; }
+    .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .shell { width: min(100%, 2800px); min-height: 100vh; margin: auto; padding: 20px 22px 92px; }
+    .topbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 20px; align-items: end; border-bottom: 1px solid var(--cyan-dim); padding: 0 2px 16px; position: relative; }
+    .topbar::after { content: ""; position: absolute; left: 0; bottom: -2px; width: 92px; height: 3px; background: var(--cyan); }
+    .eyebrow, .label { color: var(--steel); font: 600 11px/1 Orbitron, monospace; letter-spacing: .2em; text-transform: uppercase; }
+    h1 { margin: 7px 0 0; font: 600 clamp(22px, 3vw, 38px)/1 Orbitron, monospace; letter-spacing: .1em; }
+    .link-state { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: var(--steel); font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .dot { width: 9px; height: 9px; background: var(--amber); box-shadow: 0 0 10px rgba(239,182,84,.45); }
+    .dot.connected { background: var(--green); box-shadow: 0 0 10px rgba(102,221,160,.5); }
+    .dot.error { background: var(--red); box-shadow: 0 0 10px rgba(239,115,115,.5); }
+    .command-row { display: grid; grid-template-columns: minmax(260px,1fr) minmax(210px,360px) auto; gap: 10px; padding: 15px 0 13px; }
+    .search-wrap { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+    input[type="search"] { min-width: 0; min-height: 50px; border: 1px solid #285264; border-right: 0; background: #06131d; color: var(--text); padding: 0 15px; font-size: 18px; }
+    select { width: 100%; background: #071722; }
+    #notice { min-height: 25px; color: var(--steel); font-size: 15px; font-weight: 600; }
+    #notice[data-kind="error"] { color: var(--red); }
+    #notice[data-kind="success"] { color: var(--green); }
+    .hero { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(360px,.75fr); gap: 13px; }
+    .now-playing, .intelligence, .section-panel { border: 1px solid var(--line); background: linear-gradient(135deg, rgba(10,29,42,.98), rgba(4,13,21,.98)); }
+    .now-playing { min-height: 440px; display: grid; grid-template-columns: minmax(270px,.86fr) minmax(320px,1.14fr); position: relative; overflow: hidden; }
+    .art { min-height: 440px; position: relative; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle, #153c50 0, #071620 42%, #030a10 72%); }
+    .art::before { content: ""; width: min(52%,240px); aspect-ratio: 1; border: 1px solid rgba(69,217,238,.5); border-radius: 50%; box-shadow: 0 0 0 24px rgba(69,217,238,.025), 0 0 70px rgba(69,217,238,.12); }
+    .art::after { content: "J"; position: absolute; color: var(--cyan); font: 600 clamp(48px,7vw,100px)/1 Orbitron, monospace; text-shadow: 0 0 25px rgba(69,217,238,.35); }
+    .art.has-image::before, .art.has-image::after { display: none; }
+    .art img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .art.has-image img { display: block; }
+    .media-detail { min-width: 0; padding: clamp(24px,3vw,46px); display: flex; flex-direction: column; justify-content: center; }
+    .state-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--cyan); font: 600 11px/1 Orbitron, monospace; letter-spacing: .15em; text-transform: uppercase; }
+    .pill { border: 1px solid #285264; padding: 7px 9px; }
+    .media-title { margin: 20px 0 4px; font-size: clamp(30px,4vw,58px); line-height: .96; letter-spacing: .02em; overflow-wrap: anywhere; }
+    .media-subtitle { min-height: 30px; color: var(--steel); font-size: clamp(17px,1.7vw,24px); }
+    .progress { width: 100%; height: 5px; margin: 28px 0 8px; background: #17303c; overflow: hidden; }
+    .progress span { display: block; width: 0; height: 100%; background: linear-gradient(90deg,var(--cyan),var(--amber)); }
+    .time-row { display: flex; justify-content: space-between; color: var(--steel); font: 600 11px/1 Orbitron, monospace; }
+    .transport { display: grid; grid-template-columns: repeat(5, minmax(48px,1fr)); gap: 8px; margin-top: 22px; }
+    .transport button { padding: 0 8px; font-size: 20px; }
+    .transport button span { display: block; font: 700 10px/1 Rajdhani, sans-serif; letter-spacing: .1em; margin-top: 2px; }
+    .volume { display: grid; grid-template-columns: auto minmax(80px,1fr) auto; gap: 10px; align-items: center; margin-top: 14px; }
+    input[type="range"] { width: 100%; height: 48px; margin: 0; accent-color: var(--amber); }
+    .intelligence { padding: 24px; display: flex; flex-direction: column; }
+    .section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px solid #173541; padding-bottom: 11px; }
+    .section-heading h2 { margin: 0; font-size: 21px; letter-spacing: .1em; text-transform: uppercase; }
+    .section-heading span { color: var(--cyan); font: 600 10px/1 Orbitron, monospace; letter-spacing: .12em; }
+    .briefing { margin: 23px 0; color: #cbe0e5; font-size: 19px; line-height: 1.35; }
+    .mode-readout { border-left: 3px solid var(--amber); background: #12160f; padding: 14px; margin-bottom: 10px; }
+    .mode-readout strong { display: block; color: var(--amber); font: 600 15px/1 Orbitron, monospace; margin-bottom: 8px; }
+    .suggestions { display: grid; gap: 8px; margin-top: auto; }
+    .suggestion { text-align: left; min-height: 58px; }
+    .suggestion small { display: block; color: var(--steel); font-weight: 600; letter-spacing: .03em; }
+    .content-grid { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(320px,.65fr); gap: 13px; margin-top: 13px; }
+    .section-panel { min-width: 0; padding: 19px; }
+    .apps { display: grid; grid-template-columns: repeat(5,minmax(132px,1fr)); gap: 9px; padding-top: 14px; }
+    .app { min-width: 0; min-height: 112px; text-align: left; position: relative; overflow: hidden; background: #081923; }
+    .app::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--brand,var(--cyan)); }
+    .app strong { display: block; color: var(--text); font-size: 19px; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .app small { color: var(--steel); display: block; margin-top: 5px; letter-spacing: .05em; }
+    .app .badge { display: inline-block; margin-top: 9px; color: var(--green); font: 600 9px/1 Orbitron,monospace; letter-spacing: .1em; }
+    .sessions { display: grid; gap: 8px; padding-top: 14px; }
+    .session { min-height: 70px; border: 1px solid #1b3b49; background: #071722; padding: 12px; cursor: pointer; color: var(--text); text-align: left; }
+    .session strong, .session span { display: block; overflow-wrap: anywhere; }
+    .session span { color: var(--steel); margin-top: 4px; }
+    .empty { min-height: 150px; display: grid; place-items: center; text-align: center; color: var(--steel); padding: 24px; border: 1px dashed #28505e; margin-top: 14px; }
+    .device-strip { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 8px; margin-top: 13px; }
+    .device { border: 1px solid #1b3b49; background: #06141e; padding: 13px; min-height: 72px; }
+    .device strong, .device span { display: block; overflow-wrap: anywhere; }
+    .device span { color: var(--steel); margin-top: 5px; }
+    .device[data-ready="true"] { border-left: 3px solid var(--green); }
+    .device[data-ready="false"] { border-left: 3px solid var(--red); }
+    .bottom-nav { position: fixed; z-index: 5; left: 50%; bottom: max(10px,env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 7px; padding: 7px; background: rgba(3,10,16,.94); border: 1px solid #285264; backdrop-filter: blur(14px); }
+    .link-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; min-width: 108px; text-transform: uppercase; }
+    .message { min-height: 320px; display: grid; place-items: center; text-align: center; padding: 30px; border: 1px solid var(--line); border-left: 4px solid var(--cyan); color: var(--steel); }
+    .message strong { display: block; color: var(--text); font: 600 18px/1.4 Orbitron,monospace; margin-bottom: 12px; }
+    @media (min-width: 2200px) {
+      :root { font-size: 20px; }
+      .shell { padding: 32px 36px 120px; }
+      .now-playing, .art { min-height: 650px; }
+      .apps { grid-template-columns: repeat(6,minmax(190px,1fr)); }
+      button, .link-button, select { min-height: 58px; }
+    }
+    @media (max-width: 1050px) {
+      .hero, .content-grid { grid-template-columns: 1fr; }
+      .intelligence { min-height: 330px; }
+      .apps { grid-template-columns: repeat(3,minmax(130px,1fr)); }
+    }
+    @media (max-width: 720px) {
+      .shell { padding: 15px 12px 90px; }
+      .topbar { grid-template-columns: 1fr; gap: 12px; }
+      .link-state { justify-content: flex-start; }
+      .bottom-nav { position: static; transform: none; width: 100%; margin: 13px 0 0; display: grid; grid-template-columns: 1fr 1fr; }
+      .command-row { grid-template-columns: 1fr; }
+      .now-playing { grid-template-columns: 1fr; }
+      .art { min-height: 260px; }
+      .media-detail { padding: 22px 17px; }
+      .apps { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .app { min-height: 104px; }
+      .link-button { min-width: 0; }
+    }
+    @media (max-width: 390px) {
+      .transport { grid-template-columns: repeat(3,1fr); }
+      .transport button:nth-child(4), .transport button:nth-child(5) { grid-column: span 1; }
+      .apps { grid-template-columns: 1fr 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><div class="eyebrow">JARVIS // ENTERTAINMENT LINK</div><h1>MEDIA COMMAND</h1></div>
+      <div class="link-state"><span id="linkDot" class="dot"></span><span id="linkText">Establishing Home Assistant link</span></div>
+    </header>
+
+    <nav class="bottom-nav" aria-label="Persistent controls">
+      <a class="link-button" href="/jarvis-hub/home" target="_parent">Home</a>
+      <button id="cinemaButton" class="primary" type="button" disabled>Cinema</button>
+      <button id="stormButton" type="button" disabled>Thunderstorm</button>
+      <a class="link-button" href="/config/entities" target="_parent">Media settings</a>
+    </nav>
+
+    <section class="command-row" aria-label="Media search and target">
+      <form id="searchForm" class="search-wrap" role="search">
+        <label class="visually-hidden" for="mediaSearch">Search media</label>
+        <input id="mediaSearch" type="search" autocomplete="off" placeholder="Ask Jarvis to find something…">
+        <button id="searchButton" class="primary" type="submit">Find</button>
+      </form>
+      <label><span class="visually-hidden">Playback target</span><select id="targetSelect" aria-label="Playback target" disabled><option>Locating media nodes…</option></select></label>
+      <button id="refreshButton" type="button">Refresh nodes</button>
+    </section>
+    <div id="notice" role="status" aria-live="polite"></div>
+
+    <div id="console">
+      <div class="message"><div><strong>READING MEDIA REGISTRY</strong>Jarvis is locating commissioned players and available sources.</div></div>
+    </div>
+
+  </main>
+
+  <script>
+    'use strict';
+    const FEATURES = { pause:1, seek:2, volumeSet:4, mute:8, previous:16, next:32, turnOn:128, turnOff:256, selectSource:2048, stop:4096, play:16384 };
+    const APPS = [
+      { name:'YouTube', url:'https://www.youtube.com', search:'https://www.youtube.com/results?search_query=', sources:['youtube'], brand:'#ff4f4f', free:true },
+      { name:'Plex', url:'https://app.plex.tv', search:'https://app.plex.tv/desktop/#!/search?query=', sources:['plex'], brand:'#e5a92f', free:true },
+      { name:'Spotify', url:'https://open.spotify.com', search:'https://open.spotify.com/search/', sources:['spotify'], brand:'#53d789', free:true },
+      { name:'Netflix', url:'https://www.netflix.com', search:'https://www.netflix.com/search?q=', sources:['netflix'], brand:'#e94c55' },
+      { name:'Prime Video', url:'https://www.primevideo.com', search:'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=', sources:['prime video','prime'], brand:'#46b8e8' },
+      { name:'Disney+', url:'https://www.disneyplus.com', search:'https://www.disneyplus.com/search', sources:['disney+','disney plus'], brand:'#648dff' },
+      { name:'Hulu', url:'https://www.hulu.com', search:'https://www.hulu.com/search?q=', sources:['hulu'], brand:'#70dc89' },
+      { name:'Max', url:'https://play.max.com', search:'https://play.max.com/search', sources:['max','hbo max'], brand:'#816fff' },
+      { name:'Tubi', url:'https://tubitv.com', search:'https://tubitv.com/search/', sources:['tubi'], brand:'#f05bdf', free:true },
+      { name:'Pluto TV', url:'https://pluto.tv', search:'https://pluto.tv', sources:['pluto tv','pluto'], brand:'#f0d754', free:true },
+      { name:'Twitch', url:'https://www.twitch.tv', search:'https://www.twitch.tv/search?term=', sources:['twitch'], brand:'#a577ff', free:true },
+      { name:'YouTube Music', url:'https://music.youtube.com', search:'https://music.youtube.com/search?q=', sources:['youtube music'], brand:'#ff6060', free:true }
+    ];
+    const $ = id => document.getElementById(id);
+    const consoleEl = $('console'), targetSelect = $('targetSelect'), linkDot = $('linkDot'), linkText = $('linkText'), notice = $('notice');
+    let hass = null, registry = [], players = [], selectedTarget = 'x1', initialTargetChosen = false, sessionFresh = false, connectionSeen = 0, renderSignature = '', noticeTimer;
+
+    function locateHass() {
+      let context = window;
+      for (let i=0;i<6;i+=1) {
+        try {
+          const root = context.document.querySelector('home-assistant');
+          if (root && root.hass) return root.hass;
+          if (context === context.parent) break;
+          context = context.parent;
+        } catch (_) { break; }
+      }
+      return null;
+    }
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+    function showNotice(message, kind='') {
+      clearTimeout(noticeTimer); notice.textContent = message; notice.dataset.kind = kind;
+      if (message) noticeTimer = setTimeout(() => { notice.textContent=''; notice.dataset.kind=''; }, 6000);
+    }
+    function features(state, flag) { return Boolean((Number(state?.attributes?.supported_features)||0) & flag); }
+    function available(state) { return state && !['unknown','unavailable'].includes(state.state); }
+    function playerName(state) { return state?.attributes?.friendly_name || state?.entity_id || 'Media player'; }
+    function formatTime(seconds) {
+      const safe = Math.max(0, Number(seconds)||0), mins = Math.floor(safe/60), secs = Math.floor(safe%60);
+      return mins >= 60 ? Math.floor(mins/60)+':'+String(mins%60).padStart(2,'0')+':'+String(secs).padStart(2,'0') : mins+':'+String(secs).padStart(2,'0');
+    }
+    function currentPlayer() { return selectedTarget === 'x1' ? null : hass?.states?.[selectedTarget] || null; }
+    function stateSources(state) { return Array.isArray(state?.attributes?.source_list) ? state.attributes.source_list.map(String) : []; }
+    function matchedSource(app, state) {
+      const sources = stateSources(state);
+      return sources.find(source => app.sources.some(alias => source.toLowerCase() === alias || source.toLowerCase().includes(alias))) || '';
+    }
+    async function safeService(domain, service, data, success) {
+      if (!sessionFresh || !hass?.callService) { showNotice('Controls are paused until Home Assistant reconnects.', 'error'); return false; }
+      try { await hass.callService(domain, service, data); showNotice(success, 'success'); renderSignature=''; return true; }
+      catch (error) { showNotice((error?.message || 'Home Assistant rejected the command.'), 'error'); return false; }
+    }
+    function openOnX1(url) {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!opened) showNotice('The kiosk blocked the new app window. Allow pop-ups for Home Assistant.', 'error');
+    }
+    function launchApp(app) {
+      if (selectedTarget === 'x1') { openOnX1(app.url); return; }
+      const state = currentPlayer(), source = matchedSource(app,state);
+      if (!source) { showNotice(app.name+' is not exposed as a source on '+playerName(state)+'. Select This X1 or configure the app on the player.', 'error'); return; }
+      safeService('media_player','select_source',{ entity_id:selectedTarget, source },app.name+' launched on '+playerName(state)+'.');
+    }
+    function searchMedia(query) {
+      const clean = String(query||'').trim();
+      if (!clean) { showNotice('Tell Jarvis what you want to find.', 'error'); return; }
+      const preferred = APPS.find(app => matchedSource(app,currentPlayer())) || APPS[0];
+      if (selectedTarget !== 'x1') {
+        const source = matchedSource(preferred,currentPlayer());
+        if (source) safeService('media_player','select_source',{ entity_id:selectedTarget, source },preferred.name+' opened. Continue the search on '+playerName(currentPlayer())+'.');
+        else showNotice('Universal text search is not exposed by this player. Select This X1 to search directly.', 'error');
+        return;
+      }
+      openOnX1(preferred.search + encodeURIComponent(clean));
+    }
+    function discoverPlayers() {
+      const registryIds = new Set(registry.filter(item => item.entity_id?.startsWith('media_player.')).map(item => item.entity_id));
+      const enabledIds = new Set(registry.filter(item => item.entity_id?.startsWith('media_player.') && !item.disabled_by && !item.hidden_by).map(item => item.entity_id));
+      players = Object.values(hass.states).filter(state => state.entity_id.startsWith('media_player.') && (enabledIds.has(state.entity_id) || !registryIds.has(state.entity_id)))
+        .sort((a,b) => {
+          const fireA = /fire.?tv/i.test(playerName(a)) ? 1 : 0, fireB = /fire.?tv/i.test(playerName(b)) ? 1 : 0;
+          return fireB-fireA || playerName(a).localeCompare(playerName(b));
+        });
+      if (selectedTarget !== 'x1' && !players.some(player => player.entity_id === selectedTarget)) selectedTarget='x1';
+      if (!initialTargetChosen) {
+        const fire = players.find(player => /fire.?tv/i.test(playerName(player)) || /fire.?tv/i.test(player.entity_id));
+        if (fire) selectedTarget = fire.entity_id;
+        initialTargetChosen = true;
+      }
+    }
+    function renderTargets() {
+      const value = selectedTarget;
+      targetSelect.replaceChildren();
+      const x1 = el('option','', 'This X1 · browser'); x1.value='x1'; targetSelect.append(x1);
+      players.forEach(player => { const option=el('option','',playerName(player)+' · '+player.state); option.value=player.entity_id; targetSelect.append(option); });
+      targetSelect.value=value; targetSelect.disabled=!sessionFresh;
+    }
+    function renderTransport(container, state) {
+      const transport = el('div','transport');
+      const controls = [
+        ['previous','media_previous_track','◀','Previous',features(state,FEATURES.previous)],
+        ['play','media_play','▶','Play',features(state,FEATURES.play)],
+        ['pause','media_pause','Ⅱ','Pause',features(state,FEATURES.pause)],
+        ['next','media_next_track','▶','Next',features(state,FEATURES.next)],
+        ['stop','media_stop','■','Stop',features(state,FEATURES.stop)]
+      ];
+      controls.forEach(([,service,icon,label,supported]) => {
+        const button=el('button','',icon); button.type='button'; button.title=label; button.setAttribute('aria-label',label);
+        button.append(el('span','',label)); button.disabled=!sessionFresh || !state || !supported;
+        button.addEventListener('click',()=>safeService('media_player',service,{entity_id:selectedTarget},label+' command sent.'));
+        transport.append(button);
+      });
+      container.append(transport);
+      const volume=el('div','volume');
+      const mute=el('button','',state?.attributes?.is_volume_muted?'Unmute':'Mute'); mute.type='button'; mute.disabled=!sessionFresh||!features(state,FEATURES.mute);
+      mute.addEventListener('click',()=>safeService('media_player','volume_mute',{entity_id:selectedTarget,is_volume_muted:!state.attributes.is_volume_muted},'Mute state updated.'));
+      const slider=document.createElement('input'); slider.type='range'; slider.min='0'; slider.max='1'; slider.step='.01'; slider.value=String(state?.attributes?.volume_level ?? 0); slider.setAttribute('aria-label','Volume'); slider.disabled=!sessionFresh||!features(state,FEATURES.volumeSet);
+      slider.addEventListener('change',()=>safeService('media_player','volume_set',{entity_id:selectedTarget,volume_level:Number(slider.value)},'Volume updated.'));
+      const amount=el('span','',Math.round(Number(state?.attributes?.volume_level||0)*100)+'%');
+      volume.append(mute,slider,amount); container.append(volume);
+    }
+    function renderNowPlaying() {
+      const wrap=el('section','now-playing'); const art=el('div','art'); const picture=currentPlayer()?.attributes?.entity_picture;
+      if (picture) { const img=document.createElement('img'); img.src=picture; img.alt='Media artwork'; img.addEventListener('error',()=>art.classList.remove('has-image')); art.classList.add('has-image'); art.append(img); }
+      const detail=el('div','media-detail'), state=currentPlayer();
+      const status=el('div','state-line'); status.append(el('span','pill',selectedTarget==='x1'?'LOCAL BROWSER':String(state?.state||'offline').toUpperCase()),el('span','',selectedTarget==='x1'?'THIS X1':playerName(state)));
+      const title=el('h2','media-title',selectedTarget==='x1'?'Ready for your command':(state?.attributes?.media_title || (available(state)?'No active media':'Player unavailable')));
+      const subtitle=el('div','media-subtitle',selectedTarget==='x1'?'Launch an app or ask Jarvis to find something.':(state?.attributes?.media_artist || state?.attributes?.media_series_title || state?.attributes?.source || 'Playback controls follow player capability.'));
+      detail.append(status,title,subtitle);
+      const duration=Number(state?.attributes?.media_duration)||0; let position=Number(state?.attributes?.media_position)||0;
+      if (state?.state==='playing' && state.attributes.media_position_updated_at) position += Math.max(0,(Date.now()-Date.parse(state.attributes.media_position_updated_at))/1000);
+      const progress=el('div','progress'); const bar=el('span'); bar.style.width=(duration?Math.min(100,position/duration*100):0)+'%'; progress.append(bar);
+      const times=el('div','time-row'); times.append(el('span','',formatTime(position)),el('span','',duration?formatTime(duration):'--:--'));
+      detail.append(progress,times); renderTransport(detail,state); wrap.append(art,detail); return wrap;
+    }
+    function modeSuggestion() {
+      const mode=hass?.states?.['input_select.sanctuary_mode']?.state || 'Home Base', hour=new Date().getHours();
+      if (mode==='Thunderstorm') return ['Thunderstorm protection active','Fire TV playback and sleep lighting remain governed by Sanctuary policy.'];
+      if (mode==='Cinema') return ['Cinema is active','Continue on the selected player or choose another source.'];
+      if (['Work','Focus','Create','Studio'].includes(mode)) return ['Protect concentration','Instrumental audio or a low-interruption playlist fits the current mode.'];
+      if (hour<10) return ['Start deliberately','Morning news, weather, or an energizing playlist is ready.'];
+      if (hour>=20) return ['Ease the atmosphere','Choose Cinema or Thunderstorm without overriding active playback unexpectedly.'];
+      return ['Media systems standing by','Choose a source; Jarvis will route only commands supported by the selected player.'];
+    }
+    function renderIntelligence() {
+      const panel=el('aside','intelligence'); const head=el('div','section-heading'); head.append(el('h2','', 'Jarvis guidance'),el('span','', 'CONTEXT AWARE')); panel.append(head);
+      const [title,body]=modeSuggestion(), mode=hass?.states?.['input_select.sanctuary_mode']?.state || 'Home Base';
+      const readout=el('div','mode-readout'); readout.append(el('strong','',mode.toUpperCase()),document.createTextNode(title)); panel.append(readout,el('p','briefing',body));
+      const suggestions=el('div','suggestions');
+      const cinema=el('button','suggestion primary','Activate Cinema'); cinema.append(el('small','', 'Lighting plus protected playback context')); cinema.disabled=!sessionFresh; cinema.addEventListener('click',()=>safeService('script','movie_night',{},'Cinema request accepted.'));
+      const storm=el('button','suggestion','Start Thunderstorm'); storm.append(el('small','', 'Approved Fire TV video and protected sleep lighting')); storm.disabled=!sessionFresh; storm.addEventListener('click',()=>safeService('script','goodnight',{},'Thunderstorm request accepted.'));
+      suggestions.append(cinema,storm); panel.append(suggestions); return panel;
+    }
+    function renderApps() {
+      const panel=el('section','section-panel'); const head=el('div','section-heading'); head.append(el('h2','', 'Apps & channels'),el('span','', selectedTarget==='x1'?'OPEN ON X1':'ROUTE TO PLAYER')); panel.append(head);
+      const grid=el('div','apps'), state=currentPlayer();
+      APPS.forEach(app => {
+        const source=matchedSource(app,state), button=el('button','app'); button.type='button'; button.style.setProperty('--brand',app.brand);
+        button.append(el('strong','',app.name),el('small','',selectedTarget==='x1'?'Open web app':(source?'Ready · '+source:'Not exposed on player')));
+        if (app.free) button.append(el('span','badge','FREE OPTION'));
+        button.disabled=!sessionFresh || (selectedTarget!=='x1' && !source); button.addEventListener('click',()=>launchApp(app)); grid.append(button);
+      });
+      panel.append(grid); return panel;
+    }
+    function renderSessions() {
+      const panel=el('section','section-panel'); const head=el('div','section-heading'); head.append(el('h2','', 'Live sessions'),el('span','',players.length+' NODES')); panel.append(head);
+      const active=players.filter(player=>['playing','paused','idle','on'].includes(player.state));
+      if (!active.length) { panel.append(el('div','empty','No resumable Home Assistant media sessions are currently visible. Jarvis will never invent watch history.')); return panel; }
+      const list=el('div','sessions'); active.forEach(player=>{ const button=el('button','session'); button.type='button'; button.append(el('strong','',player.attributes.media_title||playerName(player)),el('span','',playerName(player)+' · '+player.state)); button.disabled=!sessionFresh; button.addEventListener('click',()=>{selectedTarget=player.entity_id;renderSignature='';render();}); list.append(button); }); panel.append(list); return panel;
+    }
+    function renderDevices() {
+      const panel=el('section','section-panel'); const head=el('div','section-heading'); head.append(el('h2','', 'Device readiness'),el('span','',players.filter(available).length+' READY')); panel.append(head);
+      const strip=el('div','device-strip');
+      const x1=el('div','device'); x1.dataset.ready='true'; x1.append(el('strong','', 'This X1'),el('span','', 'Browser media · touch · speaker output')); strip.append(x1);
+      players.forEach(player=>{const card=el('div','device'); card.dataset.ready=String(available(player)); card.append(el('strong','',playerName(player)),el('span','',player.state+' · '+stateSources(player).length+' app sources')); strip.append(card);});
+      if (!players.length) { const card=el('div','device'); card.dataset.ready='false'; card.append(el('strong','', 'External players not commissioned'),el('span','', 'Add or repair the Fire TV integration in Home Assistant.')); strip.append(card); }
+      panel.append(strip); return panel;
+    }
+    function render() {
+      if (!hass) return;
+      discoverPlayers();
+      const signature=JSON.stringify([sessionFresh,selectedTarget,hass.states['input_select.sanctuary_mode']?.state,players.map(p=>[p.entity_id,p.state,p.last_updated,p.attributes.media_title,p.attributes.volume_level,p.attributes.source])]);
+      if (signature===renderSignature) return; renderSignature=signature; renderTargets(); consoleEl.replaceChildren();
+      const hero=el('div','hero'); hero.append(renderNowPlaying(),renderIntelligence());
+      const content=el('div','content-grid'); content.append(renderApps(),renderSessions());
+      consoleEl.append(hero,content,renderDevices());
+      $('cinemaButton').disabled=!sessionFresh; $('stormButton').disabled=!sessionFresh; $('searchButton').disabled=!sessionFresh; $('mediaSearch').disabled=!sessionFresh; $('refreshButton').disabled=!sessionFresh;
+    }
+    function updateConnection() {
+      const live=locateHass(), connected=Boolean(live && live.states && live.callService && live.connection?.connected !== false);
+      if (connected) { hass=live; connectionSeen=Date.now(); if (!sessionFresh) { sessionFresh=true; renderSignature=''; showNotice('Home Assistant media link established.','success'); } }
+      else if (Date.now()-connectionSeen>12000 && sessionFresh) { sessionFresh=false; renderSignature=''; showNotice('Home Assistant connection is stale. Media commands are paused.','error'); }
+      linkDot.className='dot '+(sessionFresh?'connected':(connectionSeen?'error':'')); linkText.textContent=sessionFresh?'Home Assistant connected':'Media commands paused'; render();
+    }
+    async function connect() {
+      for(let tries=0;tries<40;tries+=1){hass=locateHass();if(hass?.callWS&&hass.states)break;await new Promise(resolve=>setTimeout(resolve,500));}
+      if(!hass?.callWS) throw new Error('Authenticated Home Assistant session is unavailable.');
+      registry=await hass.callWS({type:'config/entity_registry/list'}); connectionSeen=Date.now(); sessionFresh=true; updateConnection(); setInterval(updateConnection,1000);
+    }
+    targetSelect.addEventListener('change',()=>{initialTargetChosen=true;selectedTarget=targetSelect.value;renderSignature='';render();});
+    $('searchForm').addEventListener('submit',event=>{event.preventDefault();searchMedia($('mediaSearch').value);});
+    $('refreshButton').addEventListener('click',async()=>{if(!sessionFresh)return;try{registry=await hass.callWS({type:'config/entity_registry/list'});renderSignature='';render();showNotice('Media registry refreshed.','success');}catch(error){showNotice(error?.message||'Registry refresh failed.','error');}});
+    $('cinemaButton').addEventListener('click',()=>safeService('script','movie_night',{},'Cinema request accepted.'));
+    $('stormButton').addEventListener('click',()=>safeService('script','goodnight',{},'Thunderstorm request accepted.'));
+    connect().catch(error=>{linkDot.className='dot error';linkText.textContent='Home Assistant unavailable';consoleEl.replaceChildren();const box=el('div','message');const inner=el('div');inner.append(el('strong','', 'MEDIA LINK FAILED'),document.createTextNode(error?.message||'Unable to reach Home Assistant.'));box.append(inner);consoleEl.append(box);showNotice('Reload after Home Assistant is available.','error');});
+  </script>
+</body>
+</html>
