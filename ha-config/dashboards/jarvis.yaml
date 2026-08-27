@@ -307,8 +307,11 @@ views:
       - type: grid
         cards:
           - type: iframe
-            url: /local/jarvis-rooms.html
+            url: /local/jarvis-rooms.html?v=20260826-1
             aspect_ratio: 125%
+            grid_options:
+              columns: full
+              rows: 12
             card_mod:
               style: |
                 ha-card {
@@ -885,8 +888,11 @@ views:
             heading: Sanctuary Floor Plan
             icon: mdi:floor-plan
           - type: iframe
-            url: /local/jarvis-rooms.html
+            url: /local/jarvis-rooms.html?v=20260826-1
             aspect_ratio: 125%
+            grid_options:
+              columns: full
+              rows: 12
             card_mod:
               style: |
                 ha-card {
