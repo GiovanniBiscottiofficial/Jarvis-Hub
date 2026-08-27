@@ -110,7 +110,7 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "parent_origin=" in wrapper
     assert "parent_origin=" in panel
     assert 'get("parent_origin")' in app_script
-    assert "app.js?v=19" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert "app.js?v=21" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
     assert "await hass.callService" in wrapper
     assert "await this._hass.callService" in panel
     assert "using local speech" in wrapper

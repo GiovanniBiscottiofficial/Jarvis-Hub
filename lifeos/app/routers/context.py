@@ -20,6 +20,7 @@ from ..context_engine import (
 from ..db import conn
 from ..conversation_bridge import conversation_status
 from ..intelligence import build_intelligence
+from ..internet_intelligence import internet_snapshot
 from ..integration_fabric import build_integration_fabric
 from .learning import learning_snapshot
 
@@ -77,6 +78,7 @@ def get_command_center(event_limit: int = Query(default=40, ge=1, le=100)):
     payload["integrations"] = build_integration_fabric(
         payload["context"], learning=learning, intelligence=payload["intelligence"]
     )
+    payload["internet"] = internet_snapshot()
     return payload
 
 

@@ -357,6 +357,21 @@ CREATE TABLE IF NOT EXISTS commute_history (
 CREATE INDEX IF NOT EXISTS idx_commute_history_profile_date
     ON commute_history(profile_id, date DESC);
 
+CREATE TABLE IF NOT EXISTS internet_feeds (
+    capability TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    observed_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (capability, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_internet_feeds_expiry
+    ON internet_feeds(profile_id, expires_at);
+
 CREATE TABLE IF NOT EXISTS body_checkins (
     date TEXT NOT NULL,
     profile_id INTEGER NOT NULL DEFAULT 1,

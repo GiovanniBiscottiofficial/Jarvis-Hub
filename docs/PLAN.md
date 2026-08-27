@@ -391,7 +391,8 @@ A custom app in the same stack (its own container, port 8090, mobile-friendly we
   investigation.
 
 ### LifeOS v0.2 — the personal operating system layer (built)
-- **Morning briefing** (`GET /api/briefing`): weather (Open-Meteo, set `LIFEOS_LAT`/
+- **Morning briefing** (`GET /api/briefing`): Internet Intelligence Broker weather,
+  air quality, official alerts, connected agenda, and traffic (set `LIFEOS_LAT`/
   `LIFEOS_LON`), protein/steps status, vitamins, bills due in 7 days, leftover after
   bills, today's workouts, breakfast pick — plus a `speech` string Jarvis reads aloud
   at 7:30 (see `ha-config/automations/briefing.yaml`).

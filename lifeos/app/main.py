@@ -21,6 +21,7 @@ from .routers import (
     budget,
     context,
     insights,
+    internet,
     learning,
     money,
     pantry,
@@ -200,6 +201,7 @@ app.include_router(webhooks.router)
 app.include_router(profiles.router)
 app.include_router(pantry.router)
 app.include_router(insights.router)
+app.include_router(internet.router)
 app.include_router(learning.router)
 app.include_router(money.router)
 app.include_router(context.router)

@@ -88,7 +88,7 @@ def test_shopping_ui_lives_only_in_todo_and_supports_allowlisted_query_activatio
         assert html.count(f'id="{element_id}"') == 1
         assert f'id="{element_id}"' not in body
         assert f'id="{element_id}"' in todo
-    assert 'new Set(["command", "today", "body", "todo", "budget", "learning", "review"])' in javascript
+    assert 'new Set(["command", "today", "internet", "body", "todo", "budget", "learning", "review"])' in javascript
     assert 'ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today"' in javascript
     assert 'if (panelName === "todo") loadShopping();' in javascript
     assert 'rail.clientWidth - chevronWidth' in javascript

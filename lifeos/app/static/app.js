@@ -114,7 +114,7 @@ async function api(path, method = "GET", body, retried = false) {
 }
 
 // ---------- tabs ----------
-const ALLOWED_PANELS = new Set(["command", "today", "body", "todo", "budget", "learning", "review"]);
+const ALLOWED_PANELS = new Set(["command", "today", "internet", "body", "todo", "budget", "learning", "review"]);
 
 function activatePanel(requestedPanel) {
   const panelName = ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today";
@@ -130,6 +130,7 @@ function activatePanel(requestedPanel) {
   if (panelName === "body") loadBody();
   if (panelName === "todo") loadShopping();
   if (panelName === "today") loadToday();
+  if (panelName === "internet") loadInternetIntelligence();
   if (panelName === "learning") loadLearning();
   if (panelName === "review") loadReview();
   if (panelName === "command") loadCommandCenter();
@@ -1518,6 +1519,224 @@ $("bill-btn").onclick = async () => {
   } catch (error) { $("bill-status").textContent = `Bill was not added: ${error.message}`; }
   finally { button.disabled = false; }
 };
+
+// ---------- Internet Intelligence ----------
+function internetStatusLabel(status) {
+  return String(status || "unknown").replaceAll("_", " ").toUpperCase();
+}
+
+function internetTime(value) {
+  if (!value) return "TIME UNKNOWN";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? String(value)
+    : parsed.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function safeInternetLink(url, label) {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol !== "https:") return null;
+    const link = el("a", "secondary internet-link", label);
+    link.href = parsed.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    return link;
+  } catch (_) {
+    return null;
+  }
+}
+
+function internetSourceMap(data) {
+  return Object.fromEntries((Array.isArray(data?.sources) ? data.sources : []).map((source) => [source.id, source]));
+}
+
+function renderInternetEnvironment(sources) {
+  const target = $("internet-environment");
+  const weather = sources.weather || {};
+  const air = sources.air_quality || {};
+  const alerts = sources.weather_alerts || {};
+  target.replaceChildren();
+  const weatherData = weather.data || {};
+  if (!["ready", "stale"].includes(weather.status)) {
+    target.appendChild(el("div", "empty-state", weather.message || "Weather source is not commissioned."));
+    $("internet-environment-state").textContent = internetStatusLabel(weather.status);
+    return;
+  }
+  $("internet-environment-state").textContent = internetStatusLabel(weather.status);
+  const hero = el("div", "internet-weather-hero");
+  hero.append(
+    el("strong", "", `${Math.round(Number(weatherData.temperature_f || 0))}°`),
+    el("span", "", `${String(weatherData.conditions || "mixed").toUpperCase()} · FEELS ${Math.round(Number(weatherData.feels_like_f || weatherData.temperature_f || 0))}°`),
+    el("small", "", `HIGH ${Math.round(Number(weatherData.high_f || 0))}° · LOW ${Math.round(Number(weatherData.low_f || 0))}° · RAIN ${Number(weatherData.max_rain_chance_8h || 0)}% · UV ${Number(weatherData.uv_index_max || 0).toFixed(1)}`),
+  );
+  const facts = el("div", "internet-environment-facts");
+  facts.append(
+    el("div", "", `AIR QUALITY\n${air.data?.us_aqi != null ? `${Math.round(Number(air.data.us_aqi))} · ${String(air.data.category || "unknown").toUpperCase()}` : internetStatusLabel(air.status)}`),
+    el("div", (alerts.data?.count || 0) ? "is-alert" : "", `NWS ALERTS\n${Number(alerts.data?.count || 0)} ACTIVE`),
+    el("div", "", `SUN WINDOW\n${internetTime(weatherData.sunrise).split(", ").pop()} → ${internetTime(weatherData.sunset).split(", ").pop()}`),
+  );
+  const hours = el("div", "internet-hour-strip");
+  hours.tabIndex = 0;
+  hours.setAttribute("role", "region");
+  hours.setAttribute("aria-label", "Scrollable eight-hour forecast");
+  (weatherData.next_hours || []).slice(0, 8).forEach((hour) => {
+    const cell = el("div", "");
+    cell.append(
+      el("span", "", new Date(hour.time).toLocaleTimeString(undefined, { hour: "numeric" })),
+      el("strong", "", `${Math.round(Number(hour.temperature_f || 0))}°`),
+      el("small", "", `${Number(hour.rain_chance || 0)}% rain`),
+    );
+    hours.appendChild(cell);
+  });
+  target.append(hero, facts, hours);
+}
+
+function renderInternetAgenda(source) {
+  const target = $("internet-agenda");
+  target.replaceChildren();
+  $("internet-calendar-state").textContent = internetStatusLabel(source?.status);
+  const events = Array.isArray(source?.data?.events) ? source.data.events : [];
+  if (!events.length) {
+    target.appendChild(el("div", "empty-state", source?.message || "No upcoming connected calendar events."));
+    return;
+  }
+  events.slice(0, 6).forEach((event) => {
+    const row = el("div", "internet-agenda-row");
+    row.append(
+      el("time", "", internetTime(event.start)),
+      el("strong", "", event.summary || "Scheduled event"),
+      el("small", "", `${String(event.calendar || "calendar").replace("calendar.", "").replaceAll("_", " ")}${event.location ? ` · ${event.location}` : ""}`),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderInternetSources(sources) {
+  const target = $("internet-sources");
+  target.replaceChildren();
+  Object.values(sources).forEach((source) => {
+    const card = el("article", `internet-source is-${String(source.status || "unknown").replaceAll("_", "-")}`);
+    const heading = el("div", "");
+    heading.append(el("strong", "", source.name || source.id), el("b", "", internetStatusLabel(source.status)));
+    card.append(heading, el("p", "", source.message || "No source note."), el("small", "", `${source.cached ? "CACHE" : "LIVE"} · ${internetTime(source.fetched_at)} · ${String(source.authority || "read only").replaceAll("_", " ").toUpperCase()}`));
+    const link = safeInternetLink(source.source_url, "Source");
+    if (link) card.appendChild(link);
+    target.appendChild(card);
+  });
+}
+
+function renderInternetCapabilities(capabilities) {
+  const target = $("internet-capabilities");
+  target.replaceChildren();
+  (capabilities || []).forEach((capability) => {
+    const row = el("div", "internet-capability");
+    const copy = el("div", "");
+    copy.append(el("strong", "", capability.name), el("small", "", capability.dependency || "No dependency"));
+    row.append(copy, el("b", `is-${String(capability.status || "unknown").replaceAll("_", "-")}`, internetStatusLabel(capability.status)), el("span", "", String(capability.authority || "advisory").replaceAll("_", " ").toUpperCase()));
+    target.appendChild(row);
+  });
+}
+
+async function loadInternetIntelligence(force = false) {
+  const status = $("internet-status");
+  status.textContent = force ? "Refreshing every live source…" : "Synchronizing external evidence…";
+  status.className = "inline-status muted";
+  $("internet-refresh").disabled = true;
+  try {
+    const data = await api(force ? "/api/internet/refresh" : "/api/internet", force ? "POST" : "GET");
+    const summary = data.summary || {};
+    $("internet-live-count").textContent = summary.live_sources ?? 0;
+    $("internet-degraded-count").textContent = summary.degraded_sources ?? 0;
+    $("internet-generated").textContent = new Date(data.generated_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const sources = internetSourceMap(data);
+    renderInternetEnvironment(sources);
+    renderInternetAgenda(sources.calendar || {});
+    renderInternetSources(sources);
+    renderInternetCapabilities(data.capabilities);
+    status.textContent = `${summary.live_sources || 0} live source(s) fused · ${summary.degraded_sources || 0} need attention · external evidence remains advisory.`;
+  } catch (error) {
+    status.textContent = `Internet intelligence unavailable: ${error.message}`;
+    status.className = "inline-status error-state";
+    ["internet-environment", "internet-agenda", "internet-sources", "internet-capabilities"].forEach((id) => {
+      $(id).replaceChildren(el("div", "empty-state error-state", "This connected section could not be loaded. Local LifeOS remains available."));
+    });
+  } finally {
+    $("internet-refresh").disabled = false;
+  }
+}
+
+function renderInternetResults(targetId, items, emptyMessage, builder) {
+  const target = $(targetId);
+  target.replaceChildren();
+  if (!items.length) {
+    target.appendChild(el("div", "empty-state", emptyMessage));
+    return;
+  }
+  items.forEach((item) => target.appendChild(builder(item)));
+}
+
+function researchResult(item, kind) {
+  const row = el("article", "internet-result");
+  row.append(el("span", "", `${kind} · ${item.source || "SOURCE"}`), el("strong", "", item.title || "Untitled result"));
+  if (item.summary) row.appendChild(el("p", "", item.summary));
+  if (item.published_at) row.appendChild(el("small", "", internetTime(item.published_at)));
+  const link = safeInternetLink(item.url, "Open source");
+  if (link) row.appendChild(link);
+  return row;
+}
+
+$("internet-refresh").onclick = () => loadInternetIntelligence(true);
+
+$("internet-research-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-research-query").value.trim();
+  const target = $("internet-research-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a question or subject first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Searching current news and reference sources…"));
+  try {
+    const data = await api(`/api/internet/research?q=${encodeURIComponent(query)}`);
+    const items = [
+      ...(data.news || []).map((item) => ({ ...item, resultKind: "CURRENT NEWS" })),
+      ...(data.references || []).map((item) => ({ ...item, resultKind: "REFERENCE" })),
+    ];
+    renderInternetResults("internet-research-results", items, data.message || "No sourced results found.", (item) => researchResult(item, item.resultKind));
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
+
+$("internet-media-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-media-query").value.trim();
+  const target = $("internet-media-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a title, artist, or subject first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Searching connected media catalogs…"));
+  try {
+    const data = await api(`/api/internet/media?q=${encodeURIComponent(query)}`);
+    renderInternetResults("internet-media-results", data.results || [], data.message || "No catalog matches found.", (item) => {
+      const row = el("article", "internet-result");
+      row.append(el("span", "", `${String(item.kind || "MEDIA").toUpperCase()} · ${item.source}`), el("strong", "", item.title), el("p", "", [item.creator, item.release_year, item.genre].filter(Boolean).join(" · ")));
+      const link = safeInternetLink(item.store_url, "Open catalog");
+      if (link) row.appendChild(link);
+      return row;
+    });
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
+
+$("internet-nutrition-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-nutrition-query").value.trim();
+  const target = $("internet-nutrition-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a food or package name first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Checking USDA FoodData Central…"));
+  try {
+    const data = await api(`/api/internet/nutrition?q=${encodeURIComponent(query)}`);
+    renderInternetResults("internet-nutrition-results", data.results || [], data.message || "No USDA match found.", (item) => {
+      const row = el("article", "internet-result");
+      row.append(el("span", "", `${item.data_type || "USDA"} · FDC ${item.fdc_id || "—"}`), el("strong", "", item.description), el("p", "", `${item.brand || "Generic food"} · ${item.protein_g ?? "—"}g protein · ${item.calories ?? "—"} kcal · ${item.nutrient_basis || "verify serving basis"}`));
+      return row;
+    });
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
 
 // ---------- Learning Ledger ----------
 function learningPreferenceRow(preference, actions = []) {

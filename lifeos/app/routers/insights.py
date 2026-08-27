@@ -18,6 +18,7 @@ from ..commute import commute_snapshot
 from ..context_engine import current_context, list_proposals
 from ..db import active_profile, conn, get_setting
 from ..intelligence import build_intelligence
+from ..internet_intelligence import internet_snapshot
 from ..pattern_learning import record_commute_observation
 from ..paydays import payday_schedule, scheduled_bill_due_date
 from .bodyops import protein_today, streak, water_today
@@ -158,6 +159,29 @@ def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
                 high=round(weather["high_f"]),
                 low=round(weather["low_f"]),
             ),
+        )
+
+    alerts = facts.get("weather_alerts") or []
+    if alerts:
+        alert = alerts[0]
+        add(
+            "weather_alert",
+            f"Official weather alert: {alert.get('event') or alert.get('headline')}. "
+            f"Severity is {str(alert.get('severity') or 'not specified').lower()}.",
+        )
+
+    agenda = facts.get("agenda") or []
+    if agenda:
+        event = agenda[0]
+        start = str(event.get("start") or "")
+        try:
+            start_label = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone().strftime("%I:%M %p").lstrip("0")
+        except (ValueError, TypeError):
+            start_label = start[:16].replace("T", " at ")
+        add(
+            "agenda",
+            f"Your next scheduled item is {event.get('summary') or 'an event'}"
+            f"{f' at {start_label}' if start_label else ''}.",
         )
 
     commute = facts.get("commute")
@@ -317,9 +341,14 @@ def morning_briefing():
     bills_total = sum(b["amount"] for b in bills)
     leftover = total - bills_total
     meals = chef_summary()["suggestions"][:2]
-    weather = _weather()
+    online = internet_snapshot()
+    online_sources = {source["id"]: source for source in online["sources"]}
+    weather_source = online_sources.get("weather", {})
+    weather = weather_source.get("data") if weather_source.get("status") in {"ready", "stale"} else _weather()
     workday = date.today().weekday() < 5
-    commute = commute_snapshot() if workday else None
+    commute = online_sources.get("commute", {}).get("data") if workday else None
+    if workday and not commute:
+        commute = commute_snapshot()
     if commute:
         record_commute_observation(pid, commute)
 
@@ -357,6 +386,8 @@ def morning_briefing():
             "name": prof["name"],
             "affirmation": affirmation,
             "weather": weather,
+            "weather_alerts": online_sources.get("weather_alerts", {}).get("data", {}).get("alerts", []),
+            "agenda": online_sources.get("calendar", {}).get("data", {}).get("events", []),
             "workday": workday,
             "commute": commute,
             "protein": protein,
@@ -387,6 +418,7 @@ def morning_briefing():
         "date": today_iso,
         "profile": prof["name"],
         "weather": weather,
+        "internet": online,
         "commute": commute,
         "protein": {"today_g": protein, "target_g": prof["protein_target_g"]},
         "steps_today": steps_row["count"] if steps_row else 0,

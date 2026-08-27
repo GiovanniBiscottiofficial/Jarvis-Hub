@@ -36,7 +36,8 @@ def test_three_failures_trigger_one_allowlisted_repair(monkeypatch, tmp_path):
     checks = all_healthy(supervisor)
     checks["lifeos"] = (False, "HTTP timeout")
     actions = []
-    runner = lambda action: (actions.append(action) or True, "restarted")
+    def runner(action):
+        return actions.append(action) or True, "restarted"
     supervisor.supervise(checks, now=1000, action_runner=runner)
     supervisor.supervise(checks, now=1031, action_runner=runner)
     result = supervisor.supervise(checks, now=1062, action_runner=runner)

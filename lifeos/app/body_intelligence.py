@@ -279,11 +279,6 @@ def habit_insights(days: int = 28) -> list[dict[str, Any]]:
             "SELECT date day,taken value FROM vitamins WHERE profile_id=? AND date>=?",
             (pid, cutoff),
         ).fetchall()
-        targets = {
-            "protein": float(profile["protein_target_g"]),
-            "steps": int(profile["step_target"]),
-            "water": int(get_setting("water_target_glasses") or 8),
-        }
     datasets = {"protein": protein, "steps": steps, "water": water, "vitamins": vitamins}
     insights = []
     weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]

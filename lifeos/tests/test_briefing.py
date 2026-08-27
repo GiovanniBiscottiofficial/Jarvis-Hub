@@ -108,3 +108,17 @@ def test_delivery_is_stable_for_the_same_day_and_varies_across_days():
     assert first == repeated
     assert first["speech"] != next_day["speech"]
     assert all(set(section) == {"key", "text"} for section in first["sections"])
+
+
+def test_official_alert_and_connected_agenda_enter_the_same_briefing():
+    result = compose_briefing(
+        briefing_facts(
+            weather_alerts=[{"event": "Severe Thunderstorm Warning", "severity": "Severe"}],
+            agenda=[{"summary": "Work shift", "start": "2026-08-27T07:50:00-04:00"}],
+        ),
+        hour=7,
+        day_ordinal=10,
+    )
+
+    assert "Official weather alert: Severe Thunderstorm Warning" in result["speech"]
+    assert "Your next scheduled item is Work shift at 7:50 AM" in result["speech"]

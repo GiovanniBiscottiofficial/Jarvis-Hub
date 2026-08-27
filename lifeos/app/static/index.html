@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="jarvis-release" content="2026.08.26-integration-fabric-v1">
+<meta name="jarvis-release" content="2026.08.27-internet-intelligence-v2">
 <title>Jarvis · LifeOS</title>
 <meta name="theme-color" content="#0a1628">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
 <header class="app-header">
@@ -21,6 +21,7 @@
     <nav aria-label="Primary navigation">
       <button class="tab" data-tab="command">Command</button>
       <button class="tab active" data-tab="today">Today</button>
+      <button class="tab" data-tab="internet">Web Intel</button>
       <button class="tab" data-tab="body">Body Ops</button>
       <button class="tab" data-tab="todo">To-do</button>
       <button class="tab" data-tab="budget">Budget &amp; Vault</button>
@@ -505,6 +506,52 @@
     </div>
   </section>
 
+  <!-- ============ INTERNET INTELLIGENCE ============ -->
+  <section id="internet" class="panel">
+    <div class="section-intro internet-intro"><div><span class="section-index">CONNECTED INTELLIGENCE / LIVE</span><h2>Internet Intelligence</h2><p>Fresh external evidence reconciled with Jarvis context—attributed, cached, and action-locked.</p></div><button id="internet-refresh" class="secondary">Refresh live sources</button></div>
+    <div id="internet-status" class="inline-status muted" role="status" aria-live="polite">Open this view to synchronize live sources.</div>
+    <div class="internet-summary" role="group" aria-label="Internet intelligence summary">
+      <div><strong id="internet-live-count">—</strong><span>Live sources</span></div>
+      <div><strong id="internet-degraded-count">—</strong><span>Need attention</span></div>
+      <div><strong id="internet-generated">—</strong><span>Last fusion</span></div>
+    </div>
+    <div class="lifeos-page-grid internet-grid">
+      <article class="card internet-environment-card">
+        <div class="finance-card-heading"><div><span class="finance-index">ENVIRONMENT / 8 HOURS</span><h2>Outside operating picture</h2></div><span id="internet-environment-state" class="finance-state">LOADING</span></div>
+        <div id="internet-environment" class="internet-environment"><div class="empty-state">Awaiting weather and air-quality sources.</div></div>
+      </article>
+      <article class="card internet-agenda-card">
+        <div class="finance-card-heading"><div><span class="finance-index">TIME / NEXT 36 HOURS</span><h2>Connected agenda</h2></div><span id="internet-calendar-state" class="finance-state">LOADING</span></div>
+        <div id="internet-agenda" class="internet-list"><div class="empty-state">Checking commissioned calendars.</div></div>
+      </article>
+      <article class="card internet-sources-card">
+        <div class="finance-card-heading"><div><span class="finance-index">PROVENANCE / FRESHNESS</span><h2>Source ledger</h2></div><span class="finance-state">READ ONLY</span></div>
+        <div id="internet-sources" class="internet-source-grid"><div class="empty-state">Loading source health.</div></div>
+      </article>
+      <article class="card internet-capabilities-card">
+        <div class="finance-card-heading"><div><span class="finance-index">COMMISSIONING / TRUTH</span><h2>Connected capability matrix</h2></div><span class="finance-state">NO FALSE CLAIMS</span></div>
+        <div id="internet-capabilities" class="internet-capability-list"><div class="empty-state">Auditing online capabilities.</div></div>
+      </article>
+      <article class="card internet-research-card">
+        <div class="finance-card-heading"><div><span class="finance-index">RESEARCH / CITED</span><h2>Ask the open web</h2></div><span class="finance-state">EPHEMERAL QUERY</span></div>
+        <form id="internet-research-form" class="internet-search-form"><label for="internet-research-query">Question or subject</label><div><input id="internet-research-query" type="search" maxlength="200" placeholder="What should Jarvis investigate?"><button type="submit" class="pill">Research</button></div></form>
+        <p class="card-note">Jarvis returns source material with links and timestamps. Results remain evidence—not an automatic conclusion.</p>
+        <div id="internet-research-results" class="internet-results"><div class="empty-state">No research query submitted.</div></div>
+      </article>
+      <article class="card internet-media-card">
+        <div class="finance-card-heading"><div><span class="finance-index">MEDIA / DISCOVERY</span><h2>Cross-catalog search</h2></div><span class="finance-state">NO AVAILABILITY GUESSING</span></div>
+        <form id="internet-media-form" class="internet-search-form"><label for="internet-media-query">Title, artist or subject</label><div><input id="internet-media-query" type="search" maxlength="160" placeholder="Find a movie, show, or music"><button type="submit" class="pill">Search media</button></div></form>
+        <div id="internet-media-results" class="internet-results"><div class="empty-state">Search results will identify their catalog and never assume a subscription.</div></div>
+      </article>
+      <article class="card internet-nutrition-card">
+        <div class="finance-card-heading"><div><span class="finance-index">BODY OPS / USDA</span><h2>Verified nutrition lookup</h2></div><span class="finance-state">CONFIRM SERVING</span></div>
+        <form id="internet-nutrition-form" class="internet-search-form"><label for="internet-nutrition-query">Food or package name</label><div><input id="internet-nutrition-query" type="search" maxlength="160" placeholder="e.g. Barebells protein bar"><button type="submit" class="pill">Check nutrition</button></div></form>
+        <div id="internet-nutrition-results" class="internet-results"><div class="empty-state">USDA matches remain unlogged until you confirm the package and serving.</div></div>
+      </article>
+    </div>
+    <footer class="learning-policy"><strong>Internet boundary</strong><span>Online results cannot authorize household actions, checkout, transfers, health logging, or preference changes. Queries are processed ephemerally. Source, freshness, and degraded state remain visible.</span></footer>
+  </section>
+
   <!-- ============ LEARNING ============ -->
   <section id="learning" class="panel">
     <div class="section-intro"><div><span class="section-index">INTELLIGENCE / 04</span><h2>Learning Ledger</h2><p>What Jarvis observed, what he inferred, and what Giovanni explicitly approved.</p></div><span class="section-date">LOCAL · REVERSIBLE</span></div>
@@ -622,7 +669,7 @@
   </section>
 </main>
 
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=21"></script>
   <script src="bodyops-enhanced.js?v=3"></script>
   <script src="money-command.js?v=6"></script>
   <script src="release-watch.js?v=1"></script>

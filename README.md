@@ -188,6 +188,13 @@ Context APIs:
 - `GET /api/learning` — local observations, automatic patterns, candidates, confirmed preferences, and audit;
 - `POST /api/learning/feedback` — record explicit evidence without authorizing an action;
 - `POST /api/learning/preferences/{id}/decision` — confirm, reject, or forget guidance.
+- `GET /api/internet` and `POST /api/internet/refresh` — fused source health,
+  forecast, air quality, official alerts, commute, calendar, provenance, and readiness;
+- `GET /api/internet/research?q=...` — ephemeral Wikipedia and current-news source discovery;
+- `GET /api/internet/media?q=...` — attributed Apple catalog discovery without subscription claims;
+- `GET /api/internet/nutrition?q=...` — USDA FoodData Central matches requiring serving confirmation.
+- `POST /api/internet/feeds/{retailer_pricing|inbox_delivery|bank_sync|streaming_availability}` —
+  sanitized, expiring, profile-scoped read-only connector snapshots.
 
 Every action declares its scope, risk, reversibility, confirmation policy, and
 whether remote execution is allowed. This is the central rule: the LLM may explain
@@ -213,6 +220,34 @@ retained as learning evidence.
 Learning never bypasses the action registry. A confirmed preference may influence
 an explanation or future proposal, but it cannot directly operate Home Assistant.
 
+### Internet Intelligence Broker
+
+Select **Web Intel** in LifeOS for Jarvis's connected operating picture. The broker
+fuses Open-Meteo forecasts and air quality, official National Weather Service
+alerts, the Home Assistant Waze commute sensor, and commissioned Home Assistant
+calendars. It also exposes ephemeral cited research, cross-catalog media discovery,
+and USDA nutrition lookup. Research uses Crossref metadata plus Bing News RSS;
+every source carries status, freshness, retrieval time,
+provenance, cache state, and an explicit authority boundary. One failed provider is
+isolated and a prior verified result is labeled stale instead of silently becoming
+current.
+
+Account-dependent features remain visible as truthful commissioning states. Live
+retailer prices/coupons require an approved retailer integration; inbox and package
+summaries require a read-only email connector; bank reconciliation requires a
+financial-data connector and explicit approval; streaming availability requires a
+licensed catalog provider. Jarvis never pretends these are active, scrapes account
+credentials, submits checkout, moves money, or treats an internet result as action
+authorization. Research, media, and nutrition query text is not persisted.
+Provider adapters can submit bounded snapshots through `/api/internet/feeds/{capability}`;
+secret, account-number, payment, checkout, transfer, and service-call fields are
+discarded, payloads expire into a visible stale state, and the feed never gains
+execution authority.
+
+Set `LIFEOS_CALENDAR_ENTITY` to restrict agenda fusion to one Home Assistant
+calendar. Set `USDA_FDC_API_KEY` to a private data.gov key for production nutrition
+lookups; the documented `DEMO_KEY` fallback is intentionally low-rate.
+
 ### System architecture
 
 ```mermaid
@@ -222,6 +257,7 @@ flowchart LR
     BO["Body Ops"] --> CE
     VF["Vault Flow"] --> CE
     LL["Learning Ledger"] -->|confirmed guidance| CE
+    WEB["Internet Intelligence Broker"] -->|attributed read-only evidence| CE
     CE --> CC["Command Center + Behavior Lab"]
     CE --> PP["Policy and proposal gate"]
     LLM["Jarvis conversation agent"] -->|intent / explanation| PP
