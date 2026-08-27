@@ -1,7 +1,7 @@
 """Grounded home-to-work commute readiness for Jarvis briefings."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 import os
 from threading import Lock
 
@@ -155,7 +155,14 @@ def commute_snapshot(*, force: bool = False) -> dict:
             "Baseline route only; commission a Waze or Google travel-time sensor for traffic-aware timing."
         )
     result["destination"] = "Work"
-    result["planned_departure"] = "07:35"
+    result["arrival_target"] = "07:50"
+    if result.get("minutes"):
+        arrival = datetime.combine(date.today(), time(hour=7, minute=50))
+        result["planned_departure"] = (
+            arrival - timedelta(minutes=int(result["minutes"]))
+        ).strftime("%H:%M")
+    else:
+        result["planned_departure"] = None
     with _lock:
         _cache = (now, result)
     return result

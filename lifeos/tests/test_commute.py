@@ -37,7 +37,7 @@ def test_commissioned_fresh_ha_travel_sensor_wins(monkeypatch):
     assert result["traffic_live"] is True
     assert result["minutes"] == 24
     assert result["miles"] == 11.2
-    assert result["planned_departure"] == "07:35"
+    assert result["planned_departure"] == "07:26"
 
 
 def test_baseline_is_explicitly_not_live_traffic(monkeypatch):
@@ -51,4 +51,5 @@ def test_baseline_is_explicitly_not_live_traffic(monkeypatch):
     result = commute.commute_snapshot(force=True)
     assert result["minutes"] == 17
     assert result["traffic_live"] is False
+    assert result["planned_departure"] == "07:33"
     assert "Baseline route only" in result["guidance"]
