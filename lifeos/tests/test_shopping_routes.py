@@ -72,6 +72,62 @@ def test_shopping_ui_uses_allowlisted_review_only_retailer_links():
     assert "https://www.instacart.com/store/s?k=" in javascript
     assert "https://www.walmart.com/search?q=" in javascript
     assert "https://www.amazon.com/s?k=" in javascript
-    assert "encodeURIComponent(item.item)" in javascript
+    assert "encodeURIComponent(item)" in javascript
     assert 'link.rel = "noopener noreferrer"' in javascript
+    assert 'link.target = "_top"' in javascript
     assert re.search(r"\.retailer-link\s*\{[^}]*min-height:\s*44px", css)
+    touch_rule = re.search(
+        r"\.shopping-composer input,\.shopping-composer select,\.shopping-composer button,"
+        r"\.shopping-card \.market-heading button\s*\{[^}]*min-height:\s*44px",
+        css,
+    )
+    assert touch_rule
+
+
+def test_retailer_access_has_exactly_four_top_level_allowlisted_launchers():
+    static = Path(__file__).resolve().parents[1] / "app" / "static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    javascript = (static / "app.js").read_text(encoding="utf-8")
+
+    todo = html.split('id="todo"', 1)[1].split('id="budget"', 1)[0]
+    assert todo.count('class="retailer-airlock"') == 4
+    for retailer, url in {
+        "foodlion": "https://foodlion.com/",
+        "instacart": "https://www.instacart.com/",
+        "walmart": "https://www.walmart.com/",
+        "amazon": "https://www.amazon.com/",
+    }.items():
+        assert f'data-retailer="{retailer}" href="{url}" target="_top"' in todo
+    assert todo.count("Sign in / Shop") == 4
+    assert "Account session stays in Chromium on this X1" in todo
+    assert "Jarvis never sees credentials or payment details" in todo
+    assert 'class="todo-boundaries" role="group"' in todo
+    assert 'class="retailer-airlocks" role="group"' in todo
+    assert 'class="shopping-composer" role="group"' in todo
+    assert "RETAILER_ALLOWLIST" in javascript
+    assert "window.open" not in javascript.split("function renderMarketList", 1)[1].split("async function loadPantry", 1)[0]
+
+
+def test_shopping_is_on_todo_not_body_ops():
+    static = Path(__file__).resolve().parents[1] / "app" / "static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    javascript = (static / "app.js").read_text(encoding="utf-8")
+    body = html.split('id="body"', 1)[1].split('id="todo"', 1)[0]
+    todo = html.split('id="todo"', 1)[1].split('id="budget"', 1)[0]
+
+    assert 'id="grocery"' not in body
+    assert 'id="grocery"' in todo
+    assert 'data-tab="todo"' in html
+    assert 'if (panelName === "todo") loadShopping();' in javascript
+
+
+def test_retailer_portal_has_no_account_or_checkout_capture_surface():
+    static = Path(__file__).resolve().parents[1] / "app" / "static"
+    combined = "\n".join((static / name).read_text(encoding="utf-8") for name in ("index.html", "app.js"))
+    lowered = combined.lower()
+    for forbidden in (
+        'type="password"', "credentialmanagement", "navigator.credentials",
+        "localstorage.setitem", "sessionstorage.setitem", "place order",
+        "add to cart", "payment method", "mfa code",
+    ):
+        assert forbidden not in lowered

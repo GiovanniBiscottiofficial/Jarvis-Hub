@@ -413,16 +413,24 @@ bars — and the app shell still opens if the hub is briefly unreachable.
 
 ### Routed shopping list
 
-Body Ops includes one local shopping list with two deliberate routes:
+The **To-do** surface includes one local shopping list with two deliberate routes:
 
 - **Food** opens at Food Lion or Instacart.
 - **Household supplies, personal care, and other items** open at Walmart or Amazon.
 
 Choose the route when adding an item. Pantry depletion and Chef Jarvis recipe
 ingredients are classified automatically, and every row has a **Move to food** or
-**Move to home & personal** correction. Retailer buttons open a search/list in a
-new tab for review; LifeOS does not add to a cart, submit an order, claim live
-pricing, or store retailer credentials.
+**Move to home & personal** correction. Retailer buttons open a search/list as
+the kiosk's top-level page for review. The **Retailer access** panel also opens
+the real Food Lion, Instacart, Walmart, and Amazon sites so Giovanni can sign in,
+browse, scroll, manage carts, and manually check out in the X1's persistent
+Chromium profile. LifeOS does not inspect account status, add to a cart, submit
+an order, claim live pricing, or store retailer credentials, cookies, addresses,
+or payment details.
+
+The always-on-top X11 hub bar provides **Home**, **Back**, **Keys**, and
+**Settings** above external pages. Both kiosk installation paths install the
+same tracked implementation from `bootstrap/kiosk/hub-bar.py`.
 
 ## The hub display (Google-Home style)
 

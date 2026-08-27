@@ -9,6 +9,7 @@
 #                 (Netflix, YouTube, any quick-launch app)
 #   ⌨  Keyboard — shows/hides the on-screen keyboard
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # First boot shows the animated Jarvis splash, which hands over to the Wall
 # view. The ⌂ Home button and the idle screen navigate straight to the
@@ -30,7 +31,7 @@ echo "==> Installing minimal X session + Chromium..."
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   xorg xserver-xorg openbox x11-xserver-utils unclutter chromium-browser \
-  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl playerctl xinput
+  onboard dbus-x11 at-spi2-core python3-tk xprintidle curl wmctrl playerctl xinput xdotool
 
 echo "==> Auto-login on tty1..."
 sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -215,6 +216,9 @@ stay_on_top()
 root.mainloop()
 PYEOF
 sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
+# Both kiosk setup paths finish by installing this tracked canonical bar. It
+# keeps Home/Back/Keys/Settings available even on top-level retailer pages.
+sudo install -m 0755 "${SCRIPT_DIR}/kiosk/hub-bar.py" /opt/jarvis-kiosk/hub-bar.py
 
 echo "==> Idle watcher (ambient clock screen after inactivity)..."
 sudo tee /opt/jarvis-kiosk/idle-watch.sh >/dev/null <<'SHEOF'

@@ -114,21 +114,29 @@ async function api(path, method = "GET", body, retried = false) {
 }
 
 // ---------- tabs ----------
-document.querySelectorAll(".tab").forEach((btn) =>
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    $(btn.dataset.tab).classList.add("active");
-    if (btn.dataset.tab === "budget") loadFinance();
-    if (btn.dataset.tab === "body") loadBody();
-    if (btn.dataset.tab === "today") loadToday();
-    if (btn.dataset.tab === "learning") loadLearning();
-    if (btn.dataset.tab === "review") loadReview();
-    if (btn.dataset.tab === "command") loadCommandCenter();
-    document.body.classList.toggle("command-active", btn.dataset.tab === "command");
-  })
-);
+const ALLOWED_PANELS = new Set(["command", "today", "body", "todo", "budget", "learning", "review"]);
+
+function activatePanel(requestedPanel) {
+  const panelName = ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today";
+  document.querySelectorAll(".tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === panelName);
+  });
+  document.querySelectorAll(".panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === panelName);
+  });
+  if (panelName === "budget") loadFinance();
+  if (panelName === "body") loadBody();
+  if (panelName === "todo") loadShopping();
+  if (panelName === "today") loadToday();
+  if (panelName === "learning") loadLearning();
+  if (panelName === "review") loadReview();
+  if (panelName === "command") loadCommandCenter();
+  document.body.classList.toggle("command-active", panelName === "command");
+}
+
+document.querySelectorAll(".tab").forEach((button) => {
+  button.addEventListener("click", () => activatePanel(button.dataset.tab));
+});
 
 // ---------- Today ----------
 function renderTodayPriorities(fusedPriorities, fallback) {
@@ -517,6 +525,32 @@ function renderChefSuggestions(chef) {
   });
 }
 
+// These are the only external commerce destinations Jarvis may construct.
+// Authentication and all retailer actions stay in Chromium, outside LifeOS.
+const RETAILER_ALLOWLIST = Object.freeze({
+  foodlion: Object.freeze({
+    name: "Food Lion", home: "https://foodlion.com/", itemLabel: "Food Lion list",
+    itemUrl: () => "https://foodlion.com/personal-list",
+  }),
+  instacart: Object.freeze({
+    name: "Instacart", home: "https://www.instacart.com/", itemLabel: "Instacart",
+    itemUrl: (item) => `https://www.instacart.com/store/s?k=${encodeURIComponent(item)}`,
+  }),
+  walmart: Object.freeze({
+    name: "Walmart", home: "https://www.walmart.com/", itemLabel: "Walmart",
+    itemUrl: (item) => `https://www.walmart.com/search?q=${encodeURIComponent(item)}`,
+  }),
+  amazon: Object.freeze({
+    name: "Amazon", home: "https://www.amazon.com/", itemLabel: "Amazon",
+    itemUrl: (item) => `https://www.amazon.com/s?k=${encodeURIComponent(item)}`,
+  }),
+});
+
+document.querySelectorAll(".retailer-airlock").forEach((link) => {
+  const retailer = RETAILER_ALLOWLIST[link.dataset.retailer];
+  if (!retailer || link.href !== retailer.home) link.remove();
+});
+
 async function recordChefFeedback(recipeId, action, message) {
   try {
     await api("/api/pantry/chef/feedback", "POST", { recipe_id: recipeId, action });
@@ -558,22 +592,16 @@ function renderMarketList(items) {
       );
       const actions = document.createElement("div");
       actions.className = "market-actions";
-      const query = encodeURIComponent(item.item);
-      const retailers = route === "food"
-        ? [
-            ["Food Lion list", "https://foodlion.com/personal-list"],
-            ["Instacart", `https://www.instacart.com/store/s?k=${query}`],
-          ]
-        : [
-            ["Walmart", `https://www.walmart.com/search?q=${query}`],
-            ["Amazon", `https://www.amazon.com/s?k=${query}`],
-          ];
-      retailers.forEach(([label, href]) => {
+      const retailers = route === "food" ? ["foodlion", "instacart"] : ["walmart", "amazon"];
+      retailers.forEach((retailerId) => {
+        const retailer = RETAILER_ALLOWLIST[retailerId];
+        const href = retailer.itemUrl(item.item);
+        const label = retailer.itemLabel;
         const link = el("a", "retailer-link secondary", label);
         link.href = href;
-        link.target = "_blank";
+        link.target = "_top";
         link.rel = "noopener noreferrer";
-        link.setAttribute("aria-label", `Open ${item.item} with ${label}`);
+        link.setAttribute("aria-label", `Shop for ${item.item} with ${retailer.name}`);
         actions.appendChild(link);
       });
       const reroute = el("button", "secondary route-toggle", route === "food" ? "Move to home & personal" : "Move to food");
@@ -583,7 +611,7 @@ function renderMarketList(items) {
           const target = route === "food" ? "home" : "food";
           await api(`/api/pantry/grocery/${item.id}/type`, "POST", { shopping_type: target });
           $("shopping-status").textContent = `${item.item} now routes to ${target === "food" ? "Food Lion and Instacart" : "Walmart and Amazon"}.`;
-          loadPantry();
+          loadShopping();
         } catch (error) {
           $("shopping-status").textContent = `Route not changed: ${error.message}`;
           reroute.disabled = false;
@@ -595,7 +623,7 @@ function renderMarketList(items) {
         try {
           await api("/api/pantry/grocery/remove", "POST", { item: item.item });
           $("shopping-status").textContent = `${item.item} removed from the shopping list.`;
-          loadPantry();
+          loadShopping();
         } catch (error) {
           $("shopping-status").textContent = `Item not removed: ${error.message}`;
           done.disabled = false;
@@ -613,7 +641,7 @@ async function loadPantry() {
   const pantryEl = $("pantry");
   pantryEl.textContent = "Loading inventory…";
   try {
-    const [p, market, chef] = await Promise.all([api("/api/pantry"), api("/api/pantry/grocery"), api("/api/pantry/chef")]);
+    const [p, chef] = await Promise.all([api("/api/pantry"), api("/api/pantry/chef")]);
     renderChefSuggestions(chef);
     $("pantry-readiness").textContent = `${p.items.length} ITEMS · ${chef.pantry.out} OUT · ${chef.pantry.low} LOW`;
     pantryEl.replaceChildren();
@@ -653,10 +681,19 @@ async function loadPantry() {
         pantryEl.appendChild(line);
       });
     }
-    renderMarketList(market);
   } catch (error) {
     pantryEl.replaceChildren(el("div", "empty-state error-state", `Pantry unavailable · ${error.message}`));
     $("chef-suggestions").replaceChildren(el("div", "empty-state error-state", `Chef Jarvis unavailable · ${error.message}`));
+  }
+}
+
+async function loadShopping() {
+  const grocery = $("grocery");
+  grocery.replaceChildren(el("div", "empty-state", "Loading routed shopping list…"));
+  try {
+    renderMarketList(await api("/api/pantry/grocery"));
+  } catch (error) {
+    grocery.replaceChildren(el("div", "empty-state error-state", `Shopping list unavailable · ${error.message}`));
   }
 }
 
@@ -878,12 +915,12 @@ $("pantry-sync-btn").onclick = async () => {
 $("market-build-btn").onclick = async () => {
   const button = $("market-build-btn");
   button.disabled = true;
-  $("pantry-status").textContent = "Jarvis is checking low and depleted stock…";
+  $("shopping-status").textContent = "Jarvis is checking low and depleted stock…";
   try {
     const result = await api("/api/pantry/market-list/build", "POST", { recipe_ids: [], include_low_stock: true });
-    $("pantry-status").textContent = `${result.added} low-stock item${result.added === 1 ? "" : "s"} reviewed. ${result.checkout}`;
-    loadPantry();
-  } catch (error) { $("pantry-status").textContent = error.message; }
+    $("shopping-status").textContent = `${result.added} low-stock item${result.added === 1 ? "" : "s"} reviewed. ${result.checkout}`;
+    loadShopping();
+  } catch (error) { $("shopping-status").textContent = `Low-stock review failed: ${error.message}`; }
   finally { button.disabled = false; }
 };
 
@@ -902,7 +939,7 @@ $("shopping-add-btn").onclick = async () => {
     await api("/api/pantry/grocery", "POST", { item, shopping_type: shoppingType });
     $("shopping-status").textContent = `${item} added for ${shoppingType === "food" ? "Food Lion or Instacart" : "Walmart or Amazon"}.`;
     $("shopping-item").value = "";
-    loadPantry();
+    loadShopping();
   } catch (error) {
     $("shopping-status").textContent = `Item not added: ${error.message}`;
   } finally {
@@ -1823,7 +1860,8 @@ $("profile-btn").onclick = async () => {
   loadProfiles();
 };
 
-loadToday();
+const requestedPanel = new URLSearchParams(window.location.search).get("tab");
+activatePanel(requestedPanel || "today");
 loadProfiles();
 
 // ---------- Jarvis Command Center ----------
