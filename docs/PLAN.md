@@ -68,7 +68,7 @@ Then open `http://<laptop-ip>:8123` from any device on your WiFi, create your ac
 2. Run Whisper (speech-to-text) + Piper (text-to-speech) as Docker containers on the X1:
    ```bash
    docker run -d --restart=unless-stopped -p 10300:10300 \
-     rhasspy/wyoming-whisper --model small-int8 --language en
+     rhasspy/wyoming-whisper --model base-int8 --language en
    docker run -d --restart=unless-stopped -p 10200:10200 \
      rhasspy/wyoming-piper --voice en_GB-alan-medium --length-scale 1.03 \
        --noise-scale 0.45 --noise-w-scale 0.70 --sentence-silence 0.18
@@ -391,7 +391,8 @@ A custom app in the same stack (its own container, port 8090, mobile-friendly we
   investigation.
 
 ### LifeOS v0.2 — the personal operating system layer (built)
-- **Morning briefing** (`GET /api/briefing`): weather (Open-Meteo, set `LIFEOS_LAT`/
+- **Morning briefing** (`GET /api/briefing`): Internet Intelligence Broker weather,
+  air quality, official alerts, connected agenda, and traffic (set `LIFEOS_LAT`/
   `LIFEOS_LON`), protein/steps status, vitamins, bills due in 7 days, leftover after
   bills, today's workouts, breakfast pick — plus a `speech` string Jarvis reads aloud
   at 7:30 (see `ha-config/automations/briefing.yaml`).

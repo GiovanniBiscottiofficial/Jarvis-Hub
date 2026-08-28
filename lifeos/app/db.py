@@ -153,7 +153,11 @@ CREATE TABLE IF NOT EXISTS assets (
     name TEXT NOT NULL UNIQUE,
     kind TEXT NOT NULL DEFAULT 'retirement',
     balance REAL NOT NULL DEFAULT 0,
-    per_paycheck REAL NOT NULL DEFAULT 0
+    per_paycheck REAL NOT NULL DEFAULT 0,
+    ytd_contributions REAL NOT NULL DEFAULT 0,
+    lifetime_contributions REAL NOT NULL DEFAULT 0,
+    as_of TEXT,
+    balance_verified INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS deposits (
@@ -184,6 +188,68 @@ CREATE TABLE IF NOT EXISTS grocery_list (
     estimated_price REAL,
     recipe_id TEXT,
     shopping_type TEXT NOT NULL DEFAULT 'auto'
+);
+
+CREATE TABLE IF NOT EXISTS financial_transactions (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    posted_date TEXT NOT NULL,
+    account_id INTEGER REFERENCES accounts(id),
+    direction TEXT NOT NULL CHECK (direction IN ('debit','credit')),
+    amount REAL NOT NULL CHECK (amount > 0),
+    merchant TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'Uncategorized',
+    source TEXT NOT NULL DEFAULT 'manual',
+    external_id TEXT,
+    fingerprint TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','verified','matched','excluded')),
+    matched_spending_id INTEGER REFERENCES spending(id),
+    reviewed_at TEXT,
+    note TEXT NOT NULL DEFAULT '',
+    apr REAL NOT NULL DEFAULT 0,
+    priority INTEGER NOT NULL DEFAULT 50,
+    priority_reason TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_status_date
+    ON financial_transactions(status, posted_date DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS account_reconciliations (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    previous_balance REAL NOT NULL,
+    actual_balance REAL NOT NULL,
+    difference REAL NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    confirmed_by TEXT NOT NULL DEFAULT 'Giovanni'
+);
+
+CREATE TABLE IF NOT EXISTS paycheck_cycles (
+    period TEXT PRIMARY KEY,
+    paycheck INTEGER NOT NULL CHECK (paycheck IN (1,2)),
+    payday TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned'
+        CHECK (status IN ('planned','funded','closed')),
+    account_id INTEGER REFERENCES accounts(id),
+    amount REAL NOT NULL DEFAULT 0,
+    opening_balance REAL,
+    closing_balance REAL,
+    funded_at TEXT,
+    closed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS financial_action_audit (
+    id INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    action TEXT NOT NULL,
+    risk TEXT NOT NULL,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    subject TEXT NOT NULL DEFAULT '',
+    before_json TEXT NOT NULL DEFAULT '{}',
+    after_json TEXT NOT NULL DEFAULT '{}',
+    reason TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS chef_feedback (
@@ -276,6 +342,53 @@ CREATE TABLE IF NOT EXISTS learning_audit (
     FOREIGN KEY(preference_id) REFERENCES learned_preferences(id)
 );
 
+CREATE TABLE IF NOT EXISTS commute_history (
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    observed_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    minutes REAL NOT NULL,
+    miles REAL,
+    source TEXT NOT NULL,
+    traffic_live INTEGER NOT NULL DEFAULT 0,
+    planned_departure TEXT,
+    PRIMARY KEY (date, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_commute_history_profile_date
+    ON commute_history(profile_id, date DESC);
+
+CREATE TABLE IF NOT EXISTS internet_feeds (
+    capability TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    source TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    observed_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (capability, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_internet_feeds_expiry
+    ON internet_feeds(profile_id, expires_at);
+
+CREATE TABLE IF NOT EXISTS body_checkins (
+    date TEXT NOT NULL,
+    profile_id INTEGER NOT NULL DEFAULT 1,
+    sleep_hours REAL,
+    sleep_quality INTEGER,
+    energy INTEGER,
+    mood INTEGER,
+    soreness INTEGER,
+    resting_heart_rate REAL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (date, profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_body_checkins_profile_date
+    ON body_checkins(profile_id, date DESC);
+
 CREATE TABLE IF NOT EXISTS savings_goals (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
@@ -355,8 +468,8 @@ DEFAULT_SETTINGS = {
     # Semi-monthly paycheck profile (per paycheck, two checks a month)
     "gross_annual_salary": "58992.00",
     "net_per_paycheck": "2064.24",
-    "split_onepay": "1754.60",
-    "split_truliant": "309.64",
+    "split_onepay": "1755.24",
+    "split_truliant": "309.00",
     "deduct_roth": "24.59",
     "deduct_401k": "24.59",
     "deduct_hsa": "15.98",
@@ -383,7 +496,6 @@ SEED_MEALS = [
 # name, role, baseline balance (applied only while the balance is still 0)
 SEED_ACCOUNTS = [
     ("OnePay", "operating", 113.00),
-    ("OnePay Savings", "savings", 0.00),
     ("Truliant", "savings", 147.96),
     ("Relay", "buckets", 311.68),
 ]
@@ -401,8 +513,7 @@ SEED_BILLS = [
     ("Car Insurance (monthly)", 105.00, 15, 2, "regular monthly bill", 0),
     ("Spectrum Internet", 93.95, 28, 1,
      "recurring apartment internet · due on the 28th", 0),
-    ("Phone Reconnection", 216.75, 1, 1, "restores service ($480.84 balance)", 1),
-    ("Phone Balance Arrangement", 66.02, 15, 2, "bi-weekly installment of $264.09", 0),
+    ("Phone Reconnection", 216.75, 1, 1, "one-time reconnection on third upcoming pay", 0),
     ("Klarna Statement", 61.77, 28, 1, "starts with third upcoming pay", 0),
     ("Old Spectrum Paydown", 39.00, 28, 1, "$39 per check · starts with third upcoming pay", 0),
     ("Duke Energy Payment Plan", 65.50, 28, 1,
@@ -445,8 +556,9 @@ SEED_ASSETS = [
 
 @contextmanager
 def conn():
-    c = sqlite3.connect(DB_PATH)
+    c = sqlite3.connect(DB_PATH, timeout=30)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=30000")
     c.execute("PRAGMA foreign_keys=ON")
     try:
         yield c
@@ -469,6 +581,17 @@ def _migrate(c: sqlite3.Connection) -> None:
         ],
         "savings_goals": [("monthly", "REAL NOT NULL DEFAULT 0")],
         "weighins": [("source", "TEXT NOT NULL DEFAULT 'manual'")],
+        "debts": [
+            ("apr", "REAL NOT NULL DEFAULT 0"),
+            ("priority", "INTEGER NOT NULL DEFAULT 50"),
+            ("priority_reason", "TEXT NOT NULL DEFAULT ''"),
+        ],
+        "assets": [
+            ("ytd_contributions", "REAL NOT NULL DEFAULT 0"),
+            ("lifetime_contributions", "REAL NOT NULL DEFAULT 0"),
+            ("as_of", "TEXT"),
+            ("balance_verified", "INTEGER NOT NULL DEFAULT 0"),
+        ],
         "pantry": [
             ("category", "TEXT NOT NULL DEFAULT 'other'"),
             ("low_stock_threshold", "REAL NOT NULL DEFAULT 1"),
@@ -505,6 +628,17 @@ def _migrate(c: sqlite3.Connection) -> None:
             " AND NOT EXISTS (SELECT 1 FROM deposits WHERE account_id=accounts.id)"
             " AND NOT EXISTS (SELECT 1 FROM bills WHERE account_id=accounts.id)"
         )
+        # OnePay Savings was a planning placeholder, not a real account. Remove
+        # only an untouched zero-balance row so genuine history is never lost.
+        c.execute(
+            "DELETE FROM accounts WHERE name='OnePay Savings' AND balance=0"
+            " AND NOT EXISTS (SELECT 1 FROM deposits WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM bills WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM financial_transactions"
+            " WHERE account_id=accounts.id)"
+            " AND NOT EXISTS (SELECT 1 FROM account_reconciliations"
+            " WHERE account_id=accounts.id)"
+        )
     for table in ("meal_log", "weighins", "workouts"):
         cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
         if cols and "profile_id" not in cols:
@@ -533,9 +667,21 @@ def _migrate(c: sqlite3.Connection) -> None:
 
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    # WAL lets Home Assistant event ingestion commit while dashboard and
+    # intelligence reads are active. The setting persists with the database,
+    # so establish it once before opening normal application connections.
+    bootstrap = sqlite3.connect(DB_PATH, timeout=30)
+    try:
+        bootstrap.execute("PRAGMA busy_timeout=30000")
+        bootstrap.execute("PRAGMA journal_mode=WAL")
+    finally:
+        bootstrap.close()
     with conn() as c:
-        _migrate(c)
+        # Create every current table before migrations inspect or cross-reference
+        # them. CREATE IF NOT EXISTS preserves the live database while allowing
+        # an older installation to gain newly introduced tables safely.
         c.executescript(SCHEMA)
+        _migrate(c)
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
         if c.execute(
@@ -561,6 +707,15 @@ def init_db() -> None:
             "UPDATE settings SET value='1754.60'"
             " WHERE key='split_onepay' AND value='1754.61'"
         )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='paycheck_split_fixed_309_v1'"
+        ).fetchone() is None:
+            c.execute("UPDATE settings SET value='1755.24' WHERE key='split_onepay'")
+            c.execute("UPDATE settings SET value='309.00' WHERE key='split_truliant'")
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('paycheck_split_fixed_309_v1',?)",
+                (date.today().isoformat(),),
+            )
         c.execute(
             "UPDATE bills SET name='Duke Energy Payment Plan',"
             " note='$65.50 installment · 4 scheduled payments'"
@@ -649,7 +804,6 @@ def init_db() -> None:
             )
             c.execute("UPDATE accounts SET balance=-25.73 WHERE name='Truliant'")
             c.execute("UPDATE accounts SET balance=0 WHERE name='Relay'")
-            c.execute("UPDATE accounts SET balance=0 WHERE name='OnePay Savings'")
             c.execute(
                 "INSERT INTO settings(key,value)"
                 " VALUES('finance_commissioning_v2',?)",
@@ -667,6 +821,30 @@ def init_db() -> None:
                 " VALUES('finance_commissioning_v4',?)",
                 (date.today().isoformat(),),
             )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='finance_phone_schedule_v1'"
+        ).fetchone() is None:
+            from .paydays import payday_schedule
+
+            third_pay = payday_schedule(date.today(), 3)[2]
+            # Keep one live Reconnection row and preserve its current amount.
+            # It belongs only to the third upcoming paycheck, never every P1.
+            c.execute(
+                "DELETE FROM bills WHERE name='Phone Reconnection'"
+                " AND id<>(SELECT MIN(id) FROM bills WHERE name='Phone Reconnection')"
+            )
+            c.execute(
+                "UPDATE bills SET paycheck=?,start_period=?,one_time=1,"
+                " paid_month=NULL,paid_period=NULL,"
+                " note='one-time reconnection on third upcoming pay'"
+                " WHERE name='Phone Reconnection'",
+                (third_pay["paycheck"], third_pay["period"]),
+            )
+            c.execute("DELETE FROM bills WHERE name='Phone Balance Arrangement'")
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('finance_phone_schedule_v1',?)",
+                (date.today().isoformat(),),
+            )
         if c.execute("SELECT COUNT(*) AS n FROM debts").fetchone()["n"] == 0:
             for d in SEED_DEBTS:
                 c.execute(
@@ -674,6 +852,25 @@ def init_db() -> None:
                     "cadence,note) VALUES(?,?,?,?,?,?)",
                     d,
                 )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='debt_priority_v1'"
+        ).fetchone() is None:
+            priorities = (
+                (10, "Essential electric service continuity", "Duke Energy Past Due"),
+                (20, "Transportation and income continuity", "Car Note Temp Fee"),
+                (30, "Communications account arrangement", "Phone Balance"),
+                (40, "Legacy utility balance and collections risk", "Old Spectrum"),
+                (50, "Consumer installment debt", "Klarna"),
+            )
+            for priority, reason, name in priorities:
+                c.execute(
+                    "UPDATE debts SET priority=?,priority_reason=? WHERE name=?",
+                    (priority, reason, name),
+                )
+            c.execute(
+                "INSERT INTO settings(key,value) VALUES('debt_priority_v1',?)",
+                (date.today().isoformat(),),
+            )
         for name, target, saved, monthly in SEED_GOALS:
             c.execute(
                 "INSERT OR IGNORE INTO savings_goals(name,target,saved,monthly)"
@@ -689,6 +886,61 @@ def init_db() -> None:
                 "INSERT OR IGNORE INTO assets(name,kind,per_paycheck)"
                 " VALUES(?,?,?)",
                 a,
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='retirement_totals_2026_08_25_v1'"
+        ).fetchone() is None:
+            retirement_totals = (
+                (527.45, 491.64, 491.64, "401(k)"),
+                (419.29, 393.32, 393.32, "Roth IRA"),
+            )
+            for balance, ytd, lifetime, name in retirement_totals:
+                c.execute(
+                    "UPDATE assets SET balance=?,ytd_contributions=?,"
+                    " lifetime_contributions=?,as_of='2026-08-25',"
+                    " balance_verified=1 WHERE name=?",
+                    (balance, ytd, lifetime, name),
+                )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('retirement_totals_2026_08_25_v1','2026-08-25')"
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='hsa_contributions_2026_08_25_v1'"
+        ).fetchone() is None:
+            c.execute(
+                "UPDATE assets SET ytd_contributions=319.60,"
+                " lifetime_contributions=319.60,as_of='2026-08-25'"
+                " WHERE name='HSA'"
+            )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('hsa_contributions_2026_08_25_v1','2026-08-25')"
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='asset_balance_verification_v1'"
+        ).fetchone() is None:
+            c.execute(
+                "UPDATE assets SET balance_verified=1"
+                " WHERE name IN ('401(k)','Roth IRA') AND as_of='2026-08-25'"
+            )
+            c.execute(
+                "UPDATE assets SET balance_verified=0 WHERE name='HSA'"
+            )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('asset_balance_verification_v1','2026-08-25')"
+            )
+        if c.execute(
+            "SELECT 1 FROM settings WHERE key='hsa_balance_2026_08_25_v1'"
+        ).fetchone() is None:
+            c.execute(
+                "UPDATE assets SET balance=319.60,balance_verified=1,"
+                " as_of='2026-08-25' WHERE name='HSA'"
+            )
+            c.execute(
+                "INSERT INTO settings(key,value)"
+                " VALUES('hsa_balance_2026_08_25_v1','2026-08-25')"
             )
         # correct the old seed name on existing databases (before seeding,
         # so the rename never collides with a freshly inserted 'Giovanni')

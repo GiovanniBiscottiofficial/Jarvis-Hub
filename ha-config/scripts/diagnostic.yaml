@@ -8,13 +8,13 @@ jarvis_diagnostic:
       data:
         message: >-
           Self-diagnostic complete.
-          Processing power: {{ states('sensor.processor_use') | int(0) }} percent utilized.
-          Memory: {{ states('sensor.memory_use_percent') | int(0) }} percent.
-          Storage: {{ states('sensor.disk_use_percent') | int(0) }} percent.
+          Processing power: {{ states('sensor.system_monitor_processor_use') | int(0) }} percent utilized.
+          Memory: {{ states('sensor.system_monitor_memory_usage') | int(0) }} percent.
+          Storage: {{ states('sensor.system_monitor_disk_usage') | int(0) }} percent.
           Core temperature: {{ states('sensor.x1_cpu_temperature') | int(0) }} degrees.
           Power: {{ 'on mains' if is_state('binary_sensor.mains_power', 'on')
                     else 'on battery at ' ~ states('sensor.x1_battery') ~ ' percent' }}.
-          {% set cpu = states('sensor.processor_use') | int(0) %}
+          {% set cpu = states('sensor.system_monitor_processor_use') | int(0) %}
           {% if cpu < 50 %}
             I am functioning at peak efficiency, Giovanni.
           {% elif cpu < 80 %}

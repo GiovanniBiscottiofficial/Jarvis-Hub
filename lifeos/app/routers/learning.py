@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ..db import active_profile, conn
+from ..pattern_learning import pattern_snapshot
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
 
@@ -241,12 +242,15 @@ def learning_snapshot(limit: int = 50) -> dict[str, Any]:
     for preference in preferences:
         if preference["status"] in counts:
             counts[preference["status"]] += 1
+    patterns = pattern_snapshot()
     return {
         "profile": profile["name"],
-        "summary": {**counts, "observations": len(observations)},
+        "summary": {**counts, "observations": len(observations),
+                    "patterns": patterns["summary"]["total"]},
         "preferences": preferences,
         "recent_observations": observations,
         "audit": audit,
+        "automatic_patterns": patterns,
         "policy": {
             "local_only": True,
             "explicit_evidence_only": True,

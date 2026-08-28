@@ -19,6 +19,9 @@ from ..context_engine import (
 )
 from ..db import conn
 from ..conversation_bridge import conversation_status
+from ..intelligence import build_intelligence
+from ..internet_intelligence import internet_snapshot
+from ..integration_fabric import build_integration_fabric
 from .learning import learning_snapshot
 
 router = APIRouter(prefix="/api", tags=["context"])
@@ -67,8 +70,43 @@ def get_context(event_limit: int = Query(default=20, ge=1, le=100)):
 def get_command_center(event_limit: int = Query(default=40, ge=1, le=100)):
     payload = command_center_payload(event_limit)
     payload.setdefault("context", {})["conversation"] = conversation_status()
-    payload["context"]["learning"] = learning_snapshot(limit=12)
+    learning = learning_snapshot(limit=12)
+    payload["context"]["learning"] = learning
+    payload["intelligence"] = build_intelligence(
+        payload["context"], learning=learning, proposals=payload.get("proposals", [])
+    )
+    payload["integrations"] = build_integration_fabric(
+        payload["context"], learning=learning, intelligence=payload["intelligence"]
+    )
+    payload["internet"] = internet_snapshot()
     return payload
+
+
+@router.get("/intelligence")
+def get_intelligence(event_limit: int = Query(default=100, ge=1, le=100)):
+    snapshot = current_context(event_limit)
+    learning = learning_snapshot(limit=50)
+    return build_intelligence(
+        snapshot,
+        learning=learning,
+        proposals=list_proposals("pending"),
+    )
+
+
+@router.get("/integrations")
+def get_integrations(event_limit: int = Query(default=100, ge=1, le=100)):
+    snapshot = current_context(event_limit)
+    learning = learning_snapshot(limit=50)
+    intelligence = build_intelligence(
+        snapshot,
+        learning=learning,
+        proposals=list_proposals("pending"),
+    )
+    return build_integration_fabric(
+        snapshot,
+        learning=learning,
+        intelligence=intelligence,
+    )
 
 
 @router.get("/events")

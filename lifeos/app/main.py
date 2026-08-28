@@ -14,21 +14,24 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .db import active_profile, conn, get_setting, init_db
+from .db import conn, init_db
 from .chef import chef_summary
 from .routers import (
     bodyops,
     budget,
     context,
     insights,
+    internet,
     learning,
+    money,
     pantry,
     profiles,
     vaultflow,
     webhooks,
 )
-from .routers.bodyops import protein_today, streak, water_today
+from .routers.bodyops import streak
 from .conversation_bridge import stop_voice_events, watch_voice_events
+from .context_engine import lifeos_snapshot
 
 
 @asynccontextmanager
@@ -198,26 +201,18 @@ app.include_router(webhooks.router)
 app.include_router(profiles.router)
 app.include_router(pantry.router)
 app.include_router(insights.router)
+app.include_router(internet.router)
 app.include_router(learning.router)
+app.include_router(money.router)
 app.include_router(context.router)
 
 
 @app.get("/api/today")
 def today():
     """Morning workflow payload: suggestions, progress, vault snapshot, nudges."""
+    operating_picture = lifeos_snapshot()
+    body = operating_picture["body"]
     with conn() as c:
-        prof = active_profile(c)
-        target = prof["protein_target_g"]
-        protein = protein_today(c)
-        steps_row = c.execute(
-            "SELECT count FROM steps WHERE date=? AND profile_id=?",
-            (date.today().isoformat(), prof["id"]),
-        ).fetchone()
-        vit_row = c.execute(
-            "SELECT taken FROM vitamins WHERE date=? AND profile_id=?",
-            (date.today().isoformat(), prof["id"]),
-        ).fetchone()
-        accounts = [dict(r) for r in c.execute("SELECT * FROM accounts").fetchall()]
         nudges = [
             dict(r)
             for r in c.execute(
@@ -226,22 +221,26 @@ def today():
         ]
         return {
             "date": date.today().isoformat(),
-            "profile": prof["name"],
-            "step_target": prof["step_target"],
+            "profile": operating_picture["profile"],
+            "step_target": body["step_target"],
             "meal_suggestions": chef_summary(max_minutes=15)["suggestions"][:3],
-            "protein": {"today_g": protein, "target_g": target},
-            "steps_today": steps_row["count"] if steps_row else 0,
-            "water": {
-                "today": water_today(c),
-                "target": int(get_setting("water_target_glasses") or 8),
+            "protein": {
+                "today_g": body["protein_g"],
+                "target_g": body["protein_target_g"],
             },
-            "vitamins_taken": bool(vit_row and vit_row["taken"]),
+            "steps_today": body["steps"],
+            "water": {
+                "today": body["water"],
+                "target": body["water_target"],
+            },
+            "vitamins_taken": body["vitamins_taken"],
             "streaks": {
                 "vitamins": streak(c, "vitamins"),
                 "steps": streak(c, "steps"),
             },
-            "vault_total": sum(a["balance"] for a in accounts),
+            "vault_total": operating_picture["vault"]["accounts_total"],
             "nudges": nudges,
+            "priorities": operating_picture["priorities"],
         }
 
 app.mount(

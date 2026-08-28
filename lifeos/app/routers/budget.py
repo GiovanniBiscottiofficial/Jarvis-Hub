@@ -6,6 +6,7 @@ split), Relay (earmarked sinking buckets). Paycheck #1 covers days 1–14,
 Paycheck #2 covers the 15th onward.
 """
 from datetime import date
+import json
 import re
 
 from fastapi import APIRouter, HTTPException
@@ -28,6 +29,14 @@ class DebtIn(BaseModel):
     installment: float = 0
     cadence: str = "per paycheck"
     note: str = ""
+    apr: float = 0
+    priority: int = 50
+    priority_reason: str = ""
+
+
+class DebtStrategyIn(BaseModel):
+    apr: float
+    priority: int
 
 
 class AssetBalanceIn(BaseModel):
@@ -73,13 +82,6 @@ def _period_bills(c, period: dict) -> list[dict]:
     return bills
 
 
-def _fund_monthly_total(c) -> float:
-    row = c.execute(
-        "SELECT COALESCE(SUM(monthly),0) s FROM savings_goals"
-    ).fetchone()
-    return row["s"]
-
-
 def _adjust_balance(c, role: str, delta: float) -> None:
     """Ledger sync: move real cash on the matching account (by role)."""
     row = c.execute(
@@ -115,16 +117,11 @@ def _adjust_account_balance(c, account_id: int, delta: float) -> None:
 _SLIDEABLE = ("paydown", "queued", "catchup", "past due")
 
 
-def _auto_shift(unpaid: list[dict], fund_half: float, deficit: float) -> dict:
+def _auto_shift(unpaid: list[dict], deficit: float) -> dict:
     """Suggest non-urgent items that can slide to the next check without
-    penalties: bucket contributions first, then catchup/paydown
-    arrangements (never rent, car note, insurance, or utilities)."""
+    penalties: catchup/paydown arrangements only (never rent, car note,
+    insurance, utilities, or discretionary bucket contributions)."""
     suggestions = []
-    if fund_half > 0:
-        suggestions.append(
-            {"kind": "buckets", "name": "Sinking bucket contributions",
-             "amount": round(fund_half, 2)}
-        )
     for b in sorted(unpaid, key=lambda b: b["amount"]):
         text = f"{b['name']} {b['note']}".lower()
         if any(k in text for k in _SLIDEABLE):
@@ -178,18 +175,20 @@ def _overview(c) -> dict:
     debts = [
         dict(r)
         for r in c.execute(
-            "SELECT * FROM debts WHERE remaining>0 ORDER BY remaining DESC"
+            "SELECT * FROM debts WHERE remaining>0 ORDER BY priority,remaining DESC"
         ).fetchall()
     ]
     assets = [
         dict(r) for r in c.execute("SELECT * FROM assets ORDER BY name").fetchall()
     ]
 
-    onepay_in = _cfg("split_onepay", 1754.60)
-    truliant_in = _cfg("split_truliant", 309.64)
+    net_pay = _cfg("net_per_paycheck", NET_PAY)
+    truliant_in = min(309.00, net_pay)
+    onepay_in = round(net_pay - truliant_in, 2)
     allocated = sum(b["amount"] for b in bills)
-    fund_half = _fund_monthly_total(c) / 2  # buckets funded across both checks
-    safe_to_spend = round(onepay_in - allocated - fund_half, 2)
+    # Relay contributions are manual and count only after Giovanni records an
+    # actual transfer. Targets never reduce paycheck availability or forecasts.
+    safe_to_spend = round(onepay_in - allocated, 2)
     unpaid = [b for b in bills if not b["paid"]]
 
     # Audit: real bank cash vs what the budget says is still committed.
@@ -227,7 +226,7 @@ def _overview(c) -> dict:
             f"OnePay is ${-onepay_gap:.2f} short of the ${unpaid_total:.2f}"
             " still committed this paycheck."
         )
-        auto_shift = _auto_shift(unpaid, fund_half, -onepay_gap)
+        auto_shift = _auto_shift(unpaid, -onepay_gap)
     elif abs(relay_gap) > 1:
         audit = "buffered"
         audit_note = (
@@ -240,18 +239,39 @@ def _overview(c) -> dict:
 
     total_debt = sum(d["remaining"] for d in debts)
     net_worth = round(ecosystem_cash + sum(a["balance"] for a in assets), 2)
+    retirement_assets = [a for a in assets if a["kind"] == "retirement"]
+    retirement_balance = round(sum(a["balance"] for a in retirement_assets), 2)
+    retirement_contributions = round(
+        sum(a["lifetime_contributions"] for a in retirement_assets), 2
+    )
+    retirement_summary = {
+        "balance": retirement_balance,
+        "contributions": retirement_contributions,
+        "unclassified_difference": round(retirement_balance - retirement_contributions, 2),
+        "as_of": max((a["as_of"] or "" for a in retirement_assets), default="") or None,
+        "breakdown": [
+            {
+                "name": "Pre-tax" if asset["name"] == "401(k)" else "Roth",
+                "balance": asset["balance"],
+                "percent": round(asset["balance"] / retirement_balance * 100, 1)
+                if retirement_balance else 0,
+            }
+            for asset in retirement_assets
+        ],
+    }
     debt_free = _debt_free_estimate(c)
 
     return {
         "period": period,
         "paycheck_in": {
-            "net": _cfg("net_per_paycheck", NET_PAY),
+            "net": net_pay,
             "onepay": onepay_in,
             "truliant": truliant_in,
         },
         "bills": bills,
         "allocated": round(allocated, 2),
-        "bucket_contribution": round(fund_half, 2),
+        "bucket_contribution": 0.0,
+        "bucket_contribution_policy": "manual_only",
         "safe_to_spend": safe_to_spend,
         "unpaid_total": round(unpaid_total, 2),
         "accounts": accounts,
@@ -268,6 +288,7 @@ def _overview(c) -> dict:
         "debts": debts,
         "total_debt": round(total_debt, 2),
         "assets": assets,
+        "retirement_summary": retirement_summary,
         "net_worth": net_worth,
         "paydays": payday_schedule(count=4),
     }
@@ -281,13 +302,12 @@ def overview():
 
 @router.get("/forecast")
 def forecast(periods: int = 6):
-    """Project the next N paychecks: income minus that check's allocations
-    and bucket contributions = expected surplus (or squeeze)."""
+    """Project paychecks after bills; Relay transfers are counted only when logged."""
     periods = max(1, min(periods, 12))
     with conn() as c:
-        onepay_in = _cfg("split_onepay", 1754.60)
-        truliant_in = _cfg("split_truliant", 309.64)
-        fund_half = _fund_monthly_total(c) / 2
+        net_pay = _cfg("net_per_paycheck", NET_PAY)
+        truliant_in = min(309.00, net_pay)
+        onepay_in = round(net_pay - truliant_in, 2)
         running = 0.0
         out = []
         for payday in payday_schedule(count=periods):
@@ -299,7 +319,7 @@ def forecast(periods: int = 6):
                 (n, payday["period"], payday["period"]),
             ).fetchone()
             bills = row["s"]
-            surplus = round(onepay_in - bills - fund_half, 2)
+            surplus = round(onepay_in - bills, 2)
             running = round(running + surplus + truliant_in, 2)
             out.append(
                 {
@@ -378,7 +398,7 @@ def list_debts():
     with conn() as c:
         return [
             dict(r)
-            for r in c.execute("SELECT * FROM debts ORDER BY remaining DESC").fetchall()
+            for r in c.execute("SELECT * FROM debts ORDER BY priority,remaining DESC").fetchall()
         ]
 
 
@@ -387,19 +407,50 @@ def add_debt(body: DebtIn):
     name = body.name.strip()
     if not name:
         raise HTTPException(400, "debt name is required")
-    if body.total < 0 or body.remaining < 0 or body.installment < 0:
+    if body.total < 0 or body.remaining < 0 or body.installment < 0 or body.apr < 0:
         raise HTTPException(400, "debt amounts cannot be negative")
+    if not 1 <= body.priority <= 999:
+        raise HTTPException(400, "priority must be between 1 and 999")
     if body.remaining > body.total and body.total > 0:
         raise HTTPException(400, "remaining debt cannot exceed total debt")
     with conn() as c:
         c.execute(
-            "INSERT INTO debts(name,total,remaining,installment,cadence,note)"
-            " VALUES(?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
+            "INSERT INTO debts(name,total,remaining,installment,cadence,note,apr,priority,priority_reason)"
+            " VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET"
             " total=excluded.total, remaining=excluded.remaining,"
             " installment=excluded.installment, cadence=excluded.cadence,"
-            " note=excluded.note",
+            " note=excluded.note, apr=excluded.apr, priority=excluded.priority,"
+            " priority_reason=excluded.priority_reason",
             (name, body.total, body.remaining or body.total,
-             body.installment, body.cadence.strip(), body.note.strip()),
+             body.installment, body.cadence.strip(), body.note.strip(), body.apr,
+             body.priority, body.priority_reason.strip()),
+        )
+        return {"ok": True}
+
+
+@router.post("/debts/{debt_id}/strategy")
+def update_debt_strategy(debt_id: int, body: DebtStrategyIn):
+    if body.apr < 0 or body.apr > 100:
+        raise HTTPException(400, "APR must be between 0 and 100")
+    if not 1 <= body.priority <= 999:
+        raise HTTPException(400, "priority must be between 1 and 999")
+    with conn() as c:
+        debt = c.execute("SELECT * FROM debts WHERE id=?", (debt_id,)).fetchone()
+        if debt is None:
+            raise HTTPException(404, "debt not found")
+        c.execute(
+            "UPDATE debts SET apr=?,priority=? WHERE id=?",
+            (body.apr, body.priority, debt_id),
+        )
+        c.execute(
+            "INSERT INTO financial_action_audit(action,risk,confirmed,subject,"
+            "before_json,after_json,reason) VALUES(?,?,?,?,?,?,?)",
+            (
+                "finance.update_debt_strategy", "low", 0, debt["name"],
+                json.dumps({"apr": debt["apr"], "priority": debt["priority"]}),
+                json.dumps({"apr": body.apr, "priority": body.priority}),
+                "Strategy metadata only; no payment or balance changed",
+            ),
         )
         return {"ok": True}
 
@@ -443,7 +494,7 @@ def contribute_fund(goal_id: int, body: FundContributionIn):
 
 @router.post("/windfall")
 def windfall(body: WindfallIn):
-    """Route side income / windfalls: 100% to highest debt, 50/50 debt +
+    """Route side income / windfalls: 100% to highest-priority debt, 50/50 debt +
     buckets, or straight into the safe-to-spend buffer."""
     if body.amount <= 0:
         raise HTTPException(400, "amount must be positive")
@@ -457,7 +508,7 @@ def windfall(body: WindfallIn):
         bucket_share = round(body.amount / 2, 2) if body.route == "split" else 0.0
         pool = debt_share
         for d in c.execute(
-            "SELECT * FROM debts WHERE remaining>0 ORDER BY remaining DESC"
+            "SELECT * FROM debts WHERE remaining>0 ORDER BY priority,remaining DESC"
         ).fetchall():
             if pool <= 0:
                 break
@@ -522,7 +573,7 @@ def budget_speech(c) -> dict:
     sts = o["safe_to_spend"]
     budget = (
         f"Paycheck {p['paycheck']} plan: ${o['allocated']:.0f} allocated to"
-        f" bills, ${o['bucket_contribution']:.0f} to buckets, leaving"
+        f" bills. Relay bucket transfers are manual and not deducted, leaving"
         f" ${sts:.0f} safe to spend. Audit says {o['audit']}:"
         f" {o['audit_note']}"
     )

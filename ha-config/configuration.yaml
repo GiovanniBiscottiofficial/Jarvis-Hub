@@ -59,10 +59,7 @@ notify:
     name: jarvis_phone
     services:
       - action: persistent_notification
-      - action: mobile_app_se_device
-
-# Local shopping list ("Jarvis, add milk to the shopping list")
-shopping_list:
+      - action: mobile_app_iphone
 
 # Wake computers over the network (fill in MACs, see README Phase 17)
 wake_on_lan:
@@ -257,6 +254,10 @@ input_boolean:
     name: Thunderstorm video on bedroom Fire TV
     icon: mdi:television-play
     initial: true
+  jarvis_arrival_music_enabled:
+    name: Arrival R&B music
+    icon: mdi:music-heart
+    initial: true
   guest_mode:
     name: Guest mode
     icon: mdi:account-group
@@ -319,7 +320,11 @@ input_text:
   sanctuary_thunderstorm_media_url:
     name: Thunderstorm media URL
     max: 255
-    initial: https://www.youtube.com/watch?v=oebqrILXLWs
+    initial: https://www.youtube.com/watch?v=HoB02OepXlE&t=31047s
+  jarvis_arrival_spotify_playlist_uri:
+    name: Arrival Spotify R&B playlist URI
+    max: 255
+    initial: ""
 
 # Calibration values are device commands, never assumptions about perceived
 # brightness. The first five helpers are intentionally capped at 5 percent.
@@ -410,7 +415,7 @@ rest:
     sensor:
       - name: LifeOS morning briefing
         value_template: "{{ value_json.date }}"
-        json_attributes: [speech, briefing_style, briefing_period, sections, leftover_after_bills, vitamins_taken, paydays, affirmation, dinner_prep]
+        json_attributes: [speech, briefing_style, briefing_period, sections, leftover_after_bills, vitamins_taken, paydays, affirmation, dinner_prep, commute]
   - resource: http://localhost:8090/api/review/weekly
     headers:
       Authorization: !secret lifeos_api_authorization
@@ -427,7 +432,7 @@ rest:
     sensor:
       - name: LifeOS answers
         value_template: "{{ now().isoformat() }}"
-        json_attributes: [protein, steps, bills, money, meals, spending, grocery, pantry, water, water_count, water_target, goals, memory, dinner, evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
+        json_attributes: [protein, steps, bills, money, meals, spending, grocery, pantry, water, water_count, water_target, goals, memory, dinner, evening, body_readiness, body_morning, body_evening, nudge, nudge_id, budget, paycheck, networth, safe_to_spend, audit_health, paydays]
   # Month-to-date spending from the LifeOS ledger (voice-logged spends)
   - resource: http://localhost:8090/api/vault/spending
     headers:
@@ -448,6 +453,17 @@ rest:
         unit_of_measurement: "$"
         value_template: "{{ value_json.safe_to_spend | round(2) }}"
         json_attributes: [audit, audit_note, allocated, unpaid_total, ecosystem_cash, total_debt, net_worth, period]
+  # One machine-readable verdict for every Jarvis subsystem. Optional devices
+  # remain uncommissioned instead of presenting as failed dependencies.
+  - resource: http://localhost:8090/api/integrations
+    headers:
+      Authorization: !secret lifeos_api_authorization
+    scan_interval: 60
+    sensor:
+      - name: Jarvis integration fabric
+        unique_id: jarvis_integration_fabric
+        value_template: "{{ value_json.status }}"
+        json_attributes: [summary, node_states, issues, required_disconnected, integrity]
 
 # The X1's built-in UPS: reads the laptop's own AC-adapter and battery
 # state from the kernel, so a power outage is detected the second the

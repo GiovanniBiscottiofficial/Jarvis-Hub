@@ -52,8 +52,11 @@ views:
             tap_action:
               action: toggle
           - type: iframe
-            url: /local/jarvis-avatar.html
+            url: /local/jarvis-avatar.html?v=20260826-1
             aspect_ratio: 75%
+            grid_options:
+              columns: full
+              rows: 4
           - type: markdown
             title: Try saying…
             content: |
@@ -86,8 +89,11 @@ views:
             heading: Lights
             icon: mdi:lightbulb-group
           - type: iframe
-            url: /local/jarvis-lights.html
+            url: /local/jarvis-lights.html?v=20260826-1
             aspect_ratio: 120%
+            grid_options:
+              columns: full
+              rows: 8
           - type: heading
             heading: Scenes
             icon: mdi:palette
@@ -130,11 +136,6 @@ views:
 
       - type: grid
         cards:
-          - type: heading
-            heading: Shopping
-            icon: mdi:cart-outline
-          - type: todo-list
-            entity: todo.shopping_list
           - type: heading
             heading: Jarvis activity
             icon: mdi:robot
@@ -276,8 +277,11 @@ views:
                   target:
                     entity_id: input_boolean.sleep_mode
           - type: iframe
-            url: /local/jarvis-avatar.html
+            url: /local/jarvis-avatar.html?v=20260826-1
             aspect_ratio: 70%
+            grid_options:
+              columns: full
+              rows: 4
             card_mod:
               style: |
                 ha-card {
@@ -305,10 +309,14 @@ views:
                 }
 
       - type: grid
+        column_span: 2
         cards:
           - type: iframe
-            url: /local/jarvis-rooms.html
+            url: /local/jarvis-rooms.html?v=20260826-1
             aspect_ratio: 125%
+            grid_options:
+              columns: full
+              rows: 12
             card_mod:
               style: |
                 ha-card {
@@ -491,16 +499,6 @@ views:
             animate: true
             show:
               fill: fade
-          - type: heading
-            heading: Shopping
-            icon: mdi:cart-outline
-          - type: todo-list
-            entity: todo.shopping_list
-          - type: heading
-            heading: Errands
-            icon: mdi:run-fast
-          - type: todo-list
-            entity: todo.errands
 
   # ------------------------------------------------------------------
   - title: Home
@@ -803,7 +801,7 @@ views:
     type: panel
     cards:
       - type: iframe
-        url: /local/jarvis-media.html
+        url: /local/jarvis-media.html?v=20260826-1
         aspect_ratio: 72%
         card_mod:
           style: |
@@ -821,19 +819,8 @@ views:
     icon: mdi:clipboard-check-outline
     theme: Jarvis
     type: sections
-    max_columns: 4
+    max_columns: 3
     sections:
-      - type: grid
-        cards:
-          - type: heading
-            heading: Home Assistant list
-            icon: mdi:format-list-checks
-          - type: markdown
-            content: >
-              Voice and manually added Home Assistant tasks live here. This is
-              separate from the routed Jarvis list.
-          - type: todo-list
-            entity: todo.shopping_list
       - type: grid
         column_span: 2
         cards:
@@ -852,8 +839,9 @@ views:
             icon: mdi:fridge-outline
           - type: markdown
             content: >
-              Grocy tracks inventory and expiry dates. It is separate from both
-              Home Assistant tasks and the Jarvis routed shopping database.
+              Grocy is the inventory and expiry ledger. LifeOS reads it to build
+              one routed Jarvis shopping list; Home Assistant does not keep a
+              competing list.
           - type: button
             name: Open Grocy
             icon: mdi:open-in-new
@@ -892,16 +880,35 @@ views:
           #     - binary_sensor.front_door_person_occupancy
 
   # ------------------------------------------------------------------
-  # Digital twin: live "what is the house doing" view. The floorplan card
-  # lights up once you drop a floorplan image at ha-config/www/floorplan.png
-  # and uncomment the picture-elements block below.
-  - title: Twin
+  # Interactive apartment command surface backed by the commissioned
+  # sanctuary-floorplan.png and live Home Assistant area/entity registries.
+  - title: Floor Plan
     path: twin
-    icon: mdi:home-analytics
+    icon: mdi:floor-plan
     theme: Jarvis
     type: sections
     max_columns: 3
     sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Sanctuary Floor Plan
+            icon: mdi:floor-plan
+          - type: iframe
+            url: /local/jarvis-rooms.html?v=20260826-1
+            aspect_ratio: 125%
+            grid_options:
+              columns: full
+              rows: 12
+            card_mod:
+              style: |
+                ha-card {
+                  background: #030910;
+                  border: 1px solid rgba(67, 217, 238, 0.22);
+                  box-shadow: none;
+                  overflow: hidden;
+                }
       - type: grid
         cards:
           - type: heading
@@ -952,32 +959,6 @@ views:
             hours_to_show: 24
             entities:
               - sensor.x1_battery
-      - type: grid
-        cards:
-          - type: heading
-            heading: Floorplan
-            icon: mdi:floor-plan
-          - type: markdown
-            content: >
-              Drop a floorplan image at `ha-config/www/floorplan.png`
-              (draw one free at floorplanner.com or sweethome3d.com),
-              then replace this card with the picture-elements block
-              commented in the YAML — tap rooms to control lights.
-          # - type: picture-elements
-          #   image: /local/floorplan.png
-          #   elements:
-          #     - type: state-icon
-          #       entity: light.living_room
-          #       tap_action: {action: toggle}
-          #       style: {top: 40%, left: 30%}
-          #     - type: state-icon
-          #       entity: light.bedroom
-          #       tap_action: {action: toggle}
-          #       style: {top: 30%, left: 70%}
-          #     - type: state-icon
-          #       entity: vacuum.juno
-          #       style: {top: 65%, left: 50%}
-
   - title: System
     path: system
     icon: mdi:laptop

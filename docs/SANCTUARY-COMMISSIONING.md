@@ -31,7 +31,7 @@ then increase in one-point steps only when needed.
 
 Record and verify:
 
-- Bedroom Thunderstorm: 1–2% target, remains active until weekday Sunrise.
+- Bedroom Thunderstorm: dim blue at a 1–2% target, remains active until weekday Sunrise.
 - Bathroom Light 5 night beacon: 1–3% target.
 - Hallway, Dining Area, and Entry navigation: 1–3% only where required.
 - Welcome: 20–50%, provisional starting point 35%.

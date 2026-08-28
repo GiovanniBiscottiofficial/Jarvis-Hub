@@ -110,9 +110,11 @@ def test_embedded_briefing_uses_authenticated_home_assistant_voice_bridge():
     assert "parent_origin=" in wrapper
     assert "parent_origin=" in panel
     assert 'get("parent_origin")' in app_script
-    assert "app.js?v=14" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
-    assert "Promise.resolve(speechJob).catch" in wrapper
-    assert "Promise.resolve(speechJob).catch" in panel
+    assert "app.js?v=22" in (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
+    assert "await hass.callService" in wrapper
+    assert "await this._hass.callService" in panel
+    assert "using local speech" in wrapper
+    assert "using local speech" in panel
     assert "lifeos-panel.js?v=7" in configuration
 
     speech = (REPO_ROOT / "ha-config/scripts/jarvis_say.yaml").read_text(
@@ -141,7 +143,7 @@ def test_spoken_briefing_refreshes_live_and_accepts_natural_requests():
     assert "sections" in configuration
     app_script = (REPO_ROOT / "lifeos/app/static/app.js").read_text(encoding="utf-8")
     index = (REPO_ROOT / "lifeos/app/static/index.html").read_text(encoding="utf-8")
-    assert 'cache: method === "GET" ? "no-store" : "default"' in app_script
+    assert 'cache: normalizedMethod === "GET" ? "no-store" : "default"' in app_script
     assert "<h2>Jarvis briefing</h2>" in index
     assert "<h2>Morning briefing</h2>" not in index
 
@@ -321,7 +323,10 @@ def test_thunderstorm_media_is_available_but_protects_scheduled_playback():
     script = (REPO_ROOT / "ha-config/scripts/sanctuary.yaml").read_text()
 
     assert "sanctuary_thunderstorm_tv_enabled:" in configuration
-    assert "https://www.youtube.com/watch?v=oebqrILXLWs" in configuration
+    assert (
+        "https://www.youtube.com/watch?v=HoB02OepXlE&t=31047s"
+        in configuration
+    )
     assert "sanctuary_start_thunderstorm_media:" in script
     assert "media_player.fire_tv_192_168_1_62" in script
     assert "active_playback_protected" in script
@@ -417,6 +422,11 @@ def test_thunderstorm_uses_exact_protected_overnight_layout():
     assert "brightness_pct: 1" in night_lights
     assert "area: bedroom" in thunderstorm
     assert "[requested, 2] | min" in thunderstorm
+    assert "hue: 220" in thunderstorm
+    assert "saturation: 90" in thunderstorm
+    assert "kelvin: 2200" not in thunderstorm.split(
+        "service: script.sanctuary_apply_room_lighting", 1
+    )[1]
 
 
 def test_evening_profiles_avoid_tuya_hs_mode_brightness_reset():

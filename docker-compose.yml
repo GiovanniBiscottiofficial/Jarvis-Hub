@@ -37,6 +37,16 @@ services:
       # Weather in the morning briefing (Open-Meteo, no API key)
       - LIFEOS_LAT=${LIFEOS_LAT:-}
       - LIFEOS_LON=${LIFEOS_LON:-}
+      # Home-to-work briefing route. A commissioned HA commute sensor wins;
+      # otherwise LifeOS labels the keyless OSRM estimate as baseline-only.
+      - LIFEOS_WORK_ADDRESS=${LIFEOS_WORK_ADDRESS:-4411 W. Market St, Greensboro, NC 27405}
+      - LIFEOS_WORK_LAT=${LIFEOS_WORK_LAT:-}
+      - LIFEOS_WORK_LON=${LIFEOS_WORK_LON:-}
+      - LIFEOS_COMMUTE_ENTITY=${LIFEOS_COMMUTE_ENTITY:-}
+      # Internet Intelligence Broker: optional calendar selection and a private
+      # USDA key (DEMO_KEY is used only as a low-rate fallback).
+      - LIFEOS_CALENDAR_ENTITY=${LIFEOS_CALENDAR_ENTITY:-}
+      - USDA_FDC_API_KEY=${USDA_FDC_API_KEY:-DEMO_KEY}
       # Grocy pantry sync (Grocy → Settings → Manage API keys)
       - GROCY_URL=${GROCY_URL:-}
       - GROCY_API_KEY=${GROCY_API_KEY:-}
@@ -62,7 +72,7 @@ services:
     image: rhasspy/wyoming-whisper
     profiles: [voice]
     restart: unless-stopped
-    command: --model small-int8 --language en
+    command: --model base-int8 --language en
     ports:
       - "10300:10300"
     volumes:

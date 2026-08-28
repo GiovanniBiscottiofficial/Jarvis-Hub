@@ -1,24 +1,40 @@
 """Insights: morning briefing + weekly review (both return a `speech`
 string Jarvis/HA can read aloud via TTS)."""
+import asyncio
+import io
 import os
+import re
+import wave
 from datetime import date, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
+from ..body_intelligence import daily_loop
 from ..chef import chef_summary
+from ..commute import commute_snapshot
+from ..context_engine import current_context, list_proposals
 from ..db import active_profile, conn, get_setting
+from ..intelligence import build_intelligence
+from ..internet_intelligence import internet_snapshot
+from ..pattern_learning import record_commute_observation
 from ..paydays import payday_schedule, scheduled_bill_due_date
 from .bodyops import protein_today, streak, water_today
 from .budget import budget_speech
-from .learning import forget_learning_value, record_learning_observation
+from .learning import (
+    forget_learning_value,
+    learning_snapshot,
+    record_learning_observation,
+)
 from .vaultflow import week_spending
 
 router = APIRouter(prefix="/api", tags=["insights"])
 
 LAT = os.environ.get("LIFEOS_LAT", "")
 LON = os.environ.get("LIFEOS_LON", "")
+PIPER_URI = os.environ.get("PIPER_URI", "tcp://piper:10200")
 
 WEATHER_CODES = {
     0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "overcast",
@@ -145,6 +161,47 @@ def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
             ),
         )
 
+    alerts = facts.get("weather_alerts") or []
+    if alerts:
+        alert = alerts[0]
+        add(
+            "weather_alert",
+            f"Official weather alert: {alert.get('event') or alert.get('headline')}. "
+            f"Severity is {str(alert.get('severity') or 'not specified').lower()}.",
+        )
+
+    agenda = facts.get("agenda") or []
+    if agenda:
+        event = agenda[0]
+        start = str(event.get("start") or "")
+        try:
+            start_label = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone().strftime("%I:%M %p").lstrip("0")
+        except (ValueError, TypeError):
+            start_label = start[:16].replace("T", " at ")
+        add(
+            "agenda",
+            f"Your next scheduled item is {event.get('summary') or 'an event'}"
+            f"{f' at {start_label}' if start_label else ''}.",
+        )
+
+    commute = facts.get("commute")
+    if period == "morning" and facts.get("workday") and commute and commute.get("minutes"):
+        distance = (
+            f" over {commute['miles']:.1f} miles" if commute.get("miles") is not None else ""
+        )
+        if commute.get("traffic_live"):
+            add(
+                "commute",
+                f"Your live commute to work is {commute['minutes']} minutes{distance}. "
+                f"Your planned departure is {commute.get('planned_departure', '07:35')}.",
+            )
+        else:
+            add(
+                "commute",
+                f"Your normal drive to work is about {commute['minutes']} minutes{distance}. "
+                f"Live traffic is not commissioned, so keep your {commute.get('planned_departure', '07:35')} departure buffer.",
+            )
+
     vitamins_pending = not facts["vitamins_taken"]
     meal_name = facts.get("meal_name")
     if period == "morning" and vitamins_pending and meal_name:
@@ -227,6 +284,10 @@ def compose_briefing(facts: dict, *, hour: int, day_ordinal: int) -> dict:
     if period != "morning" and meal_name:
         add("meal", f"Your best pantry match is {meal_name}.")
 
+    decision_support = facts.get("decision_support")
+    if decision_support:
+        add("decision_support", str(decision_support))
+
     add(
         "closing",
         _pick(
@@ -280,7 +341,16 @@ def morning_briefing():
     bills_total = sum(b["amount"] for b in bills)
     leftover = total - bills_total
     meals = chef_summary()["suggestions"][:2]
-    weather = _weather()
+    online = internet_snapshot()
+    online_sources = {source["id"]: source for source in online["sources"]}
+    weather_source = online_sources.get("weather", {})
+    weather = weather_source.get("data") if weather_source.get("status") in {"ready", "stale"} else _weather()
+    workday = date.today().weekday() < 5
+    commute = online_sources.get("commute", {}).get("data") if workday else None
+    if workday and not commute:
+        commute = commute_snapshot()
+    if commute:
+        record_commute_observation(pid, commute)
 
     paydays = payday_schedule(count=2)
     next_pay = paydays[0]
@@ -292,11 +362,34 @@ def morning_briefing():
     )
     affirmation = affirmations[date.today().toordinal() % len(affirmations)]
 
+    intelligence = build_intelligence(
+        current_context(event_limit=40),
+        learning=learning_snapshot(limit=20),
+        proposals=list_proposals("pending"),
+    )
+    # Body, food, and finance already have dedicated briefing sections.  Only
+    # inject cross-domain safety/presence conflicts so Jarvis adds intelligence
+    # without repeating the same facts in different words.
+    spoken_intelligence = next(
+        (
+            item
+            for item in intelligence["recommendations"]
+            if item["id"] in {"review_security", "resolve_away_presence"}
+            and item["confidence"] >= 0.7
+            and intelligence["data_quality"]["fresh"]
+        ),
+        None,
+    )
+
     spoken = compose_briefing(
         {
             "name": prof["name"],
             "affirmation": affirmation,
             "weather": weather,
+            "weather_alerts": online_sources.get("weather_alerts", {}).get("data", {}).get("alerts", []),
+            "agenda": online_sources.get("calendar", {}).get("data", {}).get("events", []),
+            "workday": workday,
+            "commute": commute,
             "protein": protein,
             "protein_target": prof["protein_target_g"],
             "vitamins_taken": bool(vit_row and vit_row["taken"]),
@@ -310,6 +403,12 @@ def morning_briefing():
             "audit_health": budget["audit_health"],
             "workouts": workouts,
             "next_pay": next_pay,
+            "decision_support": (
+                f"Decision support: {spoken_intelligence['title']}. "
+                f"{spoken_intelligence['rationale']}"
+                if spoken_intelligence
+                else None
+            ),
         },
         hour=datetime.now().hour,
         day_ordinal=date.today().toordinal(),
@@ -319,6 +418,8 @@ def morning_briefing():
         "date": today_iso,
         "profile": prof["name"],
         "weather": weather,
+        "internet": online,
+        "commute": commute,
         "protein": {"today_g": protein, "target_g": prof["protein_target_g"]},
         "steps_today": steps_row["count"] if steps_row else 0,
         "vitamins_taken": bool(vit_row and vit_row["taken"]),
@@ -334,6 +435,7 @@ def morning_briefing():
             else "Choose and thaw something for dinner before leaving."
         ),
         "paydays": paydays,
+        "intelligence": intelligence,
         "briefing_style": spoken["style"],
         "briefing_period": spoken["period"],
         "sections": spoken["sections"],
@@ -343,9 +445,16 @@ def morning_briefing():
 
 @router.get("/review/weekly")
 def weekly_review():
-    """Sunday summary: weight trend, protein/step averages, money in vs
-    bills paid, streaks, treats."""
-    week_ago = (date.today() - timedelta(days=7)).isoformat()
+    """Evidence-backed weekly operating picture for Giovanni.
+
+    The review separates missing data from poor performance, compares the last
+    seven calendar days with the seven before them, and returns explainable
+    recommendations.  It never authorizes household, health, or money actions.
+    """
+    today = date.today()
+    period_start = (today - timedelta(days=6)).isoformat()
+    previous_start = (today - timedelta(days=13)).isoformat()
+    previous_end = (today - timedelta(days=7)).isoformat()
     month = date.today().strftime("%Y-%m")
     with conn() as c:
         prof = active_profile(c)
@@ -355,36 +464,69 @@ def weekly_review():
             for r in c.execute(
                 "SELECT ts, weight_lb FROM weighins WHERE date(ts)>=?"
                 " AND profile_id=? ORDER BY ts",
-                (week_ago, pid),
+                (period_start, pid),
             ).fetchall()
         ]
-        protein_days = c.execute(
+        protein_days = [dict(r) for r in c.execute(
             "SELECT date(ts) d, SUM(protein_g) p FROM meal_log"
-            " WHERE date(ts)>=? AND profile_id=? GROUP BY date(ts)",
-            (week_ago, pid),
-        ).fetchall()
-        step_days = c.execute(
-            "SELECT count FROM steps WHERE date>=? AND profile_id=?",
-            (week_ago, pid),
-        ).fetchall()
+                " WHERE date(ts)>=? AND profile_id=? GROUP BY date(ts)",
+            (period_start, pid),
+        ).fetchall()]
+        previous_protein_days = [dict(r) for r in c.execute(
+            "SELECT date(ts) d, SUM(protein_g) p FROM meal_log"
+            " WHERE date(ts)>=? AND date(ts)<=? AND profile_id=?"
+            " GROUP BY date(ts)",
+            (previous_start, previous_end, pid),
+        ).fetchall()]
+        step_days = [dict(r) for r in c.execute(
+            "SELECT date, count FROM steps WHERE date>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchall()]
+        previous_step_days = [dict(r) for r in c.execute(
+            "SELECT date, count FROM steps WHERE date>=? AND date<=?"
+            " AND profile_id=?",
+            (previous_start, previous_end, pid),
+        ).fetchall()]
+        vitamin_days = [dict(r) for r in c.execute(
+            "SELECT date, taken FROM vitamins WHERE date>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchall()]
         deposits_row = c.execute(
             "SELECT COALESCE(SUM(amount),0) s FROM deposits WHERE date(ts)>=?",
-            (week_ago,),
+            (period_start,),
         ).fetchone()
         bills_paid = c.execute(
             "SELECT COALESCE(SUM(amount),0) s FROM bills WHERE paid_month=?",
             (month,),
         ).fetchone()
         treats = c.execute(
-            "SELECT COUNT(*) n FROM overrides WHERE date(ts)>=?", (week_ago,)
+            "SELECT COUNT(*) n FROM overrides WHERE date(ts)>=?", (period_start,)
         ).fetchone()
         workouts_done = c.execute(
             "SELECT COUNT(*) n FROM workouts WHERE date(ts)>=?"
             " AND profile_id=?",
-            (week_ago, pid),
+            (period_start, pid),
+        ).fetchone()
+        previous_workouts = c.execute(
+            "SELECT COUNT(*) n FROM workouts WHERE date(ts)>=? AND date(ts)<=?"
+            " AND profile_id=?",
+            (previous_start, previous_end, pid),
         ).fetchone()
         streaks = {"vitamins": streak(c, "vitamins"), "steps": streak(c, "steps")}
         spent_week = week_spending(c)
+        previous_spending = c.execute(
+            "SELECT COALESCE(SUM(amount),0) s FROM spending"
+            " WHERE date(ts)>=? AND date(ts)<=?",
+            (previous_start, previous_end),
+        ).fetchone()["s"]
+        spending_entries = c.execute(
+            "SELECT COUNT(*) n FROM spending WHERE date(ts)>=?", (period_start,)
+        ).fetchone()["n"]
+        meal_entries = c.execute(
+            "SELECT COUNT(*) n FROM meal_log WHERE date(ts)>=? AND profile_id=?",
+            (period_start, pid),
+        ).fetchone()["n"]
+        budget = budget_speech(c)
 
     weight_delta = (
         round(weights[-1]["weight_lb"] - weights[0]["weight_lb"], 1)
@@ -396,14 +538,140 @@ def weekly_review():
     step_vals = [r["count"] for r in step_days]
     avg_steps = round(sum(step_vals) / len(step_vals)) if step_vals else 0
 
-    parts = ["Weekly review."]
+    def observed_average(rows: list[dict], key: str, digits: int = 1) -> float:
+        values = [float(row[key]) for row in rows]
+        return round(sum(values) / len(values), digits) if values else 0
+
+    def trend(current: float, previous: float, *, lower_is_better: bool = False) -> dict:
+        delta = round(current - previous, 1)
+        percent = round(delta / previous * 100, 1) if previous else None
+        if not previous:
+            direction = "new" if current else "flat"
+        elif abs(percent or 0) < 3:
+            direction = "steady"
+        else:
+            direction = "up" if delta > 0 else "down"
+        favorable = None if direction in ("new", "flat", "steady") else (
+            delta < 0 if lower_is_better else delta > 0
+        )
+        return {
+            "current": current,
+            "previous": previous,
+            "delta": delta,
+            "percent": percent,
+            "direction": direction,
+            "favorable": favorable,
+        }
+
+    previous_protein = observed_average(previous_protein_days, "p")
+    previous_steps = observed_average(previous_step_days, "count", 0)
+    protein_target_days = sum(
+        1 for value in protein_vals if value >= prof["protein_target_g"]
+    )
+    step_target_days = sum(1 for value in step_vals if value >= prof["step_target"])
+    vitamins_taken = sum(1 for row in vitamin_days if row["taken"])
+
+    coverage_inputs = {
+        "protein": round(min(len(protein_days), 7) / 7 * 100),
+        "steps": round(min(len(step_days), 7) / 7 * 100),
+        "vitamins": round(min(len(vitamin_days), 7) / 7 * 100),
+        "weight": round(min(len(weights), 2) / 2 * 100),
+    }
+    confidence_score = round(sum(coverage_inputs.values()) / len(coverage_inputs))
+    confidence_label = (
+        "strong" if confidence_score >= 75
+        else "developing" if confidence_score >= 45
+        else "limited"
+    )
+    audit_score = {
+        "balanced": 1.0, "buffered": 0.85, "scheduled": 0.75,
+        "action needed": 0.35,
+    }.get(budget["audit_health"], 0.5)
+    protein_score = (
+        min(avg_protein / max(prof["protein_target_g"], 1), 1)
+        if protein_days else 0.5
+    )
+    step_score = (
+        min(avg_steps / max(prof["step_target"], 1), 1)
+        if step_days else 0.5
+    )
+    vitamin_score = vitamins_taken / 7 if vitamin_days else 0.5
+    calculated_score = round(100 * (
+        protein_score * 0.25
+        + step_score * 0.20
+        + vitamin_score * 0.15
+        + min(workouts_done["n"] / 3, 1) * 0.15
+        + audit_score * 0.15
+        + confidence_score / 100 * 0.10
+    ))
+    operating_score = calculated_score if confidence_score >= 25 else None
+
+    wins: list[dict] = []
+    watch: list[dict] = []
+    priorities: list[dict] = []
+
+    def signal(target: list[dict], domain: str, title: str, evidence: str) -> None:
+        target.append({"domain": domain, "title": title, "evidence": evidence})
+
+    if len(protein_days) < 3:
+        pass  # Coverage guidance below handles unknown performance honestly.
+    elif protein_target_days >= 4:
+        signal(wins, "body", "Protein rhythm held", f"Target reached on {protein_target_days} of 7 days.")
+    else:
+        signal(watch, "body", "Protein consistency is open", f"Target reached on {protein_target_days} of 7 days.")
+        signal(priorities, "body", "Protect the weekday protein floor", "Use the three one-tap protein anchors before adding new meal complexity.")
+    if step_target_days >= 4:
+        signal(wins, "body", "Movement cleared the weekly majority", f"Step target reached on {step_target_days} days.")
+    elif len(step_days) >= 3:
+        signal(watch, "body", "Movement is below target", f"Average {avg_steps:,} against {prof['step_target']:,} steps.")
+        signal(priorities, "body", "Raise the movement floor", "Add one reliable walk window to the lowest-step workdays.")
+    if len(vitamin_days) < 3:
+        pass
+    elif vitamins_taken >= 5:
+        signal(wins, "routine", "Morning vitamins stayed protected", f"Taken on {vitamins_taken} of 7 days.")
+    else:
+        signal(watch, "routine", "Vitamin cue needs reinforcement", f"Recorded on {vitamins_taken} of 7 days.")
+        signal(priorities, "routine", "Keep vitamins inside Full Wake", "Use the 7:00 AM Jarvis cue until the routine is automatic.")
+    if workouts_done["n"] >= 3:
+        signal(wins, "body", "Training cadence is on line", f"{workouts_done['n']} workouts completed.")
+    elif workouts_done["n"]:
+        signal(watch, "body", "Training volume is light", f"{workouts_done['n']} workout{'s' if workouts_done['n'] != 1 else ''} completed.")
+    if previous_spending and spent_week > previous_spending * 1.15:
+        signal(watch, "money", "Spending accelerated", f"${spent_week:,.0f} vs ${previous_spending:,.0f} in the prior week.")
+        signal(priorities, "money", "Review the spending delta", "Confirm the larger purchases before changing the paycheck plan.")
+    elif spending_entries and previous_spending and spent_week <= previous_spending:
+        signal(wins, "money", "Discretionary spending eased", f"Down ${previous_spending - spent_week:,.0f} week over week.")
+    if confidence_score < 60:
+        signal(watch, "system", "Evidence coverage is incomplete", f"Weekly confidence is {confidence_score} percent.")
+        signal(priorities, "system", "Close the data gaps", "Log the missing daily signals before Jarvis changes any recommendation.")
+
+    next_pay = payday_schedule(today, 1)[0]
+    if next_pay["days_away"] <= 7:
+        signal(priorities, "money", f"Stage {next_pay['label']}", f"${next_pay['amount']:,.2f} is expected in {next_pay['days_away']} days.")
+    priorities = priorities[:3]
+    if not priorities:
+        signal(priorities, "system", "Maintain the current rhythm", "No material correction is supported by this week's evidence.")
+
+    if operating_score is None:
+        verdict = "Evidence incomplete — holding the weekly verdict"
+    elif operating_score >= 80:
+        verdict = "Strong operating week"
+    elif operating_score >= 60:
+        verdict = "Stable week with a few open loops"
+    else:
+        verdict = "Recovery week — simplify and rebuild the floor"
+
+    parts = [f"Giovanni, weekly intelligence. {verdict}."]
+    if operating_score is not None:
+        parts.append(f"Operating score {operating_score} out of 100.")
     if weight_delta is not None:
         direction = "down" if weight_delta < 0 else "up"
         parts.append(f"Weight is {direction} {abs(weight_delta)} pounds.")
-    parts.append(
-        f"Protein averaged {round(avg_protein)} grams a day against a "
-        f"{round(prof['protein_target_g'])} gram target."
-    )
+    if protein_days:
+        parts.append(
+            f"Protein averaged {round(avg_protein)} grams a day against a "
+            f"{round(prof['protein_target_g'])} gram target."
+        )
     if avg_steps:
         parts.append(f"Steps averaged {avg_steps:,} a day.")
     parts.append(
@@ -418,25 +686,124 @@ def weekly_review():
             f"{workouts_done['n']} workout"
             f"{'s' if workouts_done['n'] != 1 else ''} done — balanced week."
         )
+    if wins:
+        parts.append(f"Top win: {wins[0]['title'].lower()}. {wins[0]['evidence']}")
+    parts.append(f"Next priority: {priorities[0]['title'].lower()}. {priorities[0]['evidence']}")
+    if confidence_label == "limited":
+        parts.append("Evidence is limited, so Jarvis is holding recommendations conservative.")
 
     return {
-        "period_start": week_ago,
+        "period_start": period_start,
+        "period_end": today.isoformat(),
+        "previous_period": {"start": previous_start, "end": previous_end},
+        "verdict": verdict,
+        "operating_score": operating_score,
+        "confidence": {
+            "score": confidence_score,
+            "label": confidence_label,
+            "coverage": coverage_inputs,
+        },
         "weight": {"entries": weights, "delta_lb": weight_delta},
         "avg_daily_protein_g": avg_protein,
         "protein_target_g": prof["protein_target_g"],
         "avg_daily_steps": avg_steps,
+        "step_target": prof["step_target"],
         "money_in": deposits_row["s"],
         "bills_paid_this_month": bills_paid["s"],
         "treats_this_week": treats["n"],
         "spending_this_week": spent_week,
         "workouts_this_week": workouts_done["n"],
         "streaks": streaks,
+        "target_days": {
+            "protein": protein_target_days,
+            "steps": step_target_days,
+            "vitamins": vitamins_taken,
+        },
+        "activity": {
+            "meal_entries": meal_entries,
+            "spending_entries": spending_entries,
+        },
+        "trends": {
+            "protein": trend(avg_protein, previous_protein),
+            "steps": trend(avg_steps, previous_steps),
+            "spending": trend(spent_week, previous_spending, lower_is_better=True),
+            "workouts": trend(workouts_done["n"], previous_workouts["n"]),
+        },
+        "wins": wins,
+        "watch": watch,
+        "priorities": priorities,
+        "next_payday": next_pay,
+        "finance_state": {
+            "audit_health": budget["audit_health"],
+            "safe_to_spend": budget["safe_to_spend"],
+        },
+        "policy": "Recommendations are advisory. Manual control and confirmed data remain authoritative.",
         "speech": " ".join(parts),
     }
 
 
 class MemoryIn(BaseModel):
     fact: str
+
+
+class LocalSpeechIn(BaseModel):
+    text: str
+
+
+async def _piper_wav(text: str) -> bytes:
+    """Synthesize speech through the local Wyoming Piper service."""
+    from wyoming.audio import AudioChunk, AudioStart, AudioStop
+    from wyoming.client import AsyncClient
+    from wyoming.tts import Synthesize
+
+    client = AsyncClient.from_uri(PIPER_URI)
+    audio_start = None
+    chunks = bytearray()
+    try:
+        await asyncio.wait_for(client.connect(), timeout=5)
+        await client.write_event(Synthesize(text=text).event())
+        while True:
+            event = await asyncio.wait_for(client.read_event(), timeout=45)
+            if event is None:
+                raise RuntimeError("Piper closed the audio stream")
+            if AudioStart.is_type(event.type):
+                audio_start = AudioStart.from_event(event)
+            elif AudioChunk.is_type(event.type):
+                chunks.extend(AudioChunk.from_event(event).audio)
+            elif AudioStop.is_type(event.type):
+                break
+    finally:
+        await client.disconnect()
+
+    if audio_start is None or not chunks:
+        raise RuntimeError("Piper returned no audio")
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav_file:
+        wav_file.setnchannels(audio_start.channels)
+        wav_file.setsampwidth(audio_start.width)
+        wav_file.setframerate(audio_start.rate)
+        wav_file.writeframes(bytes(chunks))
+    return output.getvalue()
+
+
+@router.post("/speech/local")
+async def local_speech(body: LocalSpeechIn):
+    """Return local Piper audio for playback on the requesting X1 browser."""
+    text = re.sub(r"(?i)\bsir\b", "Giovanni", body.text).strip()
+    text = re.sub(r"\s+", " ", text)
+    if not text:
+        raise HTTPException(400, "speech text cannot be empty")
+    if len(text) > 6000:
+        raise HTTPException(400, "speech text is too long")
+    try:
+        audio = await _piper_wav(text)
+    except (OSError, RuntimeError, asyncio.TimeoutError) as exc:
+        raise HTTPException(503, "local Piper voice is unavailable") from exc
+    return Response(
+        content=audio,
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/memory")
@@ -668,6 +1035,35 @@ def ask():
         else "No savings goals yet — say 'add 50 to my vacation fund' to start one."
     )
 
+    body = daily_loop()
+    readiness = body["readiness"]
+    targets = body["targets"]
+    body_readiness_speech = (
+        f"Giovanni, Body Ops readiness is {readiness['score']} out of 100, "
+        f"in the {readiness['band']} range, with {readiness['confidence_percent']} percent "
+        f"signal confidence. {targets['workout_guidance']} "
+        "Missing data is treated as unknown, not as failure."
+    )
+    dinner = body["morning"].get("dinner")
+    body_morning_parts = [
+        f"Giovanni, {body['morning']['affirmation']}",
+        body["morning"]["vitamins"],
+        body["morning"]["hydration"],
+    ]
+    if dinner:
+        body_morning_parts.append(dinner["prep"])
+    body_morning_parts.append(
+        f"Today's movement goal is {targets['steps']:,} steps, "
+        f"with {targets['protein_g']} grams of protein and {targets['water_glasses']} glasses of water."
+    )
+    body_morning_speech = " ".join(body_morning_parts)
+    body_evening_speech = " ".join(
+        ["Giovanni, here is your Body Ops review."]
+        + body["evening"]["wins"]
+        + body["evening"]["remaining"]
+        + [body["evening"]["tomorrow"]]
+    )
+
     return {
         "protein": protein_speech,
         "steps": steps_speech,
@@ -684,6 +1080,9 @@ def ask():
         "memory": memory_speech,
         "dinner": dinner_speech,
         "evening": evening_speech,
+        "body_readiness": body_readiness_speech,
+        "body_morning": body_morning_speech,
+        "body_evening": body_evening_speech,
         "budget": budget["budget"],
         "paycheck": budget["paycheck"],
         "networth": budget["networth"],

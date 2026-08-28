@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from app.chef import chef_summary, excluded_reason, market_items
 from app.db import conn
 from app.context_engine import lifeos_snapshot
+from app.internet_recipes import discover_recipes
 from app.routers.pantry import (
     ChefFeedbackIn,
     GroceryItemIn,
@@ -126,3 +127,35 @@ def test_chef_frontend_ids_are_unique_and_resolved():
     assert len(ids) == len(set(ids))
     dynamic_ids = {"photo-name", "photo-protein", "photo-calories", "photo-log-btn"}
     assert sorted(set(references) - set(ids) - dynamic_ids) == []
+
+
+def test_internet_discovery_is_pantry_seeded_and_never_invents_nutrition(fresh_db, monkeypatch):
+    add_item(PantryItemIn(name="Chicken breast", qty=2, unit="lb", category="Meat"))
+
+    class Response:
+        def __init__(self, payload): self.payload = payload
+        def raise_for_status(self): return None
+        def json(self): return self.payload
+
+    class Client:
+        def __init__(self, *args, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): return None
+        def get(self, path, params):
+            if path == "/filter.php":
+                return Response({"meals": [{"idMeal": "77"}]})
+            return Response({"meals": [{
+                "idMeal": "77", "strMeal": "Herbed Chicken Plate",
+                "strCategory": "Dinner", "strArea": "American",
+                "strIngredient1": "Chicken breast", "strMeasure1": "8 oz",
+                "strIngredient2": "Spinach", "strMeasure2": "2 cups",
+                "strSource": "https://example.test/recipe",
+            }]})
+
+    monkeypatch.setattr("app.internet_recipes.httpx.Client", Client)
+    result = discover_recipes(1)
+    assert result["ok"] is True
+    assert result["pantry_seeded"] is True
+    assert result["suggestions"][0]["stock_coverage"] == 50
+    assert result["suggestions"][0]["missing"][0]["name"] == "Spinach"
+    assert "verify portions" in result["suggestions"][0]["nutrition"]

@@ -88,13 +88,14 @@ async function authenticateBrowser() {
 }
 
 async function api(path, method = "GET", body, retried = false) {
+  const normalizedMethod = String(method || "GET").toUpperCase();
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
   const res = await fetch(path, {
-    method,
+    method: normalizedMethod,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    cache: method === "GET" ? "no-store" : "default",
+    cache: normalizedMethod === "GET" ? "no-store" : "default",
   });
   if (res.status === 401 && !retried && await authenticateBrowser()) {
     return api(path, method, body, true);
@@ -104,11 +105,16 @@ async function api(path, method = "GET", body, retried = false) {
     throw new Error("Home Assistant session required. Open LifeOS from the Home Assistant sidebar.");
   }
   if (!res.ok) throw new Error(data.detail || data.message || `LifeOS request failed (${res.status})`);
+  if (normalizedMethod !== "GET") {
+    window.dispatchEvent(new CustomEvent("jarvis:data-changed", {
+      detail: { path: String(path).split("?")[0], method: normalizedMethod },
+    }));
+  }
   return data;
 }
 
 // ---------- tabs ----------
-const ALLOWED_PANELS = new Set(["command", "today", "body", "todo", "budget", "learning", "review"]);
+const ALLOWED_PANELS = new Set(["command", "today", "internet", "body", "todo", "budget", "learning", "review"]);
 
 function activatePanel(requestedPanel) {
   const panelName = ALLOWED_PANELS.has(requestedPanel) ? requestedPanel : "today";
@@ -124,6 +130,7 @@ function activatePanel(requestedPanel) {
   if (panelName === "body") loadBody();
   if (panelName === "todo") loadShopping();
   if (panelName === "today") loadToday();
+  if (panelName === "internet") loadInternetIntelligence();
   if (panelName === "learning") loadLearning();
   if (panelName === "review") loadReview();
   if (panelName === "command") loadCommandCenter();
@@ -170,11 +177,11 @@ function renderTodayPriorities(fusedPriorities, fallback) {
   });
 }
 
+let todayLoadSequence = 0;
 async function loadToday() {
-  const [t, commandPayload] = await Promise.all([
-    api("/api/today"),
-    api("/api/command-center?event_limit=1").catch(() => ({ context: {} })),
-  ]);
+  const sequence = ++todayLoadSequence;
+  const t = await api("/api/today");
+  if (sequence !== todayLoadSequence) return;
   commandText("today-date", new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase());
   const p = t.protein;
   $("protein-bar").style.width = Math.min(100, (p.today_g / p.target_g) * 100) + "%";
@@ -196,7 +203,7 @@ async function loadToday() {
   if (p.today_g < p.target_g) fallbackPriorities.push(`${Math.round(p.target_g - p.today_g)}g protein remaining`);
   if (t.steps_today < stepsTarget) fallbackPriorities.push(`${(stepsTarget - t.steps_today).toLocaleString()} steps remaining`);
   if (w.today < w.target) fallbackPriorities.push(`${w.target - w.today} glasses of water remaining`);
-  renderTodayPriorities(commandPayload.context?.lifeos?.priorities, fallbackPriorities);
+  renderTodayPriorities(t.priorities, fallbackPriorities);
 
   const sug = $("suggestions");
   sug.replaceChildren();
@@ -532,6 +539,57 @@ function renderChefSuggestions(chef) {
     card.append(head, metrics, el("p", "chef-why", `${recipe.why} ${missing}`), actions);
     container.appendChild(card);
   });
+}
+
+function renderInternetChef(data) {
+  const container = $("chef-internet-suggestions");
+  container.replaceChildren();
+  if (!data.ok || !data.suggestions?.length) {
+    container.appendChild(el("div", "empty-state", data.message || "No fresh recipes matched the current pantry."));
+    return;
+  }
+  data.suggestions.forEach((recipe, index) => {
+    const card = el("article", "chef-option internet-chef-option");
+    const head = el("div", "chef-option-head");
+    const title = el("div");
+    title.append(el("span", "chef-rank", `${String(index + 1).padStart(2, "0")} · ${recipe.area || recipe.category || "DINNER"}`), el("h3", "", recipe.name));
+    head.append(title, el("strong", "chef-coverage", `${recipe.stock_coverage}% STOCKED`));
+    const metrics = el("div", "chef-metrics");
+    metrics.append(el("span", "", `${recipe.ingredient_count} INGREDIENTS`), el("span", "", `SOURCE · ${recipe.source}`));
+    const missingNames = (recipe.missing || []).map((item) => item.name);
+    const description = missingNames.length ? `Missing: ${missingNames.join(", ")}` : "Ready from current stock.";
+    const actions = el("div", "chef-actions internet-chef-actions");
+    const market = el("button", "secondary", missingNames.length ? "Add missing to market list" : "Market list ready");
+    market.disabled = !missingNames.length;
+    market.onclick = async () => {
+      market.disabled = true;
+      try {
+        for (const item of missingNames) await api("/api/pantry/grocery", "POST", { item, shopping_type: "food" });
+        $("chef-internet-status").textContent = `${missingNames.length} ingredient${missingNames.length === 1 ? "" : "s"} added for ${recipe.name}. Review before purchase.`;
+        loadShopping();
+      } catch (error) { $("chef-internet-status").textContent = error.message; market.disabled = false; }
+    };
+    const view = el("button", "", recipe.recipe_url ? "View recipe" : "Source details unavailable");
+    view.disabled = !recipe.recipe_url;
+    view.onclick = () => window.open(recipe.recipe_url, "_blank", "noopener,noreferrer");
+    actions.append(market, view);
+    card.append(head, metrics, el("p", "chef-why", `${description} ${recipe.nutrition}`), actions);
+    container.appendChild(card);
+  });
+}
+
+async function discoverInternetRecipes() {
+  const button = $("chef-discover-btn");
+  button.disabled = true;
+  $("chef-internet-status").textContent = "Jarvis is searching for pantry-aware recipe ideas…";
+  try {
+    const data = await api("/api/pantry/chef/discover?limit=6");
+    renderInternetChef(data);
+    $("chef-internet-status").textContent = `${data.message} Source: TheMealDB.`;
+  } catch (error) {
+    renderInternetChef({ ok: false, suggestions: [], message: "Internet recipes are unavailable; local Chef options remain ready." });
+    $("chef-internet-status").textContent = error.message;
+  } finally { button.disabled = false; }
 }
 
 // These are the only external commerce destinations Jarvis may construct.
@@ -925,6 +983,13 @@ $("pantry-sync-btn").onclick = async () => {
   finally { button.disabled = false; }
 };
 
+$("pantry-open-grocy-btn").onclick = () => {
+  const host = window.location.hostname;
+  window.open(`${window.location.protocol}//${host}:9283/`, "_blank", "noopener,noreferrer");
+};
+
+$("chef-discover-btn").onclick = discoverInternetRecipes;
+
 $("market-build-btn").onclick = async () => {
   const button = $("market-build-btn");
   button.disabled = true;
@@ -1053,7 +1118,7 @@ async function loadBudgetData() {
     <div class="line"><span>OnePay in</span><span>$${o.paycheck_in.onepay.toFixed(2)}</span></div>
     <div class="line"><span>Truliant savings split</span><span>$${o.paycheck_in.truliant.toFixed(2)}</span></div>
     <div class="line"><span>Bills allocated</span><span>−$${o.allocated.toFixed(2)}</span></div>
-    <div class="line"><span>Bucket contributions</span><span>−$${o.bucket_contribution.toFixed(2)}</span></div>`;
+    <div class="line"><span>Relay bucket transfers</span><span>MANUAL · NOT DEDUCTED</span></div>`;
   const auditCls =
     ["balanced", "scheduled"].includes(o.audit) ? "good" : o.audit === "buffered" ? "" : "warn";
   let auditHtml =
@@ -1115,9 +1180,7 @@ async function loadBudgetData() {
     opt.value = a.id; opt.textContent = a.name;
     bsel.appendChild(opt);
   });
-  acc.innerHTML += `<div class="line"><span>Protected savings <span class="muted">(never counted as spendable)</span></span>
-    <span>$${o.protected_cash.toFixed(2)}</span></div>
-    <div class="line"><span>Free pocket cash <span class="muted">(OnePay after commitments)</span></span>
+  acc.innerHTML += `<div class="line"><span>Free pocket cash <span class="muted">(OnePay after commitments)</span></span>
     <span class="${o.pocket_cash >= 0 ? "good-text" : "warn-text"}">$${o.pocket_cash.toFixed(2)}</span></div>
     <div class="line"><strong>Ecosystem cash</strong>
     <strong>$${o.ecosystem_cash.toFixed(2)}</strong></div>`;
@@ -1131,7 +1194,7 @@ async function loadBudgetData() {
     div.innerHTML = `<span>${g.name}</span>
       <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
       <span>$${g.saved.toFixed(0)}${g.target ? " / $" + g.target.toFixed(0) : ""}
-        <span class="muted">+$${g.monthly.toFixed(0)}/mo</span></span>`;
+        <span class="muted">$${g.monthly.toFixed(0)}/mo target · manual</span></span>`;
     if (g.monthly > 0) {
       const add = document.createElement("button");
       add.className = "secondary";
@@ -1146,14 +1209,19 @@ async function loadBudgetData() {
   });
 
   const dl = $("budget-debts");
-  dl.innerHTML = o.debts.length ? "" : '<div class="muted">Debt free 🎉</div>';
+  dl.replaceChildren();
+  if (!o.debts.length) dl.appendChild(el("div", "muted", "Debt free 🎉"));
   o.debts.forEach((d) => {
     const pct = d.total ? Math.min(100, ((d.total - d.remaining) / d.total) * 100) : 0;
     const div = document.createElement("div");
     div.className = "bar-row";
-    div.innerHTML = `<span>${d.name}</span>
-      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-      <span>$${d.remaining.toFixed(0)} left</span>`;
+    const identity = el("span", "", `#${Number(d.priority || 50)} · ${d.name}`);
+    identity.appendChild(el("small", "muted", d.priority_reason || "Priority classification needed"));
+    const bar = el("div", "bar");
+    const fill = el("div", "fill");
+    fill.style.width = `${pct}%`;
+    bar.appendChild(fill);
+    div.append(identity, bar, el("span", "", `$${d.remaining.toFixed(0)} left`));
     const pay = document.createElement("button");
     pay.className = "secondary";
     pay.textContent = `Pay $${d.installment.toFixed(0)}`;
@@ -1165,17 +1233,28 @@ async function loadBudgetData() {
     dl.appendChild(div);
   });
   if (o.debts.length) {
-    dl.innerHTML += `<div class="line"><strong>Total remaining</strong>
-      <strong>$${o.total_debt.toFixed(2)}</strong></div>`;
+    const total = el("div", "line");
+    total.append(el("strong", "", "Total remaining"), el("strong", "", `$${o.total_debt.toFixed(2)}`));
+    dl.appendChild(total);
   }
 
-  $("budget-networth").innerHTML =
-    o.assets
-      .map((a) => `<div class="line"><span>${a.name}
-        <span class="muted">(+$${a.per_paycheck.toFixed(2)}/check)</span></span>
-        <span>$${a.balance.toFixed(2)}</span></div>`)
-      .join("") +
-    `<div class="line"><strong>Net worth</strong><strong>$${o.net_worth.toFixed(2)}</strong></div>`;
+  const netWorth = $("budget-networth");
+  netWorth.replaceChildren();
+  const retirementTotal = el("div", "line");
+  const retirementIdentity = el("span", "", "Employer retirement account");
+  retirementIdentity.appendChild(el("small", "muted", `Contributions $${o.retirement_summary.contributions.toFixed(2)} · employer match / market movement unclassified $${o.retirement_summary.unclassified_difference.toFixed(2)}${o.retirement_summary.as_of ? ` · as of ${o.retirement_summary.as_of}` : ""}`));
+  retirementTotal.append(retirementIdentity, el("strong", "", `$${o.retirement_summary.balance.toFixed(2)}`));
+  netWorth.appendChild(retirementTotal);
+  o.assets.forEach((asset) => {
+    const line = el("div", "line");
+    const identity = el("span", "", asset.name === "401(k)" ? "401(k) · Pre-tax" : asset.name);
+    identity.appendChild(el("small", "muted", `+$${asset.per_paycheck.toFixed(2)}/pay · YTD $${Number(asset.ytd_contributions || 0).toFixed(2)} · lifetime $${Number(asset.lifetime_contributions || 0).toFixed(2)}${asset.as_of ? ` · as of ${asset.as_of}` : ""}`));
+    line.append(identity, el("span", "", asset.balance_verified ? `$${asset.balance.toFixed(2)}` : "Balance awaiting data"));
+    netWorth.appendChild(line);
+  });
+  const netTotal = el("div", "line");
+  netTotal.append(el("strong", "", "Net worth"), el("strong", "", `$${o.net_worth.toFixed(2)}`));
+  netWorth.appendChild(netTotal);
 
   const f = await api("/api/budget/forecast");
   $("budget-forecast").innerHTML = f.forecast
@@ -1461,6 +1540,224 @@ $("bill-btn").onclick = async () => {
   finally { button.disabled = false; }
 };
 
+// ---------- Internet Intelligence ----------
+function internetStatusLabel(status) {
+  return String(status || "unknown").replaceAll("_", " ").toUpperCase();
+}
+
+function internetTime(value) {
+  if (!value) return "TIME UNKNOWN";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? String(value)
+    : parsed.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function safeInternetLink(url, label) {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol !== "https:") return null;
+    const link = el("a", "secondary internet-link", label);
+    link.href = parsed.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    return link;
+  } catch (_) {
+    return null;
+  }
+}
+
+function internetSourceMap(data) {
+  return Object.fromEntries((Array.isArray(data?.sources) ? data.sources : []).map((source) => [source.id, source]));
+}
+
+function renderInternetEnvironment(sources) {
+  const target = $("internet-environment");
+  const weather = sources.weather || {};
+  const air = sources.air_quality || {};
+  const alerts = sources.weather_alerts || {};
+  target.replaceChildren();
+  const weatherData = weather.data || {};
+  if (!["ready", "stale"].includes(weather.status)) {
+    target.appendChild(el("div", "empty-state", weather.message || "Weather source is not commissioned."));
+    $("internet-environment-state").textContent = internetStatusLabel(weather.status);
+    return;
+  }
+  $("internet-environment-state").textContent = internetStatusLabel(weather.status);
+  const hero = el("div", "internet-weather-hero");
+  hero.append(
+    el("strong", "", `${Math.round(Number(weatherData.temperature_f || 0))}°`),
+    el("span", "", `${String(weatherData.conditions || "mixed").toUpperCase()} · FEELS ${Math.round(Number(weatherData.feels_like_f || weatherData.temperature_f || 0))}°`),
+    el("small", "", `HIGH ${Math.round(Number(weatherData.high_f || 0))}° · LOW ${Math.round(Number(weatherData.low_f || 0))}° · RAIN ${Number(weatherData.max_rain_chance_8h || 0)}% · UV ${Number(weatherData.uv_index_max || 0).toFixed(1)}`),
+  );
+  const facts = el("div", "internet-environment-facts");
+  facts.append(
+    el("div", "", `AIR QUALITY\n${air.data?.us_aqi != null ? `${Math.round(Number(air.data.us_aqi))} · ${String(air.data.category || "unknown").toUpperCase()}` : internetStatusLabel(air.status)}`),
+    el("div", (alerts.data?.count || 0) ? "is-alert" : "", `NWS ALERTS\n${Number(alerts.data?.count || 0)} ACTIVE`),
+    el("div", "", `SUN WINDOW\n${internetTime(weatherData.sunrise).split(", ").pop()} → ${internetTime(weatherData.sunset).split(", ").pop()}`),
+  );
+  const hours = el("div", "internet-hour-strip");
+  hours.tabIndex = 0;
+  hours.setAttribute("role", "region");
+  hours.setAttribute("aria-label", "Scrollable eight-hour forecast");
+  (weatherData.next_hours || []).slice(0, 8).forEach((hour) => {
+    const cell = el("div", "");
+    cell.append(
+      el("span", "", new Date(hour.time).toLocaleTimeString(undefined, { hour: "numeric" })),
+      el("strong", "", `${Math.round(Number(hour.temperature_f || 0))}°`),
+      el("small", "", `${Number(hour.rain_chance || 0)}% rain`),
+    );
+    hours.appendChild(cell);
+  });
+  target.append(hero, facts, hours);
+}
+
+function renderInternetAgenda(source) {
+  const target = $("internet-agenda");
+  target.replaceChildren();
+  $("internet-calendar-state").textContent = internetStatusLabel(source?.status);
+  const events = Array.isArray(source?.data?.events) ? source.data.events : [];
+  if (!events.length) {
+    target.appendChild(el("div", "empty-state", source?.message || "No upcoming connected calendar events."));
+    return;
+  }
+  events.slice(0, 6).forEach((event) => {
+    const row = el("div", "internet-agenda-row");
+    row.append(
+      el("time", "", internetTime(event.start)),
+      el("strong", "", event.summary || "Scheduled event"),
+      el("small", "", `${String(event.calendar || "calendar").replace("calendar.", "").replaceAll("_", " ")}${event.location ? ` · ${event.location}` : ""}`),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderInternetSources(sources) {
+  const target = $("internet-sources");
+  target.replaceChildren();
+  Object.values(sources).forEach((source) => {
+    const card = el("article", `internet-source is-${String(source.status || "unknown").replaceAll("_", "-")}`);
+    const heading = el("div", "");
+    heading.append(el("strong", "", source.name || source.id), el("b", "", internetStatusLabel(source.status)));
+    card.append(heading, el("p", "", source.message || "No source note."), el("small", "", `${source.cached ? "CACHE" : "LIVE"} · ${internetTime(source.fetched_at)} · ${String(source.authority || "read only").replaceAll("_", " ").toUpperCase()}`));
+    const link = safeInternetLink(source.source_url, "Source");
+    if (link) card.appendChild(link);
+    target.appendChild(card);
+  });
+}
+
+function renderInternetCapabilities(capabilities) {
+  const target = $("internet-capabilities");
+  target.replaceChildren();
+  (capabilities || []).forEach((capability) => {
+    const row = el("div", "internet-capability");
+    const copy = el("div", "");
+    copy.append(el("strong", "", capability.name), el("small", "", capability.dependency || "No dependency"));
+    row.append(copy, el("b", `is-${String(capability.status || "unknown").replaceAll("_", "-")}`, internetStatusLabel(capability.status)), el("span", "", String(capability.authority || "advisory").replaceAll("_", " ").toUpperCase()));
+    target.appendChild(row);
+  });
+}
+
+async function loadInternetIntelligence(force = false) {
+  const status = $("internet-status");
+  status.textContent = force ? "Refreshing every live source…" : "Synchronizing external evidence…";
+  status.className = "inline-status muted";
+  $("internet-refresh").disabled = true;
+  try {
+    const data = await api(force ? "/api/internet/refresh" : "/api/internet", force ? "POST" : "GET");
+    const summary = data.summary || {};
+    $("internet-live-count").textContent = summary.live_sources ?? 0;
+    $("internet-degraded-count").textContent = summary.degraded_sources ?? 0;
+    $("internet-generated").textContent = new Date(data.generated_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const sources = internetSourceMap(data);
+    renderInternetEnvironment(sources);
+    renderInternetAgenda(sources.calendar || {});
+    renderInternetSources(sources);
+    renderInternetCapabilities(data.capabilities);
+    status.textContent = `${summary.live_sources || 0} live source(s) fused · ${summary.degraded_sources || 0} need attention · external evidence remains advisory.`;
+  } catch (error) {
+    status.textContent = `Internet intelligence unavailable: ${error.message}`;
+    status.className = "inline-status error-state";
+    ["internet-environment", "internet-agenda", "internet-sources", "internet-capabilities"].forEach((id) => {
+      $(id).replaceChildren(el("div", "empty-state error-state", "This connected section could not be loaded. Local LifeOS remains available."));
+    });
+  } finally {
+    $("internet-refresh").disabled = false;
+  }
+}
+
+function renderInternetResults(targetId, items, emptyMessage, builder) {
+  const target = $(targetId);
+  target.replaceChildren();
+  if (!items.length) {
+    target.appendChild(el("div", "empty-state", emptyMessage));
+    return;
+  }
+  items.forEach((item) => target.appendChild(builder(item)));
+}
+
+function researchResult(item, kind) {
+  const row = el("article", "internet-result");
+  row.append(el("span", "", `${kind} · ${item.source || "SOURCE"}`), el("strong", "", item.title || "Untitled result"));
+  if (item.summary) row.appendChild(el("p", "", item.summary));
+  if (item.published_at) row.appendChild(el("small", "", internetTime(item.published_at)));
+  const link = safeInternetLink(item.url, "Open source");
+  if (link) row.appendChild(link);
+  return row;
+}
+
+$("internet-refresh").onclick = () => loadInternetIntelligence(true);
+
+$("internet-research-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-research-query").value.trim();
+  const target = $("internet-research-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a question or subject first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Searching current news and reference sources…"));
+  try {
+    const data = await api(`/api/internet/research?q=${encodeURIComponent(query)}`);
+    const items = [
+      ...(data.news || []).map((item) => ({ ...item, resultKind: "CURRENT NEWS" })),
+      ...(data.references || []).map((item) => ({ ...item, resultKind: "REFERENCE" })),
+    ];
+    renderInternetResults("internet-research-results", items, data.message || "No sourced results found.", (item) => researchResult(item, item.resultKind));
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
+
+$("internet-media-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-media-query").value.trim();
+  const target = $("internet-media-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a title, artist, or subject first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Searching connected media catalogs…"));
+  try {
+    const data = await api(`/api/internet/media?q=${encodeURIComponent(query)}`);
+    renderInternetResults("internet-media-results", data.results || [], data.message || "No catalog matches found.", (item) => {
+      const row = el("article", "internet-result");
+      row.append(el("span", "", `${String(item.kind || "MEDIA").toUpperCase()} · ${item.source}`), el("strong", "", item.title), el("p", "", [item.creator, item.release_year, item.genre].filter(Boolean).join(" · ")));
+      const link = safeInternetLink(item.store_url, "Open catalog");
+      if (link) row.appendChild(link);
+      return row;
+    });
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
+
+$("internet-nutrition-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const query = $("internet-nutrition-query").value.trim();
+  const target = $("internet-nutrition-results");
+  if (query.length < 2) { target.replaceChildren(el("div", "empty-state", "Enter a food or package name first.")); return; }
+  target.replaceChildren(el("div", "empty-state", "Checking USDA FoodData Central…"));
+  try {
+    const data = await api(`/api/internet/nutrition?q=${encodeURIComponent(query)}`);
+    renderInternetResults("internet-nutrition-results", data.results || [], data.message || "No USDA match found.", (item) => {
+      const row = el("article", "internet-result");
+      row.append(el("span", "", `${item.data_type || "USDA"} · FDC ${item.fdc_id || "—"}`), el("strong", "", item.description), el("p", "", `${item.brand || "Generic food"} · ${item.protein_g ?? "—"}g protein · ${item.calories ?? "—"} kcal · ${item.nutrient_basis || "verify serving basis"}`));
+      return row;
+    });
+  } catch (error) { target.replaceChildren(el("div", "empty-state error-state", error.message)); }
+});
+
 // ---------- Learning Ledger ----------
 function learningPreferenceRow(preference, actions = []) {
   const row = el("article", "learning-row");
@@ -1501,6 +1798,35 @@ function renderLearningList(targetId, items, emptyMessage, actions) {
   items.forEach((item) => target.appendChild(learningPreferenceRow(item, actions)));
 }
 
+function renderAutomaticPatterns(snapshot) {
+  const target = $("learning-patterns");
+  const coverage = $("learning-pattern-coverage");
+  target.replaceChildren();
+  const patterns = Array.isArray(snapshot?.patterns) ? snapshot.patterns : [];
+  if (!patterns.length) {
+    target.appendChild(el("div", "empty-state", "Jarvis needs repeated activity before a pattern appears here."));
+  } else {
+    patterns.forEach((pattern) => {
+      const row = el("div", `learning-row learning-pattern ${pattern.status === "established" ? "is-established" : "is-emerging"}`);
+      const copy = el("div", "learning-copy");
+      copy.append(
+        el("span", "learning-row-label", `${String(pattern.domain || "general").replaceAll("_", " ").toUpperCase()} · ${String(pattern.status || "emerging").toUpperCase()}`),
+        el("strong", "", `${pattern.subject}: ${pattern.conclusion}`),
+        el("small", "", `${Math.round(Number(pattern.confidence || 0) * 100)}% confidence · ${Number(pattern.sample_count || 0)} samples`),
+        el("p", "", pattern.evidence || "Evidence details are not available."),
+      );
+      row.append(copy, el("b", "learning-authority", "ADVISORY"));
+      target.appendChild(row);
+    });
+  }
+  const awaiting = Array.isArray(snapshot?.coverage?.awaiting_evidence)
+    ? snapshot.coverage.awaiting_evidence.map((item) => String(item).replaceAll("_", " "))
+    : [];
+  coverage.textContent = awaiting.length
+    ? `Still learning: ${awaiting.join(", ")}. Three observations establish a pattern.`
+    : "All supported domains have evidence. Patterns remain advisory and correctable.";
+}
+
 async function loadLearning() {
   const status = $("learning-status");
   status.textContent = "Synchronizing local evidence and decisions…";
@@ -1512,6 +1838,7 @@ async function loadLearning() {
     $("learning-candidate-count").textContent = summary.candidate ?? 0;
     $("learning-rejected-count").textContent = summary.rejected ?? 0;
     $("learning-observation-count").textContent = summary.observations ?? 0;
+    $("learning-pattern-count").textContent = summary.patterns ?? 0;
     const preferences = Array.isArray(data.preferences) ? data.preferences : [];
     renderLearningList(
       "learning-candidates",
@@ -1548,17 +1875,19 @@ async function loadLearning() {
         evidence.appendChild(row);
       });
     }
+    renderAutomaticPatterns(data.automatic_patterns || {});
     status.textContent = `${data.profile || "Giovanni"} · learning ledger synchronized · inferences remain action-locked.`;
   } catch (error) {
     status.textContent = `Learning ledger unavailable: ${error.message}`;
     status.className = "inline-status error-state";
-    ["learning-candidates", "learning-confirmed", "learning-rejected", "learning-evidence"].forEach((id) => {
+    ["learning-candidates", "learning-confirmed", "learning-rejected", "learning-evidence", "learning-patterns"].forEach((id) => {
       const target = $(id);
       target.replaceChildren();
       const retry = el("button", "secondary", "Retry learning ledger");
       retry.onclick = loadLearning;
       target.append(el("div", "empty-state", "This section could not be loaded."), retry);
     });
+    $("learning-pattern-coverage").textContent = "Pattern coverage is unavailable until the Learning Ledger reconnects.";
   }
 }
 
@@ -1611,26 +1940,217 @@ $("learning-submit").onclick = async () => {
 };
 
 // ---------- Review + profiles ----------
-async function loadReview() {
-  const r = await api("/api/review/weekly");
-  $("review-speech").textContent = r.speech;
-  const stats = $("review-stats");
-  stats.replaceChildren();
-  [
-    ["Weight change", r.weight.delta_lb === null ? "–" : `${r.weight.delta_lb} lb`],
-    ["Avg protein", `${r.avg_daily_protein_g}g / ${r.protein_target_g}g`],
-    ["Avg steps", r.avg_daily_steps.toLocaleString()],
-    ["Money in", `$${r.money_in.toFixed(2)}`],
-    ["Bills paid this month", `$${r.bills_paid_this_month.toFixed(2)}`],
-    ["Treats / workouts", `${r.treats_this_week} / ${r.workouts_this_week}`],
-    ["Streaks", `vitamins ${r.streaks.vitamins}d · steps ${r.streaks.steps}d`],
-  ].forEach(([label, value]) => {
-    const line = el("div", "line");
-    line.append(el("span", "", label), el("span", "", value));
-    stats.appendChild(line);
-  });
-  loadProfiles();
+function reviewMoney(value) {
+  return Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
+
+function reviewDate(value) {
+  if (!value) return "–";
+  return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function renderReviewSignals(id, items, emptyMessage) {
+  const target = $(id);
+  target.replaceChildren();
+  if (!Array.isArray(items) || !items.length) {
+    target.className = "review-signal-list muted";
+    target.textContent = emptyMessage;
+    return;
+  }
+  target.className = "review-signal-list";
+  items.forEach((item) => {
+    const row = el("div", "review-signal");
+    row.append(
+      el("span", "review-domain", String(item.domain || "signal").toUpperCase()),
+      el("strong", "", item.title || "Signal"),
+      el("p", "", item.evidence || "No evidence detail returned."),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderReviewPriorities(items) {
+  const target = $("review-priorities");
+  target.replaceChildren();
+  target.className = "review-priority-list";
+  (items || []).slice(0, 3).forEach((item, index) => {
+    const row = el("div", "review-priority");
+    row.append(
+      el("span", "review-priority-number", String(index + 1).padStart(2, "0")),
+      el("strong", "", item.title || "Maintain course"),
+      el("p", "", item.evidence || "No corrective action is supported."),
+    );
+    target.appendChild(row);
+  });
+}
+
+function renderReviewCoverage(confidence) {
+  const target = $("review-coverage");
+  target.replaceChildren();
+  Object.entries(confidence.coverage || {}).forEach(([name, value]) => {
+    const row = el("div", "review-coverage-row");
+    const label = el("span", "", name);
+    const meter = el("div", "review-meter");
+    const fill = el("span", "");
+    fill.style.width = `${Math.max(0, Math.min(100, Number(value || 0)))}%`;
+    meter.appendChild(fill);
+    row.append(label, meter, el("strong", "", `${Number(value || 0)}%`));
+    target.appendChild(row);
+  });
+}
+
+function renderReviewTrends(trends) {
+  const target = $("review-trends");
+  target.replaceChildren();
+  const labels = { protein: "Protein", steps: "Steps", spending: "Spending", workouts: "Workouts" };
+  Object.entries(trends || {}).forEach(([key, item]) => {
+    const card = el("div", `review-trend ${item.favorable === true ? "good" : item.favorable === false ? "warn" : ""}`);
+    const percent = item.percent === null ? "NEW SIGNAL" : `${item.percent > 0 ? "+" : ""}${item.percent}%`;
+    let current = Number(item.current || 0).toLocaleString();
+    if (key === "protein") current += "g";
+    if (key === "spending") current = reviewMoney(item.current);
+    card.append(
+      el("span", "", labels[key] || key),
+      el("strong", "", current),
+      el("small", "", `${percent} · ${String(item.direction || "steady").toUpperCase()}`),
+    );
+    target.appendChild(card);
+  });
+}
+
+let weeklyReviewSpeech = "";
+let weeklyReviewUtterance = null;
+let weeklyReviewAudio = null;
+let weeklyReviewAudioUrl = null;
+
+function clearWeeklyReviewAudio() {
+  if (weeklyReviewAudio) {
+    const audio = weeklyReviewAudio;
+    weeklyReviewAudio = null;
+    audio.onplay = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  if (weeklyReviewAudioUrl) URL.revokeObjectURL(weeklyReviewAudioUrl);
+  weeklyReviewAudioUrl = null;
+}
+
+async function fetchWeeklyReviewAudio(retried = false) {
+  const response = await fetch("/api/speech/local", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: weeklyReviewSpeech }),
+    cache: "no-store",
+  });
+  if (response.status === 401 && !retried && await authenticateBrowser()) {
+    return fetchWeeklyReviewAudio(true);
+  }
+  if (!response.ok) {
+    let message = `Local voice request failed (${response.status})`;
+    try { message = (await response.json()).detail || message; } catch (_) { /* WAV endpoint may not return JSON. */ }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
+function stopWeeklyReview() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  clearWeeklyReviewAudio();
+  weeklyReviewUtterance = null;
+  $("review-stop-btn").disabled = true;
+  $("review-speak-btn").disabled = false;
+  $("review-speak-status").textContent = "Weekly brief stopped. The full text remains visible.";
+}
+
+async function speakWeeklyReview() {
+  if (!weeklyReviewSpeech) return;
+  const button = $("review-speak-btn");
+  button.disabled = true;
+  clearWeeklyReviewAudio();
+  $("review-speak-status").textContent = "Jarvis is generating the weekly brief with local Piper…";
+  try {
+    const blob = await fetchWeeklyReviewAudio();
+    weeklyReviewAudioUrl = URL.createObjectURL(blob);
+    weeklyReviewAudio = new Audio(weeklyReviewAudioUrl);
+    weeklyReviewAudio.onplay = () => {
+      $("review-stop-btn").disabled = false;
+      $("review-speak-status").textContent = "Jarvis is delivering the weekly brief through the X1 audio output.";
+    };
+    weeklyReviewAudio.onended = () => {
+      clearWeeklyReviewAudio();
+      $("review-stop-btn").disabled = true;
+      button.disabled = false;
+      $("review-speak-status").textContent = "Weekly brief complete.";
+    };
+    weeklyReviewAudio.onerror = () => {
+      clearWeeklyReviewAudio();
+      $("review-stop-btn").disabled = true;
+      button.disabled = false;
+      $("review-speak-status").textContent = "Piper audio could not be played. The complete brief remains visible.";
+    };
+    $("review-stop-btn").disabled = false;
+    await weeklyReviewAudio.play();
+  } catch (error) {
+    clearWeeklyReviewAudio();
+    $("review-stop-btn").disabled = true;
+    button.disabled = false;
+    $("review-speak-status").textContent = `Jarvis voice unavailable: ${error.message}. The complete brief remains visible.`;
+  }
+}
+
+async function loadReview() {
+  $("review-status").className = "inline-status";
+  $("review-status").textContent = "Reconciling the last seven days…";
+  try {
+    const r = await api("/api/review/weekly");
+    weeklyReviewSpeech = String(r.speech || "");
+    $("review-speech").textContent = weeklyReviewSpeech || "No weekly narration was returned.";
+    $("review-score").textContent = r.operating_score === null ? "–" : Number(r.operating_score || 0);
+    $("review-verdict").textContent = r.verdict || "Weekly picture available";
+    $("review-period").textContent = `${reviewDate(r.period_start)} — ${reviewDate(r.period_end)}`.toUpperCase();
+    $("review-confidence").textContent = `${String(r.confidence?.label || "limited").toUpperCase()} EVIDENCE · ${Number(r.confidence?.score || 0)}%`;
+    $("review-confidence-state").textContent = String(r.confidence?.label || "limited").toUpperCase();
+    renderReviewCoverage(r.confidence || { coverage: {} });
+    renderReviewTrends(r.trends);
+    renderReviewSignals("review-wins", r.wins, "No strong win is supported yet; keep logging the baseline.");
+    renderReviewSignals("review-watch", r.watch, "No material watch item surfaced this week.");
+    renderReviewPriorities(r.priorities);
+    $("review-policy").textContent = r.policy || "Recommendations remain advisory.";
+    const stats = $("review-stats");
+    stats.replaceChildren();
+    [
+      ["Weight change", r.weight.delta_lb === null ? "Not enough readings" : `${r.weight.delta_lb > 0 ? "+" : ""}${r.weight.delta_lb} lb`],
+      ["Protein target days", `${r.target_days?.protein || 0} / 7`],
+      ["Step target days", `${r.target_days?.steps || 0} / 7`],
+      ["Vitamins taken", `${r.target_days?.vitamins || 0} / 7`],
+      ["Workouts", Number(r.workouts_this_week || 0).toLocaleString()],
+      ["Spending", reviewMoney(r.spending_this_week)],
+      ["Money in", reviewMoney(r.money_in)],
+      ["Next payday", r.next_payday ? `${r.next_payday.label} · ${reviewDate(r.next_payday.date)}` : "Not available"],
+    ].forEach(([label, value]) => {
+      const line = el("div", "line");
+      line.append(el("span", "", label), el("span", "", value));
+      stats.appendChild(line);
+    });
+    $("review-speak-btn").disabled = !weeklyReviewSpeech;
+    $("review-speak-status").textContent = weeklyReviewSpeech ? "Ready for Giovanni." : "No spoken brief is available.";
+    $("review-status").textContent = `Weekly intelligence current through ${reviewDate(r.period_end)}.`;
+    await loadProfiles();
+  } catch (error) {
+    weeklyReviewSpeech = "";
+    $("review-speak-btn").disabled = true;
+    $("review-status").className = "inline-status error-state";
+    $("review-status").textContent = `Weekly intelligence is unavailable: ${error.message}`;
+    $("review-verdict").textContent = "Weekly evidence could not be loaded";
+    $("review-speech").textContent = "Jarvis is holding recommendations until the data connection recovers.";
+  }
+}
+
+$("review-speak-btn").onclick = speakWeeklyReview;
+$("review-stop-btn").onclick = stopWeeklyReview;
 
 async function loadProfiles() {
   const profiles = await api("/api/profiles");
@@ -2081,6 +2601,123 @@ function renderCapabilities(capabilities) {
   });
 }
 
+function renderIntegrationFabric(fabric) {
+  const state = String(fabric.status || "degraded").toLowerCase();
+  const summary = fabric.summary || {};
+  const stateNode = $("integration-state");
+  stateNode.className = `integration-state state-${state}`;
+  stateNode.textContent = state.toUpperCase();
+  commandText(
+    "integration-summary",
+    `${summary.ready || 0}/${summary.nodes || 0} READY · ${summary.degraded || 0} DEGRADED · ${summary.disconnected || 0} DISCONNECTED · ${summary.uncommissioned || 0} UNCOMMISSIONED · ${summary.orphaned || 0} ORPHANED`
+  );
+
+  const list = $("integration-list");
+  list.replaceChildren();
+  const nodes = Array.isArray(fabric.nodes) ? fabric.nodes : [];
+  if (!nodes.length) {
+    list.textContent = "Integration assessment is unavailable.";
+  } else {
+    nodes.forEach((node) => {
+      const nodeState = String(node.state || "degraded").toLowerCase();
+      const row = document.createElement("article");
+      row.className = `integration-node state-${nodeState}`;
+      const marker = document.createElement("span");
+      marker.className = "integration-marker";
+      const copy = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = node.name || friendlyEntity(node.id);
+      const detail = document.createElement("small");
+      detail.textContent = `${nodeState.toUpperCase()} · ${node.canonical_state || "canonical state unspecified"}`;
+      copy.append(name, detail);
+      row.title = node.reason || "No readiness detail supplied.";
+      row.append(marker, copy);
+      list.appendChild(row);
+    });
+  }
+
+  const issues = $("integration-issues");
+  issues.replaceChildren();
+  const issueList = Array.isArray(fabric.issues) ? fabric.issues : [];
+  const orphaned = Array.isArray(fabric.orphaned_nodes) ? fabric.orphaned_nodes : [];
+  if (!issueList.length && !orphaned.length) {
+    issues.textContent = "All commissioned subsystems have a producer, canonical state, and consumer.";
+    issues.className = "integration-issues is-clear";
+    return;
+  }
+  issues.className = "integration-issues has-attention";
+  const label = document.createElement("strong");
+  label.textContent = "ATTENTION";
+  const detail = document.createElement("span");
+  detail.textContent = orphaned.length
+    ? `Orphaned: ${orphaned.map(friendlyEntity).join(", ")}.`
+    : issueList.slice(0, 2).map((issue) => issue.reason).join(" ");
+  issues.append(label, detail);
+}
+
+function renderIntelligence(intelligence) {
+  const panel = document.querySelector(".command-intelligence");
+  const state = String(intelligence.status || "degraded").toLowerCase();
+  panel.classList.remove("intelligence-nominal", "intelligence-attention", "intelligence-degraded");
+  panel.classList.add(`intelligence-${state}`);
+  commandText("intelligence-state", state.toUpperCase());
+  commandText("intelligence-headline", intelligence.headline || "No intelligence assessment available.");
+  const confidence = Number(intelligence.confidence);
+  commandText("intelligence-confidence", Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : "—");
+
+  const summary = intelligence.summary || {};
+  const temporal = intelligence.temporal?.summary || {};
+  commandText(
+    "intelligence-summary",
+    `${summary.signals || 0} SIGNALS · ${summary.conflicts || 0} CONFLICTS · ${summary.urgent || 0} URGENT · ${temporal.established || 0} ROUTINES`
+  );
+  const policy = intelligence.policy || {};
+  commandText(
+    "intelligence-policy",
+    policy.inferences_authorize_actions === false
+      ? "ADVISORY ONLY · NO EXECUTION AUTHORITY"
+      : "POLICY STATE UNKNOWN"
+  );
+
+  const list = $("intelligence-list");
+  list.replaceChildren();
+  const recommendations = Array.isArray(intelligence.recommendations)
+    ? intelligence.recommendations.slice(0, 4)
+    : [];
+  if (!recommendations.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = intelligence.data_quality?.fresh === false
+      ? "Waiting for fresh context before ranking recommendations."
+      : "No cross-domain intervention recommended.";
+    list.appendChild(empty);
+    return;
+  }
+  recommendations.forEach((recommendation) => {
+    const priority = String(recommendation.priority || "low").toLowerCase();
+    const row = document.createElement("article");
+    row.className = `intelligence-item priority-${priority}`;
+    const label = document.createElement("span");
+    label.className = "intelligence-priority";
+    label.textContent = `${priority} / ${String(recommendation.horizon || "now")}`;
+    const copy = document.createElement("div");
+    copy.className = "intelligence-copy";
+    const title = document.createElement("strong");
+    title.textContent = recommendation.title || "Review recommendation";
+    const rationale = document.createElement("small");
+    rationale.textContent = recommendation.rationale || "Evidence is available in the intelligence API.";
+    copy.append(title, rationale);
+    const score = document.createElement("output");
+    const recommendationConfidence = Number(recommendation.confidence);
+    score.textContent = Number.isFinite(recommendationConfidence)
+      ? `${Math.round(recommendationConfidence * 100)}%`
+      : "—";
+    score.setAttribute("aria-label", "Recommendation confidence");
+    row.append(label, copy, score);
+    list.appendChild(row);
+  });
+}
+
 function renderAudit(audit) {
   const list = $("command-audit-list");
   list.replaceChildren();
@@ -2125,7 +2762,24 @@ async function runBehaviorSimulation(behavior, button) {
     if (!predictions.length) {
       const observation = document.createElement("div");
       observation.className = "simulation-observation";
-      if (behavior === "perception") {
+      if (behavior === "intelligence") {
+        const assessment = simulation.assessment || {};
+        const changes = simulation.changes || {};
+        const recommendations = Array.isArray(assessment.recommendations)
+          ? assessment.recommendations.slice(0, 3)
+          : [];
+        const summary = document.createElement("span");
+        summary.textContent = `${String(assessment.status || "unknown").toUpperCase()} · ${assessment.headline || "No changed verdict"}`;
+        observation.appendChild(summary);
+        recommendations.forEach((recommendation) => {
+          const line = document.createElement("small");
+          line.textContent = `${String(recommendation.priority || "low").toUpperCase()} · ${recommendation.title}`;
+          observation.appendChild(line);
+        });
+        const boundary = document.createElement("small");
+        boundary.textContent = `${(changes.added_recommendations || []).length} recommendation(s) added · no database writes · no house state changed.`;
+        observation.appendChild(boundary);
+      } else if (behavior === "perception") {
         const scenario = simulation.scenario || {};
         const presence = scenario.visual_presence === true ? "OCCUPIED" : scenario.visual_presence === false ? "CLEAR" : "AWAITING SIGNAL";
         const confidence = Number(scenario.confidence);
@@ -2178,7 +2832,7 @@ async function loadCommandCenter() {
   $("command").classList.remove("has-error", "is-attention", "is-nominal", "is-awaiting");
   try {
     const [payload, audit] = await Promise.all([
-      api("/api/command-center?event_limit=40"),
+      api("/api/command-center?event_limit=100"),
       api("/api/actions/audit?limit=6"),
     ]);
     const context = payload.context || {};
@@ -2218,11 +2872,13 @@ async function loadCommandCenter() {
     commandText("command-proposal-count", `${proposals.length} PENDING`);
     renderCommandProposals(proposals);
     renderLifeOSPulse(lifeos);
+    renderIntelligence(payload.intelligence || {});
     renderHardwareTelemetry(hardware);
     renderVoiceTelemetry(context.voice || {}, context.conversation || {});
     renderSupervisor(context.supervisor || {});
     renderPerception(perception);
     renderCapabilities(capabilities);
+    renderIntegrationFabric(payload.integrations || {});
     renderCommandEvents(context.recent_events || []);
     renderCommandPolicies(actions);
     renderAudit(Array.isArray(audit) ? audit : []);
@@ -2246,6 +2902,7 @@ document.addEventListener("fullscreenchange", () => {
     ? " Exit full screen"
     : " Full screen";
 });
+
 // ---------- cross-surface synchronization ----------
 let operatingSyncTimer = null;
 

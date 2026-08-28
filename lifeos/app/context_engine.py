@@ -9,10 +9,53 @@ from typing import Any
 import httpx
 
 from .db import active_profile, conn, get_setting
+from .intelligence import build_intelligence, simulate_intelligence
 from .paydays import scheduled_bill_due_date
 
 
 ACTION_REGISTRY: dict[str, dict[str, Any]] = {
+    "finance.verify_transaction": {
+        "name": "Verify an imported transaction",
+        "description": "Post a reviewed debit or credit to the LifeOS account ledger.",
+        "risk": "high", "scope": "finance", "reversible": False,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.reconcile_balance": {
+        "name": "Reconcile an account balance",
+        "description": "Replace a calculated balance with a confirmed actual balance and preserve the difference.",
+        "risk": "high", "scope": "finance", "reversible": True,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.fund_paycheck": {
+        "name": "Fund a paycheck mission",
+        "description": "Credit one confirmed paycheck exactly once: $309 to Truliant, the remainder to OnePay, nothing directly to Relay, and post configured retirement and HSA payroll contributions.",
+        "risk": "high", "scope": "finance", "reversible": False,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.close_paycheck": {
+        "name": "Close a paycheck mission",
+        "description": "Record the verified closing balance for a funded paycheck cycle.",
+        "risk": "medium", "scope": "finance", "reversible": True,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.simulate_cashflow": {
+        "name": "Simulate cash flow",
+        "description": "Run a read-only what-if forecast without changing any ledger.",
+        "risk": "none", "scope": "finance_analysis", "reversible": True,
+        "confirmation_policy": "automatic_read_only", "requires_confirmation": False,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
+    "finance.update_debt_strategy": {
+        "name": "Update debt strategy metadata",
+        "description": "Record a debt APR and priority for read-only payoff ordering without initiating a payment.",
+        "risk": "low", "scope": "finance", "reversible": True,
+        "confirmation_policy": "none", "requires_confirmation": False,
+        "remote_execution": False, "service": "lifeos.internal", "target": None,
+    },
     "scene.arrival": {
         "name": "Prepare the house for arrival",
         "description": "Activate the approved Sanctuary Welcome mode.",
@@ -370,7 +413,12 @@ def lifeos_snapshot() -> dict[str, Any]:
             {"domain": "body", "label": f"{water_target - water} glasses of water remaining"}
         )
     if due_soon:
-        priorities.append({"domain": "vault", "label": f"{len(due_soon)} bill(s) need attention"})
+        priorities.append(
+            {
+                "domain": "vault",
+                "label": f"{len(due_soon)} bill(s) staged within 7 days",
+            }
+        )
     if any(not workout["done"] for workout in workouts):
         priorities.append({"domain": "body", "label": "Planned workout remains open"})
     depleted = [item for item in pantry_items if float(item["qty"]) <= 0]
@@ -769,12 +817,14 @@ def capability_manifest(snapshot: dict[str, Any] | None = None) -> list[dict[str
 
 def command_center_payload(event_limit: int = 40) -> dict[str, Any]:
     snapshot = current_context(event_limit=event_limit)
+    proposals = list_proposals("pending")
     return {
         "context": snapshot,
         "sanctuary": snapshot["sanctuary"],
-        "proposals": list_proposals("pending"),
+        "proposals": proposals,
         "actions": ACTION_REGISTRY,
         "capabilities": capability_manifest(snapshot),
+        "intelligence": build_intelligence(snapshot, proposals=proposals),
     }
 
 
@@ -885,11 +935,28 @@ def simulate_sanctuary_mode(
 
 def simulate_behavior(behavior: str, overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     """Predict a behavior without writing facts, proposals, audits, or HA state."""
-    if behavior not in {"arrival", "departure", "nightly", "perception", "sanctuary"}:
+    if behavior not in {
+        "arrival", "departure", "nightly", "perception", "sanctuary", "intelligence"
+    }:
         raise ValueError(behavior)
     scenario = deepcopy(overrides or {})
     if behavior == "sanctuary":
         return simulate_sanctuary_mode(str(scenario.pop("mode", "Home Base")), scenario)
+    if behavior == "intelligence":
+        if not scenario:
+            scenario = {
+                "sanctuary_mode": "Away",
+                "occupied": True,
+                "people_home": ["giovanni"],
+                "visual_presence": True,
+                "visual_confidence": 0.9,
+                "telemetry_state": "online",
+            }
+        return simulate_intelligence(
+            current_context(event_limit=100),
+            scenario,
+            proposals=list_proposals("pending"),
+        )
     actions: list[dict[str, Any]] = []
     if behavior == "arrival":
         person = scenario.setdefault("person", "person.simulated_resident")

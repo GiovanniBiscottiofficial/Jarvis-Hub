@@ -1,0 +1,61 @@
+jarvis_arrival_relaxation:
+  alias: "Jarvis: arrival R&B relaxation"
+  description: >-
+    Starts Giovanni's configured Spotify R&B playlist only when Spotify is
+    commissioned and no media is already playing. Missing capabilities are
+    reported as readiness events, never failed service calls.
+  mode: single
+  sequence:
+    - variables:
+        playlist_uri: "{{ states('input_text.jarvis_arrival_spotify_playlist_uri') | trim }}"
+        spotify_player: >-
+          {{ states.media_player
+             | rejectattr('state', 'in', ['unknown', 'unavailable'])
+             | selectattr('entity_id', 'search', 'spotify')
+             | map(attribute='entity_id') | list | first | default('') }}
+        active_players: >-
+          {{ states.media_player
+             | selectattr('state', 'eq', 'playing')
+             | map(attribute='entity_id') | list }}
+        ready: >-
+          {{ is_state('input_boolean.jarvis_arrival_music_enabled', 'on')
+             and spotify_player != ''
+             and playlist_uri.startswith('spotify:playlist:')
+             and active_players | count == 0 }}
+        skipped_reason: >-
+          {% if not is_state('input_boolean.jarvis_arrival_music_enabled', 'on') %}
+            disabled_by_giovanni
+          {% elif spotify_player == '' %}
+            spotify_media_player_not_commissioned
+          {% elif not playlist_uri.startswith('spotify:playlist:') %}
+            master_playlist_uri_not_configured
+          {% elif active_players | count > 0 %}
+            protected_active_playback
+          {% else %}
+            none
+          {% endif %}
+    - choose:
+        - conditions: "{{ ready }}"
+          sequence:
+            - service: media_player.volume_set
+              target:
+                entity_id: "{{ spotify_player }}"
+              data:
+                volume_level: 0.28
+            - service: media_player.play_media
+              target:
+                entity_id: "{{ spotify_player }}"
+              data:
+                media_content_id: "{{ playlist_uri }}"
+                media_content_type: playlist
+            - event: jarvis_arrival_music
+              event_data:
+                state: started
+                player: "{{ spotify_player }}"
+                policy: low_risk_reversible
+      default:
+        - event: jarvis_arrival_music
+          event_data:
+            state: skipped
+            reason: "{{ skipped_reason | trim }}"
+            active_players: "{{ active_players }}"

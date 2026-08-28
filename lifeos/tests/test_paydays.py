@@ -78,7 +78,7 @@ def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
         }
     assert accounts["Truliant"] == -25.73
     assert accounts["Relay"] == 0
-    assert accounts["OnePay Savings"] == 0
+    assert "OnePay Savings" not in accounts
     assert bills["Spectrum Internet"]["amount"] == 93.95
     assert bills["Spectrum Internet"]["due_day"] == 28
     assert bills["Spectrum Internet"]["paycheck"] == 1
@@ -88,6 +88,11 @@ def test_commissioned_bills_and_balances_match_giovanni_plan(fresh_db):
     for name in ("Klarna Statement", "Duke Energy Payment Plan", "Old Spectrum Paydown"):
         assert bills[name]["start_period"] == schedule[2]["period"]
         assert bills[name]["paycheck"] == 1
+    assert "Phone Balance Arrangement" not in bills
+    assert bills["Phone Reconnection"]["start_period"] == schedule[2]["period"]
+    assert bills["Phone Reconnection"]["paycheck"] == schedule[2]["paycheck"]
+    assert bills["Phone Reconnection"]["one_time"] == 1
+    assert bills["Phone Reconnection"]["paid_period"] is None
 
 
 def test_reconcile_accepts_real_negative_account_balance(fresh_db):
@@ -116,17 +121,87 @@ def test_zero_reconciled_balance_survives_restart(fresh_db):
     assert balance == 0
 
 
+def test_asset_balance_verification_migrates_existing_totals(fresh_db):
+    from app.db import conn, init_db
+
+    with conn() as c:
+        c.execute("DELETE FROM settings WHERE key='asset_balance_verification_v1'")
+        c.execute("UPDATE assets SET balance_verified=0")
+    init_db()
+    with conn() as c:
+        verified = {
+            row["name"]: row["balance_verified"]
+            for row in c.execute("SELECT name,balance_verified FROM assets")
+        }
+    assert verified["401(k)"] == 1
+    assert verified["Roth IRA"] == 1
+    assert verified["HSA"] == 0
+
+
+def test_hsa_balance_is_commissioned_from_confirmed_total(fresh_db):
+    from app.db import conn, init_db
+
+    with conn() as c:
+        c.execute("DELETE FROM settings WHERE key='hsa_balance_2026_08_25_v1'")
+        c.execute("UPDATE assets SET balance=0,balance_verified=0 WHERE name='HSA'")
+    init_db()
+    with conn() as c:
+        hsa = c.execute("SELECT * FROM assets WHERE name='HSA'").fetchone()
+    assert hsa["balance"] == 319.60
+    assert hsa["balance_verified"] == 1
+
+
 def test_budget_overview_exposes_countdowns_and_corrected_net(fresh_db):
     from app.routers import budget
 
     overview = budget.overview()
     assert overview["paycheck_in"]["net"] == 2064.24
-    assert sum(
-        overview["paycheck_in"][key] for key in ("onepay", "truliant")
-    ) == 2064.24
+    assert overview["paycheck_in"]["onepay"] == 1755.24
+    assert overview["paycheck_in"]["truliant"] == 309.00
+    assert sum(overview["paycheck_in"][key] for key in ("onepay", "truliant")) == 2064.24
     assert len(overview["paydays"]) == 4
     assert {item["paycheck"] for item in overview["paydays"][:2]} == {1, 2}
     assert overview["protected_cash"] == 0
+    assert overview["bucket_contribution"] == 0
+    assert overview["bucket_contribution_policy"] == "manual_only"
+    assert overview["safe_to_spend"] == round(
+        overview["paycheck_in"]["onepay"] - overview["allocated"], 2
+    )
+    assets = {asset["name"]: asset for asset in overview["assets"]}
+    assert assets["401(k)"]["balance"] == 527.45
+    assert assets["401(k)"]["ytd_contributions"] == 491.64
+    assert assets["401(k)"]["lifetime_contributions"] == 491.64
+    assert assets["Roth IRA"]["balance"] == 419.29
+    assert assets["Roth IRA"]["ytd_contributions"] == 393.32
+    assert assets["Roth IRA"]["lifetime_contributions"] == 393.32
+    assert assets["401(k)"]["as_of"] == "2026-08-25"
+    assert assets["401(k)"]["balance_verified"] == 1
+    assert assets["Roth IRA"]["balance_verified"] == 1
+    assert assets["HSA"]["ytd_contributions"] == 319.60
+    assert assets["HSA"]["lifetime_contributions"] == 319.60
+    assert assets["HSA"]["as_of"] == "2026-08-25"
+    assert assets["HSA"]["balance"] == 319.60
+    assert assets["HSA"]["balance_verified"] == 1
+    retirement = overview["retirement_summary"]
+    assert retirement["balance"] == 946.74
+    assert retirement["contributions"] == 884.96
+    assert retirement["unclassified_difference"] == 61.78
+    assert retirement["as_of"] == "2026-08-25"
+    breakdown = {row["name"]: row for row in retirement["breakdown"]}
+    assert breakdown["Pre-tax"]["balance"] == 527.45
+    assert breakdown["Roth"]["balance"] == 419.29
+    assert breakdown["Pre-tax"]["percent"] == 55.7
+    assert breakdown["Roth"]["percent"] == 44.3
+
+
+def test_forecast_does_not_reserve_unfunded_relay_targets(fresh_db):
+    from app.routers import budget
+
+    overview = budget.overview()
+    first = budget.forecast(1)["forecast"][0]
+    assert first["surplus"] == round(
+        overview["paycheck_in"]["onepay"] - first["bills"], 2
+    )
 
 
 def test_new_budget_cycle_is_scheduled_not_overdue(fresh_db):

@@ -8,5 +8,5 @@ views:
     panel: true
     cards:
       - type: iframe
-        url: /local/lifeos.html
+        url: /local/lifeos.html?v=20260826-1
         aspect_ratio: 100%

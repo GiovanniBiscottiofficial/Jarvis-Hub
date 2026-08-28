@@ -4,13 +4,20 @@ import json
 import os
 import uuid
 import mimetypes
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, UploadFile
 import httpx
 from pydantic import BaseModel
 
 from ..db import active_profile, conn, get_setting
+from ..body_intelligence import (
+    adaptive_targets,
+    body_timeline,
+    daily_loop,
+    habit_insights,
+    readiness_snapshot,
+)
 from ..suggestions import high_protein_snacks, suggest_meals
 
 router = APIRouter(prefix="/api/body", tags=["bodyops"])
@@ -21,6 +28,7 @@ class MealLogIn(BaseModel):
     protein_g: float = 0
     calories: float = 0
     override_kind: str | None = None
+    logged_at: str | None = None
 
 
 class PhotoMealLogIn(BaseModel):
@@ -63,6 +71,16 @@ class WorkoutLogIn(BaseModel):
     minutes: int = 15
 
 
+class BodyCheckIn(BaseModel):
+    sleep_hours: float | None = None
+    sleep_quality: int | None = None
+    energy: int | None = None
+    mood: int | None = None
+    soreness: int | None = None
+    resting_heart_rate: float | None = None
+    source: str = "manual"
+
+
 FAVORITE_SLOTS = ("breakfast", "lunch", "dinner", "snack")
 
 
@@ -74,6 +92,77 @@ MAX_PHOTO_BYTES = int(os.environ.get("LIFEOS_MAX_PHOTO_BYTES", str(8 * 1024 * 10
 
 def _today() -> str:
     return date.today().isoformat()
+
+
+@router.post("/checkin")
+def body_checkin(body: BodyCheckIn):
+    """Record subjective recovery separately from measured/imported data."""
+    if body.sleep_hours is not None and not 0 <= body.sleep_hours <= 24:
+        raise HTTPException(400, "sleep hours must be between 0 and 24")
+    for field in ("sleep_quality", "energy", "mood", "soreness"):
+        value = getattr(body, field)
+        if value is not None and not 1 <= value <= 5:
+            raise HTTPException(400, f"{field.replace('_', ' ')} must be between 1 and 5")
+    if body.resting_heart_rate is not None and not 20 <= body.resting_heart_rate <= 250:
+        raise HTTPException(400, "resting heart rate must be between 20 and 250")
+    # This public endpoint records a person-entered check-in. Imported sensors
+    # use the webhook path so provenance cannot be relabeled by client input.
+    source = "manual"
+    with conn() as c:
+        pid = active_profile(c)["id"]
+        c.execute(
+            "INSERT INTO body_checkins(date,profile_id,sleep_hours,sleep_quality,"
+            "energy,mood,soreness,resting_heart_rate,source,updated_at)"
+            " VALUES(?,?,?,?,?,?,?,?,?,datetime('now','localtime'))"
+            " ON CONFLICT(date,profile_id) DO UPDATE SET"
+            " sleep_hours=excluded.sleep_hours,sleep_quality=excluded.sleep_quality,"
+            " energy=excluded.energy,mood=excluded.mood,soreness=excluded.soreness,"
+            " resting_heart_rate=excluded.resting_heart_rate,source=excluded.source,"
+            " updated_at=datetime('now','localtime')",
+            (
+                _today(), pid, body.sleep_hours, body.sleep_quality, body.energy,
+                body.mood, body.soreness, body.resting_heart_rate, source,
+            ),
+        )
+        c.execute(
+            "INSERT INTO context_events(source,event_type,entity_id,state,attributes_json)"
+            " VALUES('lifeos','body.checkin','sensor.body_readiness','updated',?)",
+            (json.dumps({
+                "sleep_hours": body.sleep_hours,
+                "sleep_quality": body.sleep_quality,
+                "energy": body.energy,
+                "mood": body.mood,
+                "soreness": body.soreness,
+                "resting_heart_rate": body.resting_heart_rate,
+                "data_class": "self_reported",
+            }),),
+        )
+    return {"ok": True, "readiness": readiness_snapshot(), "targets": adaptive_targets()}
+
+
+@router.get("/readiness")
+def body_readiness():
+    return readiness_snapshot()
+
+
+@router.get("/targets")
+def body_targets():
+    return adaptive_targets()
+
+
+@router.get("/habits")
+def body_habits(days: int = 28):
+    return {"days": max(7, min(days, 90)), "insights": habit_insights(days)}
+
+
+@router.get("/timeline")
+def timeline(limit: int = 60):
+    return body_timeline(limit)
+
+
+@router.get("/daily-loop")
+def body_daily_loop():
+    return daily_loop()
 
 
 async def _analyze_meal_photo(data: bytes, content_type: str) -> dict:
@@ -178,6 +267,16 @@ def scale_readiness():
 
 @router.post("/meals/log")
 def log_meal(body: MealLogIn):
+    logged_at = None
+    if body.logged_at:
+        try:
+            parsed = datetime.fromisoformat(body.logged_at)
+        except ValueError as exc:
+            raise HTTPException(400, "logged_at must be an ISO date or date-time") from exc
+        earliest = datetime.now() - timedelta(days=7)
+        if parsed > datetime.now() + timedelta(minutes=5) or parsed < earliest:
+            raise HTTPException(400, "logged_at must be within the last 7 days and not in the future")
+        logged_at = parsed.strftime("%Y-%m-%d %H:%M:%S")
     with conn() as c:
         if body.protein_g == 0 and body.calories == 0:
             row = c.execute(
@@ -185,16 +284,25 @@ def log_meal(body: MealLogIn):
             ).fetchone()
             if row:
                 body.protein_g, body.calories = row["protein_g"], row["calories"]
+        profile_id = active_profile(c)["id"]
+        if logged_at:
+            c.execute(
+                "INSERT INTO meal_log(ts,name,protein_g,calories,override_kind,profile_id)"
+                " VALUES(?,?,?,?,?,?)",
+                (logged_at, body.name, body.protein_g, body.calories, body.override_kind, profile_id),
+            )
+        else:
+            c.execute(
+                "INSERT INTO meal_log(name,protein_g,calories,override_kind,profile_id)"
+                " VALUES(?,?,?,?,?)",
+                (body.name, body.protein_g, body.calories, body.override_kind, profile_id),
+            )
         c.execute(
-            "INSERT INTO meal_log(name,protein_g,calories,override_kind,profile_id)"
-            " VALUES(?,?,?,?,?)",
-            (
-                body.name,
-                body.protein_g,
-                body.calories,
-                body.override_kind,
-                active_profile(c)["id"],
-            ),
+            "INSERT INTO context_events(source,event_type,entity_id,state,attributes_json)"
+            " VALUES('lifeos','body.meal_logged','sensor.protein','recorded',?)",
+            (json.dumps({"meal": body.name, "protein_g": body.protein_g,
+                         "calories": body.calories, "logged_at": logged_at,
+                         "backdated": bool(logged_at)}),),
         )
         return {"ok": True, "protein_today": protein_today(c)}
 

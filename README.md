@@ -36,7 +36,7 @@ and calibrating each room on the X1. Missing hardware stays visibly
 
 **Built and in this repo:**
 - Core stack: Home Assistant + LifeOS + optional profiles (voice, LLM, Grocy, cameras, Plex, Jellyfin)
-- LifeOS: briefings, protein/water/steps, meals & favorites, pantry/grocery, workouts,
+- LifeOS: briefings, protein/water/steps with one profile-owned goal across every page, meals & favorites, pantry/grocery, workouts,
   weigh-ins, spending, bills, accounts, savings goals, weekly review, PWA install
 - Voice: ~60 sentence intents (ask/log/control), timers, reminders, context memory,
   wisdom & sarcasm, diagnostics, announcements
@@ -146,6 +146,12 @@ near-term financial runway, priorities, X1 hardware readiness, proposals, and th
 Home Assistant event stream. Open LifeOS and select **Command** for the complete
 operating picture.
 
+Today, Body Ops, Budget & Vault, weekly intelligence, spoken answers, and Command
+Center consume that same profile-scoped operating picture. Successful UI mutations
+invalidate affected panels immediately; tab activation, visibility recovery, and a
+60-second visible-page refresh also reconcile changes made by voice, Home Assistant,
+or another device.
+
 Home Assistant forwards meaningful `state_changed` events through
 `ha-config/automations/context_engine.yaml`. LifeOS evaluates three behaviors:
 
@@ -179,9 +185,16 @@ Context APIs:
 - `POST /api/simulations/{arrival|departure|nightly}` — side-effect-free behavior lab;
 - `GET /api/actions`, `GET /api/actions/audit`, and `POST /api/actions/{action_id}` —
   policies, audit history, and guarded execution.
-- `GET /api/learning` — local observations, candidates, confirmed preferences, and audit;
+- `GET /api/learning` — local observations, automatic patterns, candidates, confirmed preferences, and audit;
 - `POST /api/learning/feedback` — record explicit evidence without authorizing an action;
 - `POST /api/learning/preferences/{id}/decision` — confirm, reject, or forget guidance.
+- `GET /api/internet` and `POST /api/internet/refresh` — fused source health,
+  forecast, air quality, official alerts, commute, calendar, provenance, and readiness;
+- `GET /api/internet/research?q=...` — ephemeral Wikipedia and current-news source discovery;
+- `GET /api/internet/media?q=...` — attributed Apple catalog discovery without subscription claims;
+- `GET /api/internet/nutrition?q=...` — USDA FoodData Central matches requiring serving confirmation.
+- `POST /api/internet/feeds/{retailer_pricing|inbox_delivery|bank_sync|streaming_availability}` —
+  sanitized, expiring, profile-scoped read-only connector snapshots.
 
 Every action declares its scope, risk, reversibility, confirmation policy, and
 whether remote execution is allowed. This is the central rule: the LLM may explain
@@ -196,8 +209,44 @@ them, and confirmed guidance can be forgotten at any time. Confidence is based o
 visible evidence count and agreement; it is not presented as certainty. The ledger,
 its decisions, and its audit history stay in the local LifeOS database.
 
+Jarvis also derives cautious, profile-owned patterns from commute duration,
+arrival/departure timing, repeated meals, Body Ops consistency, recurring spending,
+Sanctuary modes, and media sources. Three observations are required before a pattern
+is called established. These patterns improve timing, ranking, and briefing language;
+they remain advisory and never authorize an action. Raw microphone audio, camera
+frames, identity recognition, exact location history, passwords, and tokens are not
+retained as learning evidence.
+
 Learning never bypasses the action registry. A confirmed preference may influence
 an explanation or future proposal, but it cannot directly operate Home Assistant.
+
+### Internet Intelligence Broker
+
+Select **Web Intel** in LifeOS for Jarvis's connected operating picture. The broker
+fuses Open-Meteo forecasts and air quality, official National Weather Service
+alerts, the Home Assistant Waze commute sensor, and commissioned Home Assistant
+calendars. It also exposes ephemeral cited research, cross-catalog media discovery,
+and USDA nutrition lookup. Research uses Crossref metadata plus Bing News RSS;
+every source carries status, freshness, retrieval time,
+provenance, cache state, and an explicit authority boundary. One failed provider is
+isolated and a prior verified result is labeled stale instead of silently becoming
+current.
+
+Account-dependent features remain visible as truthful commissioning states. Live
+retailer prices/coupons require an approved retailer integration; inbox and package
+summaries require a read-only email connector; bank reconciliation requires a
+financial-data connector and explicit approval; streaming availability requires a
+licensed catalog provider. Jarvis never pretends these are active, scrapes account
+credentials, submits checkout, moves money, or treats an internet result as action
+authorization. Research, media, and nutrition query text is not persisted.
+Provider adapters can submit bounded snapshots through `/api/internet/feeds/{capability}`;
+secret, account-number, payment, checkout, transfer, and service-call fields are
+discarded, payloads expire into a visible stale state, and the feed never gains
+execution authority.
+
+Set `LIFEOS_CALENDAR_ENTITY` to restrict agenda fusion to one Home Assistant
+calendar. Set `USDA_FDC_API_KEY` to a private data.gov key for production nutrition
+lookups; the documented `DEMO_KEY` fallback is intentionally low-rate.
 
 ### System architecture
 
@@ -208,6 +257,7 @@ flowchart LR
     BO["Body Ops"] --> CE
     VF["Vault Flow"] --> CE
     LL["Learning Ledger"] -->|confirmed guidance| CE
+    WEB["Internet Intelligence Broker"] -->|attributed read-only evidence| CE
     CE --> CC["Command Center + Behavior Lab"]
     CE --> PP["Policy and proposal gate"]
     LLM["Jarvis conversation agent"] -->|intent / explanation| PP
@@ -407,9 +457,10 @@ bars — and the app shell still opens if the hub is briefly unreachable.
 
 ### Routed shopping list
 
-The **To-do** surface brings Home Assistant's native list, the local Jarvis
-routed shopping list, and a Grocy launcher together while keeping their data
-boundaries explicit. The three stores are not presented as synchronized.
+The **To-do** surface has one owner: LifeOS maintains the routed Jarvis shopping
+list, while Grocy supplies inventory and expiry data. Home Assistant no longer
+keeps a competing shopping or errands list; voice grocery commands route to
+LifeOS.
 
 Jarvis shopping uses two deliberate routes:
 
@@ -462,7 +513,7 @@ It boots into a live animated **Jarvis boot splash** (spinning arc-reactor core,
 "INITIALIZING SYSTEMS…", moving circuit grid — `ha-config/www/jarvis-splash.html`,
 also viewable any time at `http://<hub-ip>:8123/local/jarvis-splash.html`), which
 hands over to the **Wall** view of the Jarvis dashboard — big clock, the
-morning briefing, giant light/scene/vacuum tiles, the shopping list, and a "Jarvis
+morning briefing, giant light/scene/vacuum tiles, a LifeOS shopping launcher, and a "Jarvis
 activity" feed of his recent actions — fullscreen,
 screen always on, running on a lightweight **Wayland** compositor (Weston) with
 Chromium in native Wayland mode for smooth touch and proper HiDPI,
@@ -617,8 +668,8 @@ returns. The Command Center shows health, repair decisions, and protected bounda
   the live camera state. The channel contains no images and does not require a LifeOS
   token.
 
-- **Conversation continuity**: Jarvis's local `qwen2.5:1.5b` agent uses a 10-turn rolling history
-  and a 3072-token context window on the 8 GB X1. The versioned prompt in
+- **Conversation continuity**: Jarvis's local `qwen2.5:1.5b` agent uses a 4-turn rolling history
+  and a 2048-token context window on the 8 GB X1. The versioned prompt in
   `docs/jarvis-conversation-prompt.txt` teaches pronoun resolution, fragmentary
   follow-ups, concise clarification, correction handling, and spoken-response
   discipline. Apply it only while Home Assistant is stopped:
