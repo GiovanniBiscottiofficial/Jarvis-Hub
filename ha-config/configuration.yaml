@@ -59,7 +59,7 @@ notify:
     name: jarvis_phone
     services:
       - action: persistent_notification
-      - action: mobile_app_se_device
+      - action: mobile_app_iphone
 
 # Wake computers over the network (fill in MACs, see README Phase 17)
 wake_on_lan:

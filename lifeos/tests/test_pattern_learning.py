@@ -87,4 +87,3 @@ def test_commute_recording_revises_same_day_without_location_history(fresh_db):
     assert len(rows) == 1
     assert rows[0]["minutes"] == 34.0
     assert rows[0]["planned_departure"] == "7:16 AM"
-

@@ -556,8 +556,9 @@ SEED_ASSETS = [
 
 @contextmanager
 def conn():
-    c = sqlite3.connect(DB_PATH)
+    c = sqlite3.connect(DB_PATH, timeout=30)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=30000")
     c.execute("PRAGMA foreign_keys=ON")
     try:
         yield c
@@ -666,6 +667,15 @@ def _migrate(c: sqlite3.Connection) -> None:
 
 def init_db() -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    # WAL lets Home Assistant event ingestion commit while dashboard and
+    # intelligence reads are active. The setting persists with the database,
+    # so establish it once before opening normal application connections.
+    bootstrap = sqlite3.connect(DB_PATH, timeout=30)
+    try:
+        bootstrap.execute("PRAGMA busy_timeout=30000")
+        bootstrap.execute("PRAGMA journal_mode=WAL")
+    finally:
+        bootstrap.close()
     with conn() as c:
         # Create every current table before migrations inspect or cross-reference
         # them. CREATE IF NOT EXISTS preserves the live database while allowing
