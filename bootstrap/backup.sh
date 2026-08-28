@@ -7,7 +7,6 @@ set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-$HOME/jarvis-backups}"
 KEEP="${KEEP:-14}"   # keep the newest N of each
-REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 mkdir -p "$BACKUP_DIR"
@@ -31,9 +30,21 @@ else
   echo "!! lifeos container not running — skipping DB backup"
 fi
 
-# Home Assistant config (includes .storage: users, dashboards, integrations)
-tar -czf "$BACKUP_DIR/ha-config-$STAMP.tar.gz" -C "$REPO_DIR" ha-config
-echo "==> HA config -> $BACKUP_DIR/ha-config-$STAMP.tar.gz"
+# Home Assistant config (includes root-owned .storage files). Build the archive
+# inside the container so every mounted config file is readable, then copy it
+# into place atomically. A host-side tar silently misses protected registry and
+# authentication files on standard Home Assistant container installs.
+if docker ps --format '{{.Names}}' | grep -q '^homeassistant$'; then
+  HA_CONTAINER_ARCHIVE="/tmp/jarvis-ha-$STAMP.tar.gz"
+  HA_PARTIAL_ARCHIVE="$BACKUP_DIR/.ha-config-$STAMP.tar.gz.part"
+  docker exec homeassistant tar -czf "$HA_CONTAINER_ARCHIVE" -C /config .
+  docker cp "homeassistant:$HA_CONTAINER_ARCHIVE" "$HA_PARTIAL_ARCHIVE"
+  docker exec homeassistant rm -f "$HA_CONTAINER_ARCHIVE"
+  mv "$HA_PARTIAL_ARCHIVE" "$BACKUP_DIR/ha-config-$STAMP.tar.gz"
+  echo "==> HA config -> $BACKUP_DIR/ha-config-$STAMP.tar.gz"
+else
+  echo "!! homeassistant container not running — skipping HA config backup"
+fi
 
 # Prune old backups
 { ls -1t "$BACKUP_DIR"/lifeos-*.db 2>/dev/null || true; } | tail -n +$((KEEP + 1)) | xargs -r rm --
