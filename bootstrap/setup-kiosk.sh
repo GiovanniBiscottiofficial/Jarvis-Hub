@@ -219,6 +219,8 @@ sudo chmod +x /opt/jarvis-kiosk/hub-bar.py
 # Both kiosk setup paths finish by installing this tracked canonical bar. It
 # keeps Home/Back/Keys/Settings available even on top-level retailer pages.
 sudo install -m 0755 "${SCRIPT_DIR}/kiosk/hub-bar.py" /opt/jarvis-kiosk/hub-bar.py
+sudo install -m 0755 "${SCRIPT_DIR}/kiosk/jarvis-keyboard.py" \
+  /opt/jarvis-kiosk/jarvis-keyboard.py
 
 echo "==> Idle watcher (ambient clock screen after inactivity)..."
 sudo tee /opt/jarvis-kiosk/idle-watch.sh >/dev/null <<'SHEOF'
@@ -316,7 +318,7 @@ gsettings set org.onboard.window.landscape x 60 || true
 gsettings set org.onboard.window.landscape y 620 || true
 gsettings set org.onboard.window.landscape width 1440 || true
 gsettings set org.onboard.window.landscape height 340 || true
-onboard --startup-delay=3 &
+/opt/jarvis-kiosk/jarvis-keyboard.py >/dev/null 2>&1 &
 # Floating Home + Keyboard buttons (bottom-left corner)
 /opt/jarvis-kiosk/hub-bar.py &
 # Ambient idle screen: after a few minutes of no touch, drift to the

@@ -8,6 +8,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 BAR_PATH = REPO / "bootstrap" / "kiosk" / "hub-bar.py"
+KEYBOARD_PATH = REPO / "bootstrap" / "kiosk" / "jarvis-keyboard.py"
 
 
 def load_bar():
@@ -101,6 +102,17 @@ def test_keyboard_can_start_themed_fallback_when_dbus_is_unavailable():
         exists=lambda path: path == "/opt/jarvis-kiosk/jarvis-keyboard.py",
     ) == "themed-started"
     assert calls[-1] == ["/opt/jarvis-kiosk/jarvis-keyboard.py"]
+
+
+def test_hidden_keyboard_services_toggle_signals_on_a_short_timer():
+    keyboard = KEYBOARD_PATH.read_text(encoding="utf-8")
+    assert "TOGGLE_POLL_MS = 40" in keyboard
+    assert "pending_toggles += 1" in keyboard
+    assert "root.after(TOGGLE_POLL_MS, service_toggle_requests)" in keyboard
+
+    for installer in ("setup-kiosk.sh", "revert-kiosk-to-x11.sh"):
+        script = (REPO / "bootstrap" / installer).read_text(encoding="utf-8")
+        assert 'install -m 0755 "${SCRIPT_DIR}/kiosk/jarvis-keyboard.py"' in script
 
 
 def test_eyes_preserves_guarded_gesture_app_telemetry():

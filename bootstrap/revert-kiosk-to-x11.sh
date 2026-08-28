@@ -379,6 +379,10 @@ signal.signal(signal.SIGUSR1, signal_toggle)
 root.mainloop()
 PYEOF
 sudo chmod +x /opt/jarvis-kiosk/jarvis-keyboard.py
+# Replace the bootstrap copy with the tracked canonical keyboard. Its event-loop
+# bridge makes KEYS reopen immediately even while the window is withdrawn.
+sudo install -m 0755 "${SCRIPT_DIR}/kiosk/jarvis-keyboard.py" \
+  /opt/jarvis-kiosk/jarvis-keyboard.py
 
 [ ! -f "$PROFILE" ] || sudo cp -a "$PROFILE" "${PROFILE}.before-x11-${stamp}"
 [ ! -f "$XINIT" ] || sudo cp -a "$XINIT" "${XINIT}.before-x11-${stamp}"
