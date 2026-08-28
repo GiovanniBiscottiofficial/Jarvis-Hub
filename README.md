@@ -473,9 +473,23 @@ ingredients are classified automatically, and every row has a **Move to food** o
 the kiosk's top-level page for review. The **Retailer access** panel also opens
 the real Food Lion, Instacart, Walmart, and Amazon sites so Giovanni can sign in,
 browse, scroll, manage carts, and manually check out in the X1's persistent
-Chromium profile. LifeOS does not inspect account status, add to a cart, submit
-an order, claim live pricing, or store retailer credentials, cookies, addresses,
-or payment details.
+Chromium profile.
+
+Food Lion can additionally use the local review-first retailer bridge. Jarvis
+reads the current BOGO page, ranks offers against the Market List and low-stock
+pantry, and presents exact products and quantities for review. It changes the
+cart only after Giovanni checks the explicit confirmation control. Checkout,
+payment, substitutions, and order submission remain manual; credentials,
+cookies, addresses, and payment details never leave Chromium. Commission it
+after setting the same long random `RETAILER_BRIDGE_SECRET` in `.env`:
+
+```bash
+bash bootstrap/setup-retailer-bridge.sh
+docker compose up -d --build lifeos
+```
+
+The bridge is loopback-connected to Chromium and secret-protected on the host
+boundary. Every confirmed cart operation is recorded in the LifeOS action audit.
 
 The always-on-top X11 hub bar provides **Home**, **Back**, **Keys**, and
 **Settings** above external pages. Both kiosk installation paths install the

@@ -26,6 +26,7 @@ from .routers import (
     money,
     pantry,
     profiles,
+    retailer,
     vaultflow,
     webhooks,
 )
@@ -205,6 +206,7 @@ app.include_router(internet.router)
 app.include_router(learning.router)
 app.include_router(money.router)
 app.include_router(context.router)
+app.include_router(retailer.router)
 
 
 @app.get("/api/today")

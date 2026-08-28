@@ -67,7 +67,7 @@ def test_shopping_ui_uses_allowlisted_review_only_retailer_links():
     assert 'id="shopping-item"' in html
     assert 'id="shopping-type"' in html
     assert 'id="shopping-add-btn"' in html
-    assert "REVIEW-ONLY CHECKOUT" in html
+    assert "REVIEW-FIRST COMMERCE" in html
     assert "https://foodlion.com/personal-list" in javascript
     assert "https://www.instacart.com/store/s?k=" in javascript
     assert "https://www.walmart.com/search?q=" in javascript
@@ -117,9 +117,29 @@ def test_retailer_portal_has_no_account_or_checkout_capture_surface():
     for forbidden in (
         'type="password"', "credentialmanagement", "navigator.credentials",
         "localstorage.setitem", "sessionstorage.setitem", "place order",
-        "add to cart", "payment method", "mfa code",
+        "payment method", "mfa code", "checkout automatically",
     ):
         assert forbidden not in combined
+    assert "checkout is never automated" in combined
+    assert 'id="deal-confirm-check" type="checkbox"' in combined
+    assert 'confirmed: true' in combined
+
+
+def test_food_lion_planner_exposes_review_first_controls():
+    static = Path(__file__).resolve().parents[1] / "app" / "static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    javascript = (static / "app.js").read_text(encoding="utf-8")
+    css = (static / "style.css").read_text(encoding="utf-8")
+
+    for element_id in (
+        "deal-scan-btn", "deal-status", "deal-results", "deal-confirmation",
+        "deal-confirm-check", "deal-cart-btn", "retailer-bridge-state",
+    ):
+        assert html.count(f'id="{element_id}"') == 1
+    assert "/api/retailer/foodlion/plan" in javascript
+    assert "/api/retailer/foodlion/cart" in javascript
+    assert "selectedDeals()" in javascript
+    assert re.search(r"\.deal-actions > \*\s*\{[^}]*min-height:\s*46px", css)
 
 
 def test_shopping_ui_lives_only_in_todo_and_supports_allowlisted_query_activation():

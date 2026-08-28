@@ -59,6 +59,10 @@ services:
       # Optional: enables policy-controlled actions after proposals are reviewed.
       - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-http://host.docker.internal:8123}
       - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      # Local X1 Chromium bridge: reads deals and changes only an explicitly
+      # confirmed Food Lion cart. Credentials and checkout remain in Chromium.
+      - RETAILER_BRIDGE_URL=${RETAILER_BRIDGE_URL:-http://host.docker.internal:8766}
+      - RETAILER_BRIDGE_SECRET=${RETAILER_BRIDGE_SECRET:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

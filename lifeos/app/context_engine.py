@@ -14,6 +14,13 @@ from .paydays import scheduled_bill_due_date
 
 
 ACTION_REGISTRY: dict[str, dict[str, Any]] = {
+    "retailer.foodlion_add_to_cart": {
+        "name": "Add reviewed Food Lion deals to cart",
+        "description": "Add Giovanni's explicitly selected products to the signed-in Food Lion cart without checkout.",
+        "risk": "medium", "scope": "commerce", "reversible": True,
+        "confirmation_policy": "explicit_confirmation", "requires_confirmation": True,
+        "remote_execution": True, "service": "retailer.bridge", "target": "foodlion.cart",
+    },
     "finance.verify_transaction": {
         "name": "Verify an imported transaction",
         "description": "Post a reviewed debit or credit to the LifeOS account ledger.",

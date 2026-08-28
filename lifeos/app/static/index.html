@@ -412,8 +412,27 @@
         <button id="shopping-add-btn">Add to shopping list</button>
       </div>
       <div id="shopping-status" class="inline-status muted" role="status" aria-live="polite">Jarvis, Home Assistant, and Grocy remain separate databases.</div>
-      <p class="shopping-boundary">REVIEW-ONLY CHECKOUT · Store buttons open the item at the appropriate retailer. Jarvis never submits an order or assumes live price, stock, substitutions, or delivery availability.</p>
+      <p class="shopping-boundary">REVIEW-FIRST COMMERCE · Jarvis may read live Food Lion offers and prepare only the products you confirm. Checkout, payment, substitutions, and order submission always remain manual.</p>
       <div id="grocery" class="market-list muted" aria-live="polite">Loading routed shopping list…</div>
+    </article>
+
+    <article class="card deal-planner" aria-labelledby="deal-planner-title">
+      <header class="deal-planner-head">
+        <div><span class="chef-kicker">FOOD LION / LIVE OFFERS</span><h2 id="deal-planner-title">Jarvis deal planner</h2></div>
+        <span id="retailer-bridge-state" class="retailer-security-state">CHECKING SESSION</span>
+      </header>
+      <p class="card-note">Jarvis matches BOGO and sale items to your Market List and low-stock pantry. Your Food Lion credentials remain inside Chromium.</p>
+      <div class="deal-actions">
+        <button id="deal-scan-btn">Scan live BOGO deals</button>
+        <a href="https://foodlion.com/cart" target="_top" rel="noopener noreferrer" class="secondary retailer-link">Review Food Lion cart</a>
+      </div>
+      <div id="deal-status" class="inline-status muted" role="status" aria-live="polite">No scan has run.</div>
+      <div id="deal-results" class="deal-results" aria-live="polite"><div class="empty-state">Scan when you want Jarvis to compare current offers.</div></div>
+      <div id="deal-confirmation" class="deal-confirmation" hidden>
+        <label><input id="deal-confirm-check" type="checkbox"> I reviewed these products and quantities. Add only these selections to my Food Lion cart.</label>
+        <button id="deal-cart-btn" disabled>Add confirmed items to cart</button>
+        <p>Checkout is never automated. Review prices, availability, substitutions, and payment at Food Lion.</p>
+      </div>
     </article>
   </section>
 

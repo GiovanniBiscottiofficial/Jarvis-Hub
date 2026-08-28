@@ -759,6 +759,7 @@ async function loadShopping() {
   grocery.replaceChildren(el("div", "empty-state", "Loading routed shopping list…"));
   try {
     renderMarketList(await api("/api/pantry/grocery"));
+    loadRetailerStatus();
   } catch (error) {
     const message = String(error.message || "Shopping service unavailable");
     const state = message.includes("Home Assistant session required")
@@ -767,6 +768,123 @@ async function loadShopping() {
     grocery.replaceChildren(el("div", "empty-state error-state", state));
   }
 }
+
+let currentDealPlan = [];
+
+function money(value) {
+  return Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : "—";
+}
+
+function selectedDeals() {
+  return [...document.querySelectorAll(".deal-select:checked")].map((checkbox) => {
+    const quantity = document.querySelector(`.deal-quantity[data-product-id="${CSS.escape(checkbox.dataset.productId)}"]`);
+    return { id: checkbox.dataset.productId, quantity: Math.max(1, Math.min(12, Number(quantity?.value || 1))) };
+  });
+}
+
+function updateDealConfirmation() {
+  const selected = selectedDeals();
+  const container = $("deal-confirmation");
+  container.hidden = selected.length === 0;
+  $("deal-confirm-check").checked = false;
+  $("deal-cart-btn").disabled = true;
+}
+
+function renderDealPlan(data) {
+  currentDealPlan = Array.isArray(data.products) ? data.products : [];
+  const results = $("deal-results");
+  results.replaceChildren();
+  if (!currentDealPlan.length) {
+    results.appendChild(el("div", "empty-state", "No readable BOGO products were returned. Open Food Lion, confirm the store, and retry."));
+    updateDealConfirmation();
+    return;
+  }
+  currentDealPlan.forEach((product) => {
+    const card = document.createElement("article");
+    card.className = `deal-card${product.recommended ? " is-recommended" : ""}`;
+    const select = document.createElement("input");
+    select.type = "checkbox";
+    select.className = "deal-select";
+    select.dataset.productId = product.id;
+    select.checked = Boolean(product.recommended);
+    select.setAttribute("aria-label", `Select ${product.name}`);
+    select.onchange = updateDealConfirmation;
+    const copy = document.createElement("div");
+    copy.className = "deal-copy";
+    copy.append(
+      el("span", "deal-kind", `${product.deal_type === "bogo" ? "BOGO" : "SALE"}${product.recommended ? " · LIST MATCH" : ""}`),
+      el("strong", "", product.name),
+      el("small", "", product.matches?.length
+        ? `Matches ${product.matches.map((match) => match.name).join(", ")}`
+        : "Optional offer · not currently on your list"),
+    );
+    const pricing = document.createElement("div");
+    pricing.className = "deal-price";
+    pricing.append(el("strong", "", money(product.price)), el("small", "", `Save ${money(product.savings)}`));
+    const quantityLabel = document.createElement("label");
+    quantityLabel.className = "deal-qty";
+    quantityLabel.appendChild(document.createTextNode("Qty"));
+    const quantity = document.createElement("input");
+    quantity.type = "number";
+    quantity.min = "1";
+    quantity.max = "12";
+    quantity.value = String(product.quantity || 1);
+    quantity.className = "deal-quantity";
+    quantity.dataset.productId = product.id;
+    quantity.setAttribute("aria-label", `Quantity for ${product.name}`);
+    quantityLabel.appendChild(quantity);
+    card.append(select, copy, pricing, quantityLabel);
+    results.appendChild(card);
+  });
+  updateDealConfirmation();
+}
+
+async function loadRetailerStatus() {
+  const state = $("retailer-bridge-state");
+  try {
+    const data = await api("/api/retailer/foodlion/status");
+    state.textContent = data.ready ? "SIGNED IN / READY" : String(data.state || "NOT READY").replaceAll("_", " ").toUpperCase();
+    state.classList.toggle("is-ready", Boolean(data.ready));
+    if (!data.ready) $("deal-status").textContent = data.message || "Open Food Lion and sign in on this X1.";
+  } catch (error) {
+    state.textContent = "BRIDGE OFFLINE";
+    state.classList.remove("is-ready");
+    $("deal-status").textContent = `Live deal scan unavailable · ${error.message}`;
+  }
+}
+
+$("deal-scan-btn").onclick = async () => {
+  const button = $("deal-scan-btn");
+  button.disabled = true;
+  $("deal-status").textContent = "Jarvis is reading Food Lion BOGO offers and matching your list…";
+  try {
+    const data = await api("/api/retailer/foodlion/plan?limit=18", "POST", {});
+    renderDealPlan(data);
+    $("deal-status").textContent = `${data.scanned} offers read · ${data.recommended_count} list or pantry matches · ${data.store || "current Food Lion store"}. Review selections below.`;
+  } catch (error) {
+    $("deal-results").replaceChildren(el("div", "empty-state error-state", `Deal scan unavailable · ${error.message}`));
+    $("deal-status").textContent = "No cart changes were made.";
+  } finally { button.disabled = false; }
+};
+
+$("deal-confirm-check").onchange = () => {
+  $("deal-cart-btn").disabled = !$("deal-confirm-check").checked || selectedDeals().length === 0;
+};
+
+$("deal-cart-btn").onclick = async () => {
+  const items = selectedDeals();
+  if (!$("deal-confirm-check").checked || !items.length) return;
+  const button = $("deal-cart-btn");
+  button.disabled = true;
+  $("deal-status").textContent = `Updating ${items.length} confirmed Food Lion selections…`;
+  try {
+    const data = await api("/api/retailer/foodlion/cart", "POST", { items, confirmed: true });
+    $("deal-status").textContent = `${data.updated} product${data.updated === 1 ? "" : "s"} updated. Checkout was not performed—review the Food Lion cart manually.`;
+    $("deal-confirm-check").checked = false;
+  } catch (error) {
+    $("deal-status").textContent = `Cart not completed · ${error.message}. Review Food Lion before retrying.`;
+  } finally { button.disabled = !$("deal-confirm-check").checked; }
+};
 
 function friendlyScaleSource(source) {
   const value = String(source || "").replace(/^home_assistant:/, "").replace(/^sensor\./, "").replaceAll("_", " ").trim();
