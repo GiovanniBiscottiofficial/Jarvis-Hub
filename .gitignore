@@ -9,6 +9,9 @@ ha-config/custom_sentences/en/*
 !ha-config/custom_sentences/en/*.yaml
 !ha-config/automations
 !ha-config/scripts
+!ha-config/tuya_quirks
+ha-config/tuya_quirks/*
+!ha-config/tuya_quirks/*.py
 !ha-config/dashboards
 ha-config/dashboards/*
 !ha-config/dashboards/*.yaml
